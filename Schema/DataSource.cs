@@ -1,6 +1,7 @@
 namespace ktsu.Schema;
 
 using System.Diagnostics;
+
 using ktsu.Extensions;
 using ktsu.StrongPaths;
 
