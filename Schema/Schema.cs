@@ -7,6 +7,7 @@ using System.Reflection;
 using ktsu.StrongPaths;
 using ktsu.ToStringJsonConverter;
 using ktsu.StrongStrings;
+using ktsu.Extensions;
 
 /// <summary>
 /// Represents a document schema.
@@ -42,25 +43,25 @@ public partial class Schema
 	#endregion
 
 	#region SchemaChildren
-	[JsonInclude][JsonPropertyName("Classes")] private Collection<SchemaClass> ClassesInternal { get; set; } = [];
+	[JsonInclude][JsonPropertyName("Classes")] internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of schema classes.
 	/// </summary>
 	public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
 
-	[JsonInclude][JsonPropertyName("Enums")] private Collection<SchemaEnum> EnumsInternal { get; set; } = [];
+	[JsonInclude][JsonPropertyName("Enums")] internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of schema enums.
 	/// </summary>
 	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
 
-	[JsonInclude][JsonPropertyName("DataSources")] private Collection<DataSource> DataSourcesInternal { get; set; } = [];
+	[JsonInclude][JsonPropertyName("DataSources")] internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of data sources.
 	/// </summary>
 	public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
 
-	[JsonInclude] private Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
+	[JsonInclude] internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of code generators.
 	/// </summary>
@@ -309,34 +310,33 @@ public partial class Schema
 		return null;
 	}
 
-
 	/// <summary>
 	/// Tries to remove an enum from the schema.
 	/// </summary>
 	/// <param name="schemaEnum">The enum to remove.</param>
 	/// <returns>True if the enum was successfully removed; otherwise, false.</returns>
-	public bool TryRemoveEnum(SchemaEnum schemaEnum) => TryRemoveChild(schemaEnum, EnumsInternal);
+	internal bool TryRemoveEnum(SchemaEnum schemaEnum) => TryRemoveChild(schemaEnum, EnumsInternal);
 
 	/// <summary>
 	/// Tries to remove a class from the schema.
 	/// </summary>
 	/// <param name="schemaClass">The class to remove.</param>
 	/// <returns>True if the class was successfully removed; otherwise, false.</returns>
-	public bool TryRemoveClass(SchemaClass schemaClass) => TryRemoveChild(schemaClass, ClassesInternal);
+	internal bool TryRemoveClass(SchemaClass schemaClass) => TryRemoveChild(schemaClass, ClassesInternal);
 
 	/// <summary>
 	/// Tries to remove a data source from the schema.
 	/// </summary>
 	/// <param name="dataSource">The data source to remove.</param>
 	/// <returns>True if the data source was successfully removed; otherwise, false.</returns>
-	public bool TryRemoveDataSource(DataSource dataSource) => TryRemoveChild(dataSource, DataSourcesInternal);
+	internal bool TryRemoveDataSource(DataSource dataSource) => TryRemoveChild(dataSource, DataSourcesInternal);
 
 	/// <summary>
 	/// Tries to remove a code generator from the schema.
 	/// </summary>
 	/// <param name="schemaCodeGenerator">The code generator to remove.</param>
 	/// <returns>True if the code generator was successfully removed; otherwise, false.</returns>
-	public bool TryRemoveCodeGenerator(SchemaCodeGenerator schemaCodeGenerator) => TryRemoveChild(schemaCodeGenerator, CodeGeneratorsInternal);
+	internal bool TryRemoveCodeGenerator(SchemaCodeGenerator schemaCodeGenerator) => TryRemoveChild(schemaCodeGenerator, CodeGeneratorsInternal);
 
 	/// <summary>
 	/// Tries to add a child to a collection.
@@ -346,7 +346,7 @@ public partial class Schema
 	/// <param name="name">The name of the child.</param>
 	/// <param name="collection">The collection to add the child to.</param>
 	/// <returns>True if the child was successfully added; otherwise, false.</returns>
-	public bool TryAddChild<TChild, TName>(TName name, Collection<TChild> collection)
+	internal bool TryAddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
 		where TName : AnyStrongString, new()
 		=> AddChild(name, collection) is not null;
@@ -462,7 +462,7 @@ public partial class Schema
 		}
 		else if (type.IsEnum)
 		{
-			var enumName = (EnumName)type.Name;
+			var enumName = type.Name.As<EnumName>();
 			if (!TryGetEnum(enumName, out var schemaEnum))
 			{
 				schemaEnum = AddEnum(enumName);
@@ -506,6 +506,7 @@ public partial class Schema
 				return new SchemaTypes.Object { ClassName = memberClass.Name };
 			}
 		}
+
 		return null;
 	}
 
