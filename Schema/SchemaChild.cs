@@ -1,5 +1,6 @@
 namespace ktsu.Schema;
 using System.Text.Json.Serialization;
+
 using ktsu.StrongStrings;
 
 /// <summary>
