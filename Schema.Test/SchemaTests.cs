@@ -1,6 +1,7 @@
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
+
 using ktsu.Extensions;
 using ktsu.Schema;
 
@@ -10,12 +11,11 @@ public class SchemaTests
 	[TestMethod]
 	public void TestReassosciate()
 	{
-		var schema = new Schema();
-		var schemaClass = new SchemaClass();
-		schemaClass.Rename((ClassName)"TestClass");
-		schema.AddClass((ClassName)"TestClass");
+		Schema schema = new();
+		var schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		schema.Reassosciate();
+		Assert.IsNotNull(schemaClass);
 		Assert.AreEqual(schema, schemaClass.ParentSchema);
 	}
 
@@ -30,8 +30,8 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryRemoveChild()
 	{
-		var collection = new Collection<SchemaClass>();
-		var schemaClass = new SchemaClass();
+		Collection<SchemaClass> collection = [];
+		SchemaClass schemaClass = new();
 		collection.Add(schemaClass);
 
 		bool result = Schema.TryRemoveChild(schemaClass, collection);
@@ -42,8 +42,8 @@ public class SchemaTests
 	[TestMethod]
 	public void TestGetChild()
 	{
-		var collection = new Collection<SchemaClass>();
-		var schemaClass = new SchemaClass();
+		Collection<SchemaClass> collection = [];
+		SchemaClass schemaClass = new();
 		schemaClass.Rename("TestClass".As<ClassName>());
 		collection.Add(schemaClass);
 
@@ -55,8 +55,8 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryGetChild()
 	{
-		var collection = new Collection<SchemaClass>();
-		var schemaClass = new SchemaClass();
+		Collection<SchemaClass> collection = [];
+		SchemaClass schemaClass = new();
 		schemaClass.Rename((ClassName)"TestClass");
 		collection.Add(schemaClass);
 
@@ -68,31 +68,29 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddChild()
 	{
-		var collection = new Collection<SchemaClass>();
-		bool result = Schema.TryAddChild("TestClass".As<ClassName>(), collection);
+		Schema schema = new();
+		bool result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
 
 		Assert.IsTrue(result);
-		Assert.AreEqual(1, collection.Count);
+		Assert.AreEqual(1, schema.ClassesInternal.Count);
 	}
 
 	[TestMethod]
 	public void TestAddChild()
 	{
-		var collection = new Collection<SchemaClass>();
-		var schemaClass = Schema.AddChild<SchemaClass, ClassName>("TestClass".As<ClassName>(), collection);
+		Schema schema = new();
+		var schemaClass = schema.AddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
 
 		Assert.IsNotNull(schemaClass);
-		Assert.AreEqual(1, collection.Count);
+		Assert.AreEqual(1, schema.ClassesInternal.Count);
 	}
 
 	[TestMethod]
 	public void TestTryRemoveEnum()
 	{
-		var schema = new Schema();
-		var schemaEnum = new SchemaEnum();
-		schemaEnum.Rename((EnumName)"TestEnum");
-		schema.AddEnum((EnumName)"TestEnum");
-
+		Schema schema = new();
+		var schemaEnum = schema.AddEnum((EnumName)"TestEnum");
+		Assert.IsNotNull(schemaEnum);
 		bool result = schema.TryRemoveEnum(schemaEnum);
 		Assert.IsTrue(result);
 	}
@@ -100,11 +98,9 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryRemoveClass()
 	{
-		var schema = new Schema();
-		var schemaClass = new SchemaClass();
-		schemaClass.Rename((ClassName)"TestClass");
-		schema.AddClass((ClassName)"TestClass");
-
+		Schema schema = new();
+		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		Assert.IsNotNull(schemaClass);
 		bool result = schema.TryRemoveClass(schemaClass);
 		Assert.IsTrue(result);
 	}
@@ -112,11 +108,9 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryRemoveDataSource()
 	{
-		var schema = new Schema();
-		var dataSource = new DataSource();
-		dataSource.Rename((DataSourceName)"TestDataSource");
-		schema.AddDataSource((DataSourceName)"TestDataSource");
-
+		Schema schema = new();
+		var dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
+		Assert.IsNotNull(dataSource);
 		bool result = schema.TryRemoveDataSource(dataSource);
 		Assert.IsTrue(result);
 	}
@@ -124,7 +118,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddEnum()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		bool result = schema.TryAddEnum((EnumName)"TestEnum");
 
 		Assert.IsTrue(result);
@@ -133,7 +127,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddClass()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		bool result = schema.TryAddClass((ClassName)"TestClass");
 
 		Assert.IsTrue(result);
@@ -142,7 +136,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddDataSource()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		bool result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
 
 		Assert.IsTrue(result);
@@ -151,7 +145,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddEnum()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		var schemaEnum = schema.AddEnum((EnumName)"TestEnum");
 
 		Assert.IsNotNull(schemaEnum);
@@ -160,7 +154,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddClass()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		var schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.IsNotNull(schemaClass);
@@ -169,7 +163,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddDataSource()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		var dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
 
 		Assert.IsNotNull(dataSource);
@@ -178,7 +172,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestFirstClass()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		var schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.AreEqual(schemaClass, schema.FirstClass);
@@ -187,7 +181,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestLastClass()
 	{
-		var schema = new Schema();
+		Schema schema = new();
 		var schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.AreEqual(schemaClass, schema.LastClass);
