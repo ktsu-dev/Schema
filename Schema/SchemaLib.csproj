@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <PackageReference Include="ktsu.io.StringifyJsonConvertorFactory" Version="1.0.0-alpha.11" />
-    <PackageReference Include="ktsu.io.StrongPaths" Version="1.1.1" />
-    <PackageReference Include="ktsu.io.StrongStrings" Version="1.1.0" />
-  </ItemGroup>
-</Project>
