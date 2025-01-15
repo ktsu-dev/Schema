@@ -2,6 +2,7 @@ namespace ktsu.Schema;
 
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+
 using ktsu.StrongStrings;
 
 internal class SchemaChildCollection<TChild, TName> where TChild : SchemaChild<TName> where TName : AnyStrongString, new()
