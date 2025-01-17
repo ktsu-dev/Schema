@@ -1,4 +1,4 @@
-## v1.0.0-pre.1 (major)
+## v0.0.1-pre.1 (patch)
 
 Changes since 0.0.0.0:
 
