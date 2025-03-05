@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ktsu.AppDataStorage" Version="1.5.0" />
+    <PackageReference Include="ktsu.ImGuiApp" Version="1.4.0" />
+    <PackageReference Include="ktsu.ImGuiPopups" Version="1.2.0" />
+    <PackageReference Include="ktsu.ImGuiWidgets" Version="1.4.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Schema\Schema.csproj" />
+  </ItemGroup>
+</Project>
