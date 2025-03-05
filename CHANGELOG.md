@@ -1,3 +1,10 @@
+## v1.1.0 (minor)
+
+Changes since v1.0.0:
+
+- Add schema editor prototype ([@matt-edmondson](https://github.com/matt-edmondson))
+- Dont serialize the readonly collection wrappers ([@matt-edmondson](https://github.com/matt-edmondson))
+
 ## v1.0.0 (patch)
 
 Changes since v1.0.0-pre.15:
