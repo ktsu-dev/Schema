@@ -47,25 +47,25 @@ public partial class Schema
 	/// <summary>
 	/// Gets the collection of schema classes.
 	/// </summary>
-	public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
+	[JsonIgnore] public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
 
 	[JsonInclude][JsonPropertyName("Enums")] internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of schema enums.
 	/// </summary>
-	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
+	[JsonIgnore] public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
 
 	[JsonInclude][JsonPropertyName("DataSources")] internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of data sources.
 	/// </summary>
-	public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
+	[JsonIgnore] public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
 
 	[JsonInclude] internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of code generators.
 	/// </summary>
-	public IReadOnlyCollection<SchemaCodeGenerator> CodeGenerators => CodeGeneratorsInternal;
+	[JsonIgnore] public IReadOnlyCollection<SchemaCodeGenerator> CodeGenerators => CodeGeneratorsInternal;
 	#endregion
 
 	/// <summary>

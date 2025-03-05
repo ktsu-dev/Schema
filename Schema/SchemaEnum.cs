@@ -17,7 +17,7 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// <summary>
 	/// Gets the read-only collection of enumeration values.
 	/// </summary>
-	public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
+	[JsonIgnore] public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
 
 	/// <summary>
 	/// Tries to add a new value to the enumeration.
