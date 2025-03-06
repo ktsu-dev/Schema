@@ -24,7 +24,7 @@ public partial class Schema
 	/// <summary>
 	/// Gets the file extension for schema files.
 	/// </summary>
-	[JsonIgnore] public static FileExtension FileExtension => (FileExtension)".schema.json";
+	[JsonIgnore] public static FileExtension FileExtension => ".schema.json".As<FileExtension>();
 
 	/// <summary>
 	/// Gets the absolute file path of the schema.
