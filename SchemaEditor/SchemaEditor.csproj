@@ -1,7 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-  </PropertyGroup>
+﻿<Project Sdk="ktsu.Sdk.App/1.8.0">
   <ItemGroup>
     <PackageReference Include="ktsu.AppDataStorage" Version="1.7.0" />
     <PackageReference Include="ktsu.ImGuiApp" Version="1.12.2" />
