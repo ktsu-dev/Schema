@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.SchemaEditor;
 
 using System;
@@ -29,8 +33,8 @@ internal class ButtonTree<TItem> : ButtonTree
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items) => ShowTree(id, text, items, new(), null);
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items, Config config, ImGuiWidgets.Tree? parent)
 	{
-		bool isRoot = parent is null;
-		bool treeIsOpen = !isRoot || SchemaEditor.IsVisible(id);
+		var isRoot = parent is null;
+		var treeIsOpen = !isRoot || SchemaEditor.IsVisible(id);
 
 		if (isRoot)
 		{
@@ -68,9 +72,9 @@ internal class ButtonTree<TItem> : ButtonTree
 	{
 		if (item is not null)
 		{
-			string buttonText = config.GetText?.Invoke(item) ?? item.ToString() ?? string.Empty;
-			string itemId = config.GetId?.Invoke(item) ?? $"{id}.{buttonText}";
-			bool itemIsOpen = !config.Collapsible || SchemaEditor.IsVisible(itemId);
+			var buttonText = config.GetText?.Invoke(item) ?? item.ToString() ?? string.Empty;
+			var itemId = config.GetId?.Invoke(item) ?? $"{id}.{buttonText}";
+			var itemIsOpen = !config.Collapsible || SchemaEditor.IsVisible(itemId);
 			using (tree.Child)
 			{
 				config.OnItemStart?.Invoke(tree, item);

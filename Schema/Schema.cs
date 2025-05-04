@@ -1,13 +1,17 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.Schema;
 
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Reflection;
-using ktsu.StrongPaths;
-using ktsu.ToStringJsonConverter;
-using ktsu.StrongStrings;
 using ktsu.Extensions;
+using ktsu.StrongPaths;
+using ktsu.StrongStrings;
+using ktsu.ToStringJsonConverter;
 
 /// <summary>
 /// Represents a document schema.
@@ -148,7 +152,7 @@ public partial class Schema
 	/// <param name="path">The path to ensure the directory exists for.</param>
 	public static void EnsureDirectoryExists(string path)
 	{
-		string? dirName = Path.GetDirectoryName(path);
+		var dirName = Path.GetDirectoryName(path);
 		if (!string.IsNullOrEmpty(dirName))
 		{
 			Directory.CreateDirectory(dirName);
@@ -162,11 +166,11 @@ public partial class Schema
 	{
 		EnsureDirectoryExists(FilePath);
 
-		string jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
+		var jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
 
 		//TODO: hoist this out to some static method called something like WriteTextSafely
-		string tmpFilePath = $"{FilePath}.tmp";
-		string bkFilePath = $"{FilePath}.bk";
+		var tmpFilePath = $"{FilePath}.tmp";
+		var bkFilePath = $"{FilePath}.bk";
 		File.Delete(tmpFilePath);
 		File.Delete(bkFilePath);
 		File.WriteAllText(tmpFilePath, jsonString);
@@ -447,7 +451,7 @@ public partial class Schema
 	/// <returns>The schema type if successful; otherwise, null.</returns>
 	private SchemaTypes.BaseType? GetOrCreateSchemaType(Type type)
 	{
-		bool isEnumerable = type.GetInterfaces().Any(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+		var isEnumerable = type.GetInterfaces().Any(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>));
 		if (type.IsArray || isEnumerable)
 		{
 			var elementType = type.HasElementType ? type.GetElementType() : type.GetGenericArguments().LastOrDefault();
@@ -466,7 +470,7 @@ public partial class Schema
 			if (!TryGetEnum(enumName, out var schemaEnum))
 			{
 				schemaEnum = AddEnum(enumName);
-				foreach (string name in Enum.GetNames(type))
+				foreach (var name in Enum.GetNames(type))
 				{
 					schemaEnum?.TryAddValue((EnumValueName)name);
 				}
@@ -479,7 +483,7 @@ public partial class Schema
 		}
 		else if (type.IsPrimitive || type.FullName == "System.String")
 		{
-			string typeName = type.Name switch
+			var typeName = type.Name switch
 			{
 				"Int32" => "Int",
 				"Int64" => "Long",

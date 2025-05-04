@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.SchemaEditor;
 
 using ImGuiNET;
@@ -17,7 +21,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 		{
 			var children = schema.Enums;
 
-			string name = "Enums";
+			var name = "Enums";
 			ButtonTree<SchemaEnum>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,

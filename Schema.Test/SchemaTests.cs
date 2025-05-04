@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
@@ -21,8 +25,14 @@ public class SchemaTests
 
 	[TestMethod]
 	public void TestEnsureDirectoryExists()
-	{
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		string path = "test_directory/test_file.txt";
+=======
+		var path = "test_directory/test_file.txt";
+>>>>>>> After
+
+	{
+		var path = "test_directory/test_file.txt";
 		Schema.EnsureDirectoryExists(path);
 		Assert.IsTrue(Directory.Exists("test_directory"));
 	}
@@ -33,8 +43,14 @@ public class SchemaTests
 		Collection<SchemaClass> collection = [];
 		SchemaClass schemaClass = new();
 		collection.Add(schemaClass);
-
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = Schema.TryRemoveChild(schemaClass, collection);
+=======
+		var result = Schema.TryRemoveChild(schemaClass, collection);
+>>>>>>> After
+
+
+		var result = Schema.TryRemoveChild(schemaClass, collection);
 		Assert.IsTrue(result);
 		Assert.AreEqual(0, collection.Count);
 	}
@@ -59,8 +75,14 @@ public class SchemaTests
 		SchemaClass schemaClass = new();
 		schemaClass.Rename((ClassName)"TestClass");
 		collection.Add(schemaClass);
-
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
+=======
+		var result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
+>>>>>>> After
+
+
+		var result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
 		Assert.IsTrue(result);
 		Assert.AreEqual(schemaClass, foundClass);
 	}
@@ -69,7 +91,13 @@ public class SchemaTests
 	public void TestTryAddChild()
 	{
 		Schema schema = new();
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
+=======
+		var result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
+>>>>>>> After
+
+		var result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
 
 		Assert.IsTrue(result);
 		Assert.AreEqual(1, schema.ClassesInternal.Count);
@@ -91,7 +119,13 @@ public class SchemaTests
 		Schema schema = new();
 		var schemaEnum = schema.AddEnum((EnumName)"TestEnum");
 		Assert.IsNotNull(schemaEnum);
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveEnum(schemaEnum);
+=======
+		var result = schema.TryRemoveEnum(schemaEnum);
+>>>>>>> After
+
+		var result = schema.TryRemoveEnum(schemaEnum);
 		Assert.IsTrue(result);
 	}
 
@@ -101,7 +135,13 @@ public class SchemaTests
 		Schema schema = new();
 		var schemaClass = schema.AddClass((ClassName)"TestClass");
 		Assert.IsNotNull(schemaClass);
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveClass(schemaClass);
+=======
+		var result = schema.TryRemoveClass(schemaClass);
+>>>>>>> After
+
+		var result = schema.TryRemoveClass(schemaClass);
 		Assert.IsTrue(result);
 	}
 
@@ -111,7 +151,13 @@ public class SchemaTests
 		Schema schema = new();
 		var dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
 		Assert.IsNotNull(dataSource);
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveDataSource(dataSource);
+=======
+		var result = schema.TryRemoveDataSource(dataSource);
+>>>>>>> After
+
+		var result = schema.TryRemoveDataSource(dataSource);
 		Assert.IsTrue(result);
 	}
 
@@ -119,7 +165,13 @@ public class SchemaTests
 	public void TestTryAddEnum()
 	{
 		Schema schema = new();
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddEnum((EnumName)"TestEnum");
+=======
+		var result = schema.TryAddEnum((EnumName)"TestEnum");
+>>>>>>> After
+
+		var result = schema.TryAddEnum((EnumName)"TestEnum");
 
 		Assert.IsTrue(result);
 	}
@@ -128,7 +180,13 @@ public class SchemaTests
 	public void TestTryAddClass()
 	{
 		Schema schema = new();
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddClass((ClassName)"TestClass");
+=======
+		var result = schema.TryAddClass((ClassName)"TestClass");
+>>>>>>> After
+
+		var result = schema.TryAddClass((ClassName)"TestClass");
 
 		Assert.IsTrue(result);
 	}
@@ -137,7 +195,13 @@ public class SchemaTests
 	public void TestTryAddDataSource()
 	{
 		Schema schema = new();
+<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
+=======
+		var result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
+>>>>>>> After
+
+		var result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
 
 		Assert.IsTrue(result);
 	}

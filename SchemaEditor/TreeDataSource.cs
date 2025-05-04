@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.SchemaEditor;
 
 using ImGuiNET;
@@ -16,7 +20,7 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 		{
 			var children = schema.DataSources;
 
-			string name = "DataSources";
+			var name = "DataSources";
 			ButtonTree<DataSource>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,

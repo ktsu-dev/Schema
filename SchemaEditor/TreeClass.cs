@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.SchemaEditor;
 
 using System.Diagnostics;
@@ -19,7 +23,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 		{
 			var children = schema.Classes;
 
-			string name = "Classes";
+			var name = "Classes";
 			ButtonTree<SchemaClass>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,

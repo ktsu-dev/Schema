@@ -1,10 +1,14 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 namespace ktsu.SchemaEditor;
 
-using ktsu.AppDataStorage;
-using ktsu.StrongPaths;
-using ktsu.ImGuiApp;
 using System.Collections.ObjectModel;
+using ktsu.AppDataStorage;
+using ktsu.ImGuiApp;
 using ktsu.Schema;
+using ktsu.StrongPaths;
 
 internal class AppData : AppData<AppData>
 {

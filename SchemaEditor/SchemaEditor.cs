@@ -1,3 +1,7 @@
+// Copyright (c) ktsu.dev
+// All rights reserved.
+// Licensed under the MIT license.
+
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace ktsu.SchemaEditor;
@@ -34,7 +38,7 @@ public class SchemaEditor
 
 	private static void Main(string[] _)
 	{
-		string title = nameof(SchemaEditor);
+		var title = nameof(SchemaEditor);
 		if (Instance.CurrentSchema is not null)
 		{
 			title += $" - {Instance.CurrentSchema.FilePath.FileName}";
@@ -158,7 +162,7 @@ public class SchemaEditor
 
 			ImGui.Separator();
 
-			string schemaFilePath = CurrentSchema?.FilePath ?? "";
+			var schemaFilePath = CurrentSchema?.FilePath ?? "";
 			if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
 			{
 				using var p = new Process();
@@ -293,8 +297,8 @@ public class SchemaEditor
 		{
 			if (ImGui.CollapsingHeader($"{CurrentClass.Name} Members", ImGuiTreeNodeFlags.DefaultOpen))
 			{
-				float frameHeight = ImGui.GetFrameHeight();
-				float spacing = ImGui.GetStyle().ItemSpacing.X;
+				var frameHeight = ImGui.GetFrameHeight();
+				var spacing = ImGui.GetStyle().ItemSpacing.X;
 				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + frameHeight + spacing);
 
 				ShowMemberHeadings();
@@ -343,9 +347,9 @@ public class SchemaEditor
 
 			ImGui.TextUnformatted($"Schema Path: {CurrentSchema.FilePath}");
 
-			bool projectRootIsSet = ValidateProjectRootIsSet();
+			var projectRootIsSet = ValidateProjectRootIsSet();
 			ShowSetProjectRoot();
-			bool schemaLocationIsValid = ValidateSchemaLocation();
+			var schemaLocationIsValid = ValidateSchemaLocation();
 
 			if (projectRootIsSet && schemaLocationIsValid)
 			{
