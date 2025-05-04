@@ -1,3 +1,9 @@
+## v1.3.2 (patch)
+
+Changes since v1.3.1:
+
+- Update project SDK references and README formatting ([@matt-edmondson](https://github.com/matt-edmondson))
+
 ## v1.3.1 (patch)
 
 Changes since v1.3.0:
