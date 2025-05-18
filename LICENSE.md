@@ -1,6 +1,6 @@
 MIT License
 
-https://github.com/ktsu-dev/ktsu-dev/Schema
+https://github.com/ktsu-dev/Schema
 
 Copyright (c) 2023-2025 ktsu-dev
 
