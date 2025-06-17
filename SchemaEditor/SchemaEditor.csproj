@@ -1,13 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+﻿
 
 
 
-<Project Sdk="ktsu.Sdk.App/1.8.0">
+<Project Sdk="ktsu.Sdk.App">
   <ItemGroup>
-    <PackageReference Include="ktsu.AppDataStorage" Version="1.15.5" />
-    <PackageReference Include="ktsu.ImGuiApp" Version="1.12.4" />
-    <PackageReference Include="ktsu.ImGuiPopups" Version="1.3.2" />
-    <PackageReference Include="ktsu.ImGuiWidgets" Version="1.6.1" />
+    <PackageReference Include="ktsu.AppDataStorage" />
+    <PackageReference Include="ktsu.ImGuiApp" />
+    <PackageReference Include="ktsu.ImGuiPopups" />
+    <PackageReference Include="ktsu.ImGuiWidgets" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Schema\Schema.csproj" />
