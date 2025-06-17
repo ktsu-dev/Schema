@@ -9,8 +9,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ktsu.Extensions;
-using ktsu.StrongPaths;
-using ktsu.StrongStrings;
+using ktsu.Semantics;
 using ktsu.ToStringJsonConverter;
 
 /// <summary>
@@ -215,7 +214,7 @@ public partial class Schema
 	/// <returns>The child if found; otherwise, null.</returns>
 	public static TChild? GetChild<TName, TChild>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : AnyStrongString, new()
+		where TName : ISemanticString, new()
 	{
 		ArgumentNullException.ThrowIfNull(name);
 		ArgumentNullException.ThrowIfNull(collection);
@@ -234,7 +233,7 @@ public partial class Schema
 	/// <returns>True if the child was found; otherwise, false.</returns>
 	public static bool TryGetChild<TName, TChild>(TName name, Collection<TChild> collection, out TChild? child)
 		where TChild : SchemaChild<TName>, new()
-		where TName : AnyStrongString, new()
+		where TName : ISemanticString, new()
 	{
 		ArgumentNullException.ThrowIfNull(name);
 		ArgumentNullException.ThrowIfNull(collection);
@@ -296,7 +295,7 @@ public partial class Schema
 	/// <returns>The added child if successful; otherwise, null.</returns>
 	public TChild? AddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : AnyStrongString, new()
+		where TName : ISemanticString, new()
 	{
 		ArgumentNullException.ThrowIfNull(name);
 		ArgumentNullException.ThrowIfNull(collection);
@@ -352,7 +351,7 @@ public partial class Schema
 	/// <returns>True if the child was successfully added; otherwise, false.</returns>
 	internal bool TryAddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : AnyStrongString, new()
+		where TName : ISemanticString, new()
 		=> AddChild(name, collection) is not null;
 
 	/// <summary>

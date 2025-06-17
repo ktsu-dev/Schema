@@ -5,7 +5,7 @@
 namespace ktsu.Schema;
 using System.Text.Json.Serialization;
 
-using ktsu.StrongStrings;
+using ktsu.Semantics;
 
 /// <summary>
 /// Represents a child of a schema.
@@ -29,7 +29,7 @@ public abstract class SchemaChild
 /// Represents a child of a schema with a specific name type.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaChild<TName> : SchemaChild where TName : AnyStrongString, new()
+public abstract class SchemaChild<TName> : SchemaChild where TName : ISemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the name of the schema child.
@@ -70,7 +70,7 @@ public abstract class SchemaChild<TName> : SchemaChild where TName : AnyStrongSt
 /// Represents a child of a schema class.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName : AnyStrongString, new()
+public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName : ISemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the parent class of the schema class child.
@@ -98,7 +98,7 @@ public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName :
 /// Represents a child of a schema member.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : AnyStrongString, new()
+public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : ISemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the parent member of the schema member child.

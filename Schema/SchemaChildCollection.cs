@@ -7,9 +7,9 @@ namespace ktsu.Schema;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
-using ktsu.StrongStrings;
+using ktsu.Semantics;
 
-internal class SchemaChildCollection<TChild, TName> where TChild : SchemaChild<TName> where TName : AnyStrongString, new()
+internal class SchemaChildCollection<TChild, TName> where TChild : SchemaChild<TName> where TName : ISemanticString<TName>, new()
 {
 	private Collection<TChild> ChildCollection { get; set; } = [];
 
