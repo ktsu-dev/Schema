@@ -2,7 +2,7 @@
 
 
 
-<Project Sdk="ktsu.Sdk.App">
+<Project Sdk="ktsu.Sdk.ImGuiApp">
   <ItemGroup>
     <PackageReference Include="ktsu.AppDataStorage" />
     <PackageReference Include="ktsu.ImGuiApp" />
