@@ -5,3 +5,35 @@ globs: *
 
 ```markdown
 <headers/>
+
+## TECH STACK
+
+*   C#
+*   ImGuiApp (ktsu.ImGuiApp package)
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+
+*   `docs/features/schema-editor.md`
+*   `docs/README.md`
+*   `docs/getting-started.md`
+*   `docs/api/schema-core.md`
+
+## DEBUGGING
+
+*   When encountering build errors, examine the problematic code and relevant method signatures.
+*   Search the codebase for method signatures to understand available overloads.
+*   Investigate recent changes or documentation for relevant packages to identify correct signatures.
+*   Pay close attention to the specific error messages provided by the compiler, as they indicate the file, line number, and type of error.
+*   When build errors persist, use a minimal verbosity level during the build process (`dotnet build --verbosity minimal`) to quickly identify the remaining errors.
+*   When addressing code analysis warnings (IDE00XX), consult the provided links to understand the specific style rule and apply the suggested fix.
+
+## WORKFLOW & RELEASE RULES
+
+## CODING STANDARDS
+
+*   Avoid multiple blank lines in code.
+*   When referencing static methods, qualify them with the type name instead of using an instance reference.
+*   Remove unused private properties to avoid code analysis warnings (IDE0052).
+
+## REFERENCES
+```

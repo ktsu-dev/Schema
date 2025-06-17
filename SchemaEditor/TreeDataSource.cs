@@ -15,12 +15,12 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		var schema = schemaEditor.CurrentSchema;
+		Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
-			var children = schema.DataSources;
+			IReadOnlyCollection<DataSource> children = schema.DataSources;
 
-			var name = "DataSources";
+			string name = "DataSources";
 			ButtonTree<DataSource>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
@@ -53,7 +53,7 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Data Source Name", string.Empty, (newName) =>
 				{
-					var dataSourceName = (DataSourceName)newName;
+					DataSourceName dataSourceName = (DataSourceName)newName;
 					if (schema.TryAddDataSource(dataSourceName))
 					{
 						schemaEditor.EditDataSource(dataSourceName);

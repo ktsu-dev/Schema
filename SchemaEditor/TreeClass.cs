@@ -18,12 +18,12 @@ internal class TreeClass(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		var schema = schemaEditor.CurrentSchema;
+		Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
-			var children = schema.Classes;
+			IReadOnlyCollection<SchemaClass> children = schema.Classes;
 
-			var name = "Classes";
+			string name = "Classes";
 			ButtonTree<SchemaClass>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
@@ -51,7 +51,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 
 	private void ShowMemberTree(ImGuiWidgets.Tree parent, SchemaClass schemaClass)
 	{
-		var children = schemaClass.Members;
+		IReadOnlyCollection<SchemaMember> children = schemaClass.Members;
 
 		ImGui.PushID(schemaClass.Name);
 		ButtonTree<SchemaMember>.ShowTree(schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()
@@ -85,7 +85,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Class Name", string.Empty, (newName) =>
 				{
-					var className = (ClassName)newName;
+					ClassName className = (ClassName)newName;
 					if (schema.TryAddClass(className))
 					{
 						schemaEditor.EditClass(className);
@@ -107,7 +107,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Member Name", string.Empty, (newName) =>
 				{
-					var schemaMember = schemaClass.AddMember((MemberName)newName);
+					SchemaMember? schemaMember = schemaClass.AddMember((MemberName)newName);
 					if (schemaMember is not null)
 					{
 						Debug.Assert(schemaMember.ParentSchema is not null);

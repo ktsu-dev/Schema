@@ -315,7 +315,7 @@ public static class SchemaTypes
 				return null;
 			}
 
-			var type = typeof(SchemaTypes).GetNestedTypes().FirstOrDefault(t => t.Name == str);
+			Type? type = typeof(SchemaTypes).GetNestedTypes().FirstOrDefault(t => t.Name == str);
 			return type is null ? null : Activator.CreateInstance(type);
 		}
 

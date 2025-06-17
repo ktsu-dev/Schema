@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 
 using ktsu.Extensions;
 using ktsu.Schema;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
 public class SchemaTests
@@ -16,7 +17,7 @@ public class SchemaTests
 	public void TestReassosciate()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		schema.Reassosciate();
 		Assert.IsNotNull(schemaClass);
@@ -25,14 +26,8 @@ public class SchemaTests
 
 	[TestMethod]
 	public void TestEnsureDirectoryExists()
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
-		string path = "test_directory/test_file.txt";
-=======
-		var path = "test_directory/test_file.txt";
->>>>>>> After
-
 	{
-		var path = "test_directory/test_file.txt";
+		string path = "test_directory/test_file.txt";
 		Schema.EnsureDirectoryExists(path);
 		Assert.IsTrue(Directory.Exists("test_directory"));
 	}
@@ -43,14 +38,8 @@ public class SchemaTests
 		Collection<SchemaClass> collection = [];
 		SchemaClass schemaClass = new();
 		collection.Add(schemaClass);
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
+
 		bool result = Schema.TryRemoveChild(schemaClass, collection);
-=======
-		var result = Schema.TryRemoveChild(schemaClass, collection);
->>>>>>> After
-
-
-		var result = Schema.TryRemoveChild(schemaClass, collection);
 		Assert.IsTrue(result);
 		Assert.AreEqual(0, collection.Count);
 	}
@@ -63,7 +52,7 @@ public class SchemaTests
 		schemaClass.Rename("TestClass".As<ClassName>());
 		collection.Add(schemaClass);
 
-		var result = Schema.GetChild("TestClass".As<ClassName>(), collection);
+		SchemaClass? result = Schema.GetChild("TestClass".As<ClassName>(), collection);
 		Assert.IsNotNull(result);
 		Assert.AreEqual(schemaClass, result);
 	}
@@ -75,14 +64,8 @@ public class SchemaTests
 		SchemaClass schemaClass = new();
 		schemaClass.Rename((ClassName)"TestClass");
 		collection.Add(schemaClass);
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
-		bool result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
-=======
-		var result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
->>>>>>> After
 
-
-		var result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out var foundClass);
+		bool result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out SchemaClass? foundClass);
 		Assert.IsTrue(result);
 		Assert.AreEqual(schemaClass, foundClass);
 	}
@@ -91,13 +74,7 @@ public class SchemaTests
 	public void TestTryAddChild()
 	{
 		Schema schema = new();
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
-=======
-		var result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
->>>>>>> After
-
-		var result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
 
 		Assert.IsTrue(result);
 		Assert.AreEqual(1, schema.ClassesInternal.Count);
@@ -107,7 +84,7 @@ public class SchemaTests
 	public void TestAddChild()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
+		SchemaClass? schemaClass = schema.AddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
 
 		Assert.IsNotNull(schemaClass);
 		Assert.AreEqual(1, schema.ClassesInternal.Count);
@@ -117,15 +94,9 @@ public class SchemaTests
 	public void TestTryRemoveEnum()
 	{
 		Schema schema = new();
-		var schemaEnum = schema.AddEnum((EnumName)"TestEnum");
+		SchemaEnum? schemaEnum = schema.AddEnum((EnumName)"TestEnum");
 		Assert.IsNotNull(schemaEnum);
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveEnum(schemaEnum);
-=======
-		var result = schema.TryRemoveEnum(schemaEnum);
->>>>>>> After
-
-		var result = schema.TryRemoveEnum(schemaEnum);
 		Assert.IsTrue(result);
 	}
 
@@ -133,15 +104,9 @@ public class SchemaTests
 	public void TestTryRemoveClass()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
 		Assert.IsNotNull(schemaClass);
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveClass(schemaClass);
-=======
-		var result = schema.TryRemoveClass(schemaClass);
->>>>>>> After
-
-		var result = schema.TryRemoveClass(schemaClass);
 		Assert.IsTrue(result);
 	}
 
@@ -149,15 +114,9 @@ public class SchemaTests
 	public void TestTryRemoveDataSource()
 	{
 		Schema schema = new();
-		var dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
+		DataSource? dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
 		Assert.IsNotNull(dataSource);
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryRemoveDataSource(dataSource);
-=======
-		var result = schema.TryRemoveDataSource(dataSource);
->>>>>>> After
-
-		var result = schema.TryRemoveDataSource(dataSource);
 		Assert.IsTrue(result);
 	}
 
@@ -165,13 +124,7 @@ public class SchemaTests
 	public void TestTryAddEnum()
 	{
 		Schema schema = new();
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddEnum((EnumName)"TestEnum");
-=======
-		var result = schema.TryAddEnum((EnumName)"TestEnum");
->>>>>>> After
-
-		var result = schema.TryAddEnum((EnumName)"TestEnum");
 
 		Assert.IsTrue(result);
 	}
@@ -180,13 +133,7 @@ public class SchemaTests
 	public void TestTryAddClass()
 	{
 		Schema schema = new();
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddClass((ClassName)"TestClass");
-=======
-		var result = schema.TryAddClass((ClassName)"TestClass");
->>>>>>> After
-
-		var result = schema.TryAddClass((ClassName)"TestClass");
 
 		Assert.IsTrue(result);
 	}
@@ -195,13 +142,7 @@ public class SchemaTests
 	public void TestTryAddDataSource()
 	{
 		Schema schema = new();
-<<<<<<< TODO: Unmerged change from project 'Schema.Test(net9.0)', Before:
 		bool result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
-=======
-		var result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
->>>>>>> After
-
-		var result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
 
 		Assert.IsTrue(result);
 	}
@@ -210,7 +151,7 @@ public class SchemaTests
 	public void TestAddEnum()
 	{
 		Schema schema = new();
-		var schemaEnum = schema.AddEnum((EnumName)"TestEnum");
+		SchemaEnum? schemaEnum = schema.AddEnum((EnumName)"TestEnum");
 
 		Assert.IsNotNull(schemaEnum);
 	}
@@ -219,7 +160,7 @@ public class SchemaTests
 	public void TestAddClass()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.IsNotNull(schemaClass);
 	}
@@ -228,7 +169,7 @@ public class SchemaTests
 	public void TestAddDataSource()
 	{
 		Schema schema = new();
-		var dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
+		DataSource? dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
 
 		Assert.IsNotNull(dataSource);
 	}
@@ -237,7 +178,7 @@ public class SchemaTests
 	public void TestFirstClass()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.AreEqual(schemaClass, schema.FirstClass);
 	}
@@ -246,7 +187,7 @@ public class SchemaTests
 	public void TestLastClass()
 	{
 		Schema schema = new();
-		var schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
 
 		Assert.AreEqual(schemaClass, schema.LastClass);
 	}

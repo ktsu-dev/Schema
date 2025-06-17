@@ -33,8 +33,8 @@ internal class ButtonTree<TItem> : ButtonTree
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items) => ShowTree(id, text, items, new(), null);
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items, Config config, ImGuiWidgets.Tree? parent)
 	{
-		var isRoot = parent is null;
-		var treeIsOpen = !isRoot || SchemaEditor.IsVisible(id);
+		bool isRoot = parent is null;
+		bool treeIsOpen = !isRoot || SchemaEditor.IsVisible(id);
 
 		if (isRoot)
 		{
@@ -52,11 +52,11 @@ internal class ButtonTree<TItem> : ButtonTree
 
 		if (treeIsOpen)
 		{
-			using (var tree = new ImGuiWidgets.Tree())
+			using (ImGuiWidgets.Tree tree = new())
 			{
 				config.OnTreeStart?.Invoke(tree);
 
-				foreach (var item in items.ToCollection())
+				foreach (TItem? item in items.ToCollection())
 				{
 					ShowTreeItem(id, config, tree, item);
 				}
@@ -72,9 +72,9 @@ internal class ButtonTree<TItem> : ButtonTree
 	{
 		if (item is not null)
 		{
-			var buttonText = config.GetText?.Invoke(item) ?? item.ToString() ?? string.Empty;
-			var itemId = config.GetId?.Invoke(item) ?? $"{id}.{buttonText}";
-			var itemIsOpen = !config.Collapsible || SchemaEditor.IsVisible(itemId);
+			string buttonText = config.GetText?.Invoke(item) ?? item.ToString() ?? string.Empty;
+			string itemId = config.GetId?.Invoke(item) ?? $"{id}.{buttonText}";
+			bool itemIsOpen = !config.Collapsible || SchemaEditor.IsVisible(itemId);
 			using (tree.Child)
 			{
 				config.OnItemStart?.Invoke(tree, item);

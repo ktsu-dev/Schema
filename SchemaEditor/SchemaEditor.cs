@@ -25,26 +25,32 @@ public class SchemaEditor
 	internal Schema? CurrentSchema { get; set; }
 	internal SchemaClass? CurrentClass { get; set; }
 	internal DataSource? CurrentDataSource { get; set; }
-	internal AppData Options { get; } = new();
+	internal AppData Options { get; }
 	internal static float FieldWidth => ImGui.GetIO().DisplaySize.X * 0.15f;
 	private DateTime LastSaveOptionsTime { get; set; } = DateTime.MinValue;
 	private DateTime SaveOptionsQueuedTime { get; set; } = DateTime.MinValue;
 	private TimeSpan SaveOptionsDebounceTime { get; } = TimeSpan.FromSeconds(3);
 	private ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
 
-	private ImGuiAppWindowState InitialWindowState { get; init; }
-	internal Popups Popups { get; } = new();
+	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 
 	private static void Main(string[] _)
 	{
-		var title = nameof(SchemaEditor);
+		string title = nameof(SchemaEditor);
 		if (Instance.CurrentSchema is not null)
 		{
 			title += $" - {Instance.CurrentSchema.FilePath.FileName}";
 		}
 
-		ImGuiApp.Start(title, Instance.InitialWindowState, Instance.OnStart, Instance.OnTick, Instance.OnMenu, Instance.OnWindowResized);
+		ImGuiApp.Start(new()
+		{
+			Title = title,
+			OnStart = OnStart,
+			OnUpdate = Instance.OnTick,
+			OnRender = Instance.OnRender,
+			OnAppMenu = Instance.OnMenu
+		});
 	}
 
 	public SchemaEditor()
@@ -63,10 +69,9 @@ public class SchemaEditor
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
-		InitialWindowState = Options.WindowState;
 
 		// restore open schema
-		if (Schema.TryLoad(Options.CurrentSchemaPath, out var previouslyOpenSchema) && previouslyOpenSchema is not null)
+		if (Schema.TryLoad(Options.CurrentSchemaPath, out Schema? previouslyOpenSchema) && previouslyOpenSchema is not null)
 		{
 			CurrentSchema = previouslyOpenSchema;
 			CurrentClass = null;
@@ -74,17 +79,18 @@ public class SchemaEditor
 		}
 
 		// restore divider states
-		if (Options.DividerStates.TryGetValue(DividerContainerCols.Id, out var sizes))
+		if (Options.DividerStates.TryGetValue(DividerContainerCols.Id, out System.Collections.ObjectModel.Collection<float>? sizes))
 		{
 			DividerContainerCols.SetSizesFromList(sizes);
 		}
 	}
 
-	private void OnStart()
+	private static void OnStart()
 	{
+		// Set up initial window state if needed
+		// Note: Window state handling may need to be implemented differently
+		// with the current version of ImGuiApp
 	}
-
-	private void OnWindowResized() => QueueSaveOptions();
 
 	private void DividerResized(ImGuiWidgets.DividerContainer container)
 	{
@@ -98,7 +104,8 @@ public class SchemaEditor
 		Options.CurrentSchemaPath = CurrentSchema?.FilePath ?? new();
 		Options.CurrentClassName = CurrentClass?.Name ?? new();
 		Options.DividerStates[DividerContainerCols.Id] = DividerContainerCols.GetSizes();
-		Options.WindowState = ImGuiApp.WindowState;
+		// Note: WindowState property access needs to be updated for the current ImGuiApp version
+		// Options.WindowState = ImGuiApp.WindowState;
 		Options.Popups = Popups;
 		Options.Save();
 	}
@@ -115,13 +122,13 @@ public class SchemaEditor
 		}
 	}
 
-	private void OnTick(float dt)
+	private void OnTick(float dt) => SaveOptionsIfRequired();
+
+	private void OnRender(float dt)
 	{
 		using (Theme.Color(Theme.Palette.Normal))
 		{
 			DividerContainerCols.Tick(dt);
-
-			SaveOptionsIfRequired();
 
 			Popups.Update();
 		}
@@ -162,10 +169,10 @@ public class SchemaEditor
 
 			ImGui.Separator();
 
-			var schemaFilePath = CurrentSchema?.FilePath ?? "";
+			string schemaFilePath = CurrentSchema?.FilePath ?? "";
 			if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
 			{
-				using var p = new Process();
+				using Process p = new();
 				p.StartInfo.FileName = $"explorer.exe";
 				p.StartInfo.Arguments = schemaFilePath;
 				p.Start();
@@ -187,7 +194,7 @@ public class SchemaEditor
 		Popups.OpenBrowserFileOpen("Open Schema", (filePath) =>
 		{
 			Reset();
-			if (Schema.TryLoad(filePath, out var schema) && schema is not null)
+			if (Schema.TryLoad(filePath, out Schema? schema) && schema is not null)
 			{
 				CurrentSchema = schema;
 				CurrentClass = CurrentSchema?.FirstClass;
@@ -235,6 +242,7 @@ public class SchemaEditor
 
 	internal static bool IsVisible(string key) => !Instance.Options.HiddenItems.Contains(key);
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S3267:Loops should be simplified with \"LINQ\" expressions", Justification = "We want to separate out ImGui calls from enumerations")]
 	public void ShowMemberConfig(Schema schema, SchemaMember schemaMember)
 	{
 		ArgumentNullException.ThrowIfNull(schema);
@@ -264,7 +272,7 @@ public class SchemaEditor
 						array.Key = new();
 					}
 
-					foreach (var primitiveMember in obj.Class.Members.Where(m => m.Type.IsPrimitive).OrderBy(m => m.Name))
+					foreach (SchemaMember? primitiveMember in obj.Class.Members.Where(m => m.Type.IsPrimitive).OrderBy(m => m.Name))
 					{
 						if (ImGui.Selectable(primitiveMember.Name))
 						{
@@ -293,36 +301,33 @@ public class SchemaEditor
 
 	private void ShowMembers()
 	{
-		if (CurrentClass is not null)
+		if (CurrentClass is not null && ImGui.CollapsingHeader($"{CurrentClass.Name} Members", ImGuiTreeNodeFlags.DefaultOpen))
 		{
-			if (ImGui.CollapsingHeader($"{CurrentClass.Name} Members", ImGuiTreeNodeFlags.DefaultOpen))
+			float frameHeight = ImGui.GetFrameHeight();
+			float spacing = ImGui.GetStyle().ItemSpacing.X;
+			ImGui.SetCursorPosX(ImGui.GetCursorPosX() + frameHeight + spacing);
+
+			ShowMemberHeadings();
+
+			foreach (SchemaMember? schemaMember in CurrentClass.Members.ToCollection())
 			{
-				var frameHeight = ImGui.GetFrameHeight();
-				var spacing = ImGui.GetStyle().ItemSpacing.X;
-				ImGui.SetCursorPosX(ImGui.GetCursorPosX() + frameHeight + spacing);
-
-				ShowMemberHeadings();
-
-				foreach (var schemaMember in CurrentClass.Members.ToCollection())
+				string name = schemaMember.Name;
+				if (ImGui.Button($"X##deleteMember{name}", new Vector2(frameHeight, 0)))
 				{
-					string name = schemaMember.Name;
-					if (ImGui.Button($"X##deleteMember{name}", new Vector2(frameHeight, 0)))
-					{
-						schemaMember.TryRemove();
-					}
-
-					ImGui.SameLine();
-					ImGui.SetNextItemWidth(FieldWidth);
-					ImGui.InputText($"##{name}", ref name, 64, ImGuiInputTextFlags.ReadOnly);
-					ImGui.SameLine();
-					if (CurrentSchema is not null)
-					{
-						ShowMemberConfig(CurrentSchema, schemaMember);
-					}
+					schemaMember.TryRemove();
 				}
 
-				ImGui.NewLine();
+				ImGui.SameLine();
+				ImGui.SetNextItemWidth(FieldWidth);
+				ImGui.InputText($"##{name}", ref name, 64, ImGuiInputTextFlags.ReadOnly);
+				ImGui.SameLine();
+				if (CurrentSchema is not null)
+				{
+					ShowMemberConfig(CurrentSchema, schemaMember);
+				}
 			}
+
+			ImGui.NewLine();
 		}
 	}
 
@@ -347,9 +352,9 @@ public class SchemaEditor
 
 			ImGui.TextUnformatted($"Schema Path: {CurrentSchema.FilePath}");
 
-			var projectRootIsSet = ValidateProjectRootIsSet();
+			bool projectRootIsSet = ValidateProjectRootIsSet();
 			ShowSetProjectRoot();
-			var schemaLocationIsValid = ValidateSchemaLocation();
+			bool schemaLocationIsValid = ValidateSchemaLocation();
 
 			if (projectRootIsSet && schemaLocationIsValid)
 			{
@@ -395,10 +400,10 @@ public class SchemaEditor
 	{
 		if (CurrentSchema is not null)
 		{
-			var absoluteSchemaPath = (AbsoluteFilePath)Path.GetFullPath(CurrentSchema.FilePath);
-			var expectedProjectRoot = (AbsoluteDirectoryPath)Path.GetFullPath(CurrentSchema.FilePath.DirectoryPath / CurrentSchema.RelativePaths.RelativeProjectRootPath);
-			var expectedRelativeSchemaPath = (RelativeFilePath)absoluteSchemaPath.WeakString.RemovePrefix(expectedProjectRoot);
-			var expectedSchemaPath = expectedProjectRoot / expectedRelativeSchemaPath;
+			AbsoluteFilePath absoluteSchemaPath = (AbsoluteFilePath)Path.GetFullPath(CurrentSchema.FilePath);
+			AbsoluteDirectoryPath expectedProjectRoot = (AbsoluteDirectoryPath)Path.GetFullPath(CurrentSchema.FilePath.DirectoryPath / CurrentSchema.RelativePaths.RelativeProjectRootPath);
+			RelativeFilePath expectedRelativeSchemaPath = (RelativeFilePath)absoluteSchemaPath.WeakString.RemovePrefix(expectedProjectRoot);
+			AbsoluteFilePath expectedSchemaPath = expectedProjectRoot / expectedRelativeSchemaPath;
 			if (Path.GetFullPath(expectedSchemaPath) != Path.GetFullPath(absoluteSchemaPath))
 			{
 				using (Theme.Color(Theme.Palette.Error))

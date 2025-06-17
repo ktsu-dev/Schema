@@ -16,12 +16,12 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		var schema = schemaEditor.CurrentSchema;
+		Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
-			var children = schema.Enums;
+			IReadOnlyCollection<SchemaEnum> children = schema.Enums;
 
-			var name = "Enums";
+			string name = "Enums";
 			ButtonTree<SchemaEnum>.ShowTree(name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
@@ -48,7 +48,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 
 	private void ShowEnumValueTree(ImGuiWidgets.Tree parent, SchemaEnum schemaEnum)
 	{
-		var children = schemaEnum.Values;
+		IReadOnlyCollection<EnumValueName> children = schemaEnum.Values;
 		ButtonTree<EnumValueName>.ShowTree(schemaEnum.Name, $"{schemaEnum.Name} ({children.Count})", children, new()
 		{
 			GetText = (x) => x,

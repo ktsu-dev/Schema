@@ -130,17 +130,17 @@ public partial class Schema
 	/// </summary>
 	internal void Reassosciate()
 	{
-		foreach (var schemaClass in Classes)
+		foreach (SchemaClass schemaClass in Classes)
 		{
 			schemaClass.AssosciateWith(this);
-			foreach (var member in schemaClass.Members)
+			foreach (SchemaMember member in schemaClass.Members)
 			{
 				member.AssosciateWith(schemaClass);
 				member.Type.AssosciateWith(member);
 			}
 		}
 
-		foreach (var schemaEnum in Enums)
+		foreach (SchemaEnum schemaEnum in Enums)
 		{
 			schemaEnum.AssosciateWith(this);
 		}
@@ -152,7 +152,7 @@ public partial class Schema
 	/// <param name="path">The path to ensure the directory exists for.</param>
 	public static void EnsureDirectoryExists(string path)
 	{
-		var dirName = Path.GetDirectoryName(path);
+		string? dirName = Path.GetDirectoryName(path);
 		if (!string.IsNullOrEmpty(dirName))
 		{
 			Directory.CreateDirectory(dirName);
@@ -166,11 +166,11 @@ public partial class Schema
 	{
 		EnsureDirectoryExists(FilePath);
 
-		var jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
+		string jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
 
 		//TODO: hoist this out to some static method called something like WriteTextSafely
-		var tmpFilePath = $"{FilePath}.tmp";
-		var bkFilePath = $"{FilePath}.bk";
+		string tmpFilePath = $"{FilePath}.tmp";
+		string bkFilePath = $"{FilePath}.bk";
 		File.Delete(tmpFilePath);
 		File.Delete(bkFilePath);
 		File.WriteAllText(tmpFilePath, jsonString);
@@ -416,9 +416,9 @@ public partial class Schema
 			SchemaClass newClass = new();
 			newClass.Rename((ClassName)type.Name);
 			newClass.AssosciateWith(this);
-			foreach (var member in type.GetMembers())
+			foreach (MemberInfo member in type.GetMembers())
 			{
-				var memberType = member switch
+				Type? memberType = member switch
 				{
 					PropertyInfo propertyInfo => propertyInfo.PropertyType,
 					FieldInfo fieldInfo => fieldInfo.FieldType,
@@ -427,10 +427,10 @@ public partial class Schema
 
 				if (memberType is not null)
 				{
-					var schemaType = GetOrCreateSchemaType(memberType);
+					SchemaTypes.BaseType? schemaType = GetOrCreateSchemaType(memberType);
 					if (schemaType is not null)
 					{
-						var newMember = newClass.AddMember((MemberName)member.Name);
+						SchemaMember newMember = newClass.AddMember((MemberName)member.Name);
 						newMember?.SetType(schemaType);
 					}
 				}
@@ -451,13 +451,13 @@ public partial class Schema
 	/// <returns>The schema type if successful; otherwise, null.</returns>
 	private SchemaTypes.BaseType? GetOrCreateSchemaType(Type type)
 	{
-		var isEnumerable = type.GetInterfaces().Any(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+		bool isEnumerable = type.GetInterfaces().Any(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IEnumerable<>));
 		if (type.IsArray || isEnumerable)
 		{
-			var elementType = type.HasElementType ? type.GetElementType() : type.GetGenericArguments().LastOrDefault();
+			Type? elementType = type.HasElementType ? type.GetElementType() : type.GetGenericArguments().LastOrDefault();
 			if (elementType is not null)
 			{
-				var schemaType = GetOrCreateSchemaType(elementType);
+				SchemaTypes.BaseType? schemaType = GetOrCreateSchemaType(elementType);
 				if (schemaType is not null)
 				{
 					return new SchemaTypes.Array { ElementType = schemaType };
@@ -466,11 +466,11 @@ public partial class Schema
 		}
 		else if (type.IsEnum)
 		{
-			var enumName = type.Name.As<EnumName>();
-			if (!TryGetEnum(enumName, out var schemaEnum))
+			EnumName enumName = type.Name.As<EnumName>();
+			if (!TryGetEnum(enumName, out SchemaEnum? schemaEnum))
 			{
 				schemaEnum = AddEnum(enumName);
-				foreach (var name in Enum.GetNames(type))
+				foreach (string name in Enum.GetNames(type))
 				{
 					schemaEnum?.TryAddValue((EnumValueName)name);
 				}
@@ -483,7 +483,7 @@ public partial class Schema
 		}
 		else if (type.IsPrimitive || type.FullName == "System.String")
 		{
-			var typeName = type.Name switch
+			string typeName = type.Name switch
 			{
 				"Int32" => "Int",
 				"Int64" => "Long",
@@ -500,7 +500,7 @@ public partial class Schema
 		}
 		else if (type.IsClass)
 		{
-			if (!TryGetClass((ClassName)type.Name, out var memberClass))
+			if (!TryGetClass((ClassName)type.Name, out SchemaClass? memberClass))
 			{
 				memberClass = AddClass(type);
 			}
@@ -535,12 +535,12 @@ public partial class Schema
 		yield return new SchemaTypes.TimeSpan();
 		yield return new SchemaTypes.Bool();
 
-		foreach (var schemaEnum in Enums)
+		foreach (SchemaEnum schemaEnum in Enums)
 		{
 			yield return new SchemaTypes.Enum { EnumName = schemaEnum.Name };
 		}
 
-		foreach (var schemaClass in Classes)
+		foreach (SchemaClass schemaClass in Classes)
 		{
 			yield return new SchemaTypes.Object { ClassName = schemaClass.Name };
 		}

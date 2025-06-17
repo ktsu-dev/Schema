@@ -43,7 +43,7 @@ internal class Popups
 	{
 		while (Queue.Count > 0)
 		{
-			var action = Queue.Dequeue();
+			Action action = Queue.Dequeue();
 			action();
 		}
 

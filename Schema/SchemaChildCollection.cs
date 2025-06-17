@@ -18,13 +18,13 @@ internal class SchemaChildCollection<TChild, TName> where TChild : SchemaChild<T
 	public TChild GetOrCreate(TName name)
 	{
 		ArgumentNullException.ThrowIfNull(name, nameof(name));
-		if (TryGetChild(name, out var child))
+		if (TryGetChild(name, out TChild? child))
 		{
 			Debug.Assert(child is not null);
 			return child;
 		}
 
-		var newChild = Activator.CreateInstance<TChild>();
+		TChild newChild = Activator.CreateInstance<TChild>();
 		newChild.Rename(name);
 		ChildCollection.Add(newChild);
 		return newChild;
@@ -46,7 +46,7 @@ internal class SchemaChildCollection<TChild, TName> where TChild : SchemaChild<T
 	{
 		ArgumentNullException.ThrowIfNull(name, nameof(name));
 
-		if (TryGetChild(name, out var child))
+		if (TryGetChild(name, out TChild? child))
 		{
 			Debug.Assert(child is not null);
 			return ChildCollection.Remove(child!);
