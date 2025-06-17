@@ -3,6 +3,7 @@
 Changes since v1.3.1:
 
 - Update project SDK from ktsu.Sdk.App to ktsu.Sdk.ImGuiApp in SchemaEditor.csproj ([@matt-edmondson](https://github.com/matt-edmondson))
+- Replace StrongStrings and StrongPaths with ktsu.Semantics across the codebase, updating relevant class constraints and references to use ISemanticString. This change enhances type safety and aligns with the latest library standards. ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package references and add XML declaration in project files ([@matt-edmondson](https://github.com/matt-edmondson))
 - Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to schema files; refactor variable declarations for consistency. ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update project SDK references and README formatting ([@matt-edmondson](https://github.com/matt-edmondson))
