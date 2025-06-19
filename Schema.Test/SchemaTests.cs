@@ -6,7 +6,6 @@ namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
 
-using ktsu.Extensions;
 using ktsu.Schema;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -49,10 +48,10 @@ public class SchemaTests
 	{
 		Collection<SchemaClass> collection = [];
 		SchemaClass schemaClass = new();
-		schemaClass.Rename("TestClass".As<ClassName>());
+		schemaClass.Rename((ClassName)"TestClass");
 		collection.Add(schemaClass);
 
-		SchemaClass? result = Schema.GetChild("TestClass".As<ClassName>(), collection);
+		SchemaClass? result = Schema.GetChild((ClassName)"TestClass", collection);
 		Assert.IsNotNull(result);
 		Assert.AreEqual(schemaClass, result);
 	}
@@ -65,7 +64,7 @@ public class SchemaTests
 		schemaClass.Rename((ClassName)"TestClass");
 		collection.Add(schemaClass);
 
-		bool result = Schema.TryGetChild("TestClass".As<ClassName>(), collection, out SchemaClass? foundClass);
+		bool result = Schema.TryGetChild((ClassName)"TestClass", collection, out SchemaClass? foundClass);
 		Assert.IsTrue(result);
 		Assert.AreEqual(schemaClass, foundClass);
 	}
@@ -74,7 +73,7 @@ public class SchemaTests
 	public void TestTryAddChild()
 	{
 		Schema schema = new();
-		bool result = schema.TryAddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
+		bool result = schema.TryAddChild((ClassName)"TestClass", schema.ClassesInternal);
 
 		Assert.IsTrue(result);
 		Assert.AreEqual(1, schema.ClassesInternal.Count);
@@ -84,7 +83,7 @@ public class SchemaTests
 	public void TestAddChild()
 	{
 		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddChild("TestClass".As<ClassName>(), schema.ClassesInternal);
+		SchemaClass? schemaClass = schema.AddChild((ClassName)"TestClass", schema.ClassesInternal);
 
 		Assert.IsNotNull(schemaClass);
 		Assert.AreEqual(1, schema.ClassesInternal.Count);

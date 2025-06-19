@@ -5,7 +5,6 @@
 namespace ktsu.Schema;
 
 using System.Collections.ObjectModel;
-using System.Text.Json.Serialization;
 
 /// <summary>
 /// Represents an enumeration in a schema.
@@ -16,12 +15,12 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// <summary>
 	/// Gets the internal collection of enumeration values.
 	/// </summary>
-	[JsonInclude][JsonPropertyName("Values")] private Collection<EnumValueName> ValuesInternal { get; set; } = [];
+	private Collection<EnumValueName> ValuesInternal { get; set; } = [];
 
 	/// <summary>
 	/// Gets the read-only collection of enumeration values.
 	/// </summary>
-	[JsonIgnore] public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
+	public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
 
 	/// <summary>
 	/// Tries to add a new value to the enumeration.

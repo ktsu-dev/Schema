@@ -4,8 +4,6 @@
 
 namespace ktsu.Schema;
 
-using System.Text.Json.Serialization;
-
 using ktsu.StrongPaths;
 
 /// <summary>
@@ -21,18 +19,18 @@ public abstract class SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 	/// <summary>
 	/// Gets or sets a value indicating whether the code generator is enabled.
 	/// </summary>
-	[JsonInclude] public bool Enabled { get; set; } = true;
+	public bool Enabled { get; set; } = true;
 
 	/// <summary>
 	/// Gets or sets the output directory for the generated code.
 	/// </summary>
-	[JsonInclude] public RelativeDirectoryPath OutputDirectory { get; set; } = new();
+	public RelativeDirectoryPath OutputDirectory { get; set; } = new();
 
 	/// <summary>
-	/// Generates code for the specified schema.
+	/// Generates code for the specified schema provider.
 	/// </summary>
-	/// <param name="schema">The schema to generate code for.</param>
-	protected abstract void GenerateCodeFor(Schema schema);
+	/// <param name="schemaProvider">The schema provider to generate code for.</param>
+	protected abstract void GenerateCodeFor(SchemaProvider schemaProvider);
 
 	/// <summary>
 	/// Generates code for the specified schema class.
@@ -53,9 +51,9 @@ public abstract class SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 	protected abstract void GenerateCodeFor(SchemaMember schemaMember);
 
 	/// <summary>
-	/// Attempts to remove this code generator from its parent schema.
+	/// Attempts to remove this code generator from its parent schema provider.
 	/// </summary>
 	/// <returns>True if the code generator was removed, false otherwise.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when the code generator does not belong to a schema.</exception>
-	public override bool TryRemove() => ParentSchema?.TryRemoveCodeGenerator(this) ?? throw new InvalidOperationException("You can not remove a SchemaCodeGenerator that doesn't belong to a Schema");
+	/// <exception cref="InvalidOperationException">Thrown when the code generator does not belong to a schema provider.</exception>
+	public override bool TryRemove() => ParentSchema?.TryRemoveCodeGenerator(this) ?? throw new InvalidOperationException("You can not remove a SchemaCodeGenerator that doesn't belong to a SchemaProvider");
 }

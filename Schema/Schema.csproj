@@ -1,6 +1,6 @@
 <Project Sdk="ktsu.Sdk.Lib">
   <ItemGroup>
     <PackageReference Include="ktsu.Semantics" />
-    <PackageReference Include="ktsu.ToStringJsonConverter" />
+    <PackageReference Include="ktsu.StrongPaths" />
   </ItemGroup>
 </Project>

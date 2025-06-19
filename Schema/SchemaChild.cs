@@ -3,7 +3,6 @@
 // Licensed under the MIT license.
 
 namespace ktsu.Schema;
-using System.Text.Json.Serialization;
 
 using ktsu.Semantics;
 
@@ -29,17 +28,17 @@ public abstract class SchemaChild
 /// Represents a child of a schema with a specific name type.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaChild<TName> : SchemaChild where TName : ISemanticString<TName>, new()
+public abstract class SchemaChild<TName> : SchemaChild where TName : SemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the name of the schema child.
 	/// </summary>
-	[JsonInclude] public TName Name { get; private set; } = new();
+	public TName Name { get; private set; } = new();
 
 	/// <summary>
-	/// Gets the parent schema of the schema child.
+	/// Gets the parent schema provider of the schema child.
 	/// </summary>
-	[JsonIgnore] public Schema? ParentSchema { get; private set; }
+	public SchemaProvider? ParentSchema { get; private set; }
 
 	/// <summary>
 	/// Returns the name of the schema child as a string.
@@ -60,36 +59,36 @@ public abstract class SchemaChild<TName> : SchemaChild where TName : ISemanticSt
 	public void Rename(TName name) => Name = name;
 
 	/// <summary>
-	/// Associates the schema child with a parent schema.
+	/// Associates the schema child with a parent schema provider.
 	/// </summary>
-	/// <param name="schema">The parent schema to associate with.</param>
-	public void AssosciateWith(Schema schema) => ParentSchema = schema;
+	/// <param name="schemaProvider">The parent schema provider to associate with.</param>
+	public void AssociateWith(SchemaProvider schemaProvider) => ParentSchema = schemaProvider;
 }
 
 /// <summary>
 /// Represents a child of a schema class.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName : ISemanticString<TName>, new()
+public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName : SemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the parent class of the schema class child.
 	/// </summary>
-	[JsonIgnore] public SchemaClass? ParentClass { get; private set; }
+	public SchemaClass? ParentClass { get; private set; }
 
 	/// <summary>
 	/// Associates the schema class child with a parent class.
 	/// </summary>
 	/// <param name="schemaClass">The parent class to associate with.</param>
 	/// <exception cref="ArgumentNullException">Thrown when the provided schema class is null.</exception>
-	public void AssosciateWith(SchemaClass schemaClass)
+	public void AssociateWith(SchemaClass schemaClass)
 	{
 		ArgumentNullException.ThrowIfNull(schemaClass);
 
 		ParentClass = schemaClass;
 		if (schemaClass.ParentSchema is not null)
 		{
-			AssosciateWith(schemaClass.ParentSchema);
+			AssociateWith(schemaClass.ParentSchema);
 		}
 	}
 }
@@ -98,16 +97,16 @@ public abstract class SchemaClassChild<TName> : SchemaChild<TName> where TName :
 /// Represents a child of a schema member.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : ISemanticString<TName>, new()
+public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : SemanticString<TName>, new()
 {
 	/// <summary>
 	/// Gets the parent member of the schema member child.
 	/// </summary>
-	[JsonIgnore] public SchemaMember? ParentMember { get; private set; }
+	public SchemaMember? ParentMember { get; private set; }
 
 	/// <summary>
 	/// Associates the schema member child with a parent member.
 	/// </summary>
 	/// <param name="schemaMember">The parent member to associate with.</param>
-	public void AssosciateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
+	public void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
 }

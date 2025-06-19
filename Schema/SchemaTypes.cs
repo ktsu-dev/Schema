@@ -278,6 +278,12 @@ public static class SchemaTypes
 		public override bool TryRemove() => throw new InvalidOperationException("Cannot remove a type from a member");
 
 		/// <summary>
+		/// Associates this type with a schema member.
+		/// </summary>
+		/// <param name="schemaMember">The schema member to associate with.</param>
+		public new void AssociateWith(SchemaMember schemaMember) => base.AssociateWith(schemaMember);
+
+		/// <summary>
 		/// Determines whether the specified object is equal to the current object.
 		/// </summary>
 		/// <param name="other">The object to compare with the current object.</param>
