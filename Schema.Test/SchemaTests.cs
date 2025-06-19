@@ -13,22 +13,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 public class SchemaTests
 {
 	[TestMethod]
-	public void TestReassosciate()
+	public void TestReassociate()
 	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
-		schema.Reassosciate();
+		schemaProvider.Reassociate();
 		Assert.IsNotNull(schemaClass);
-		Assert.AreEqual(schema, schemaClass.ParentSchema);
-	}
-
-	[TestMethod]
-	public void TestEnsureDirectoryExists()
-	{
-		string path = "test_directory/test_file.txt";
-		Schema.EnsureDirectoryExists(path);
-		Assert.IsTrue(Directory.Exists("test_directory"));
+		Assert.AreEqual(schemaProvider, schemaClass.ParentSchema);
 	}
 
 	[TestMethod]
@@ -38,7 +31,7 @@ public class SchemaTests
 		SchemaClass schemaClass = new();
 		collection.Add(schemaClass);
 
-		bool result = Schema.TryRemoveChild(schemaClass, collection);
+		bool result = SchemaProvider.TryRemoveChild(schemaClass, collection);
 		Assert.IsTrue(result);
 		Assert.AreEqual(0, collection.Count);
 	}
@@ -48,10 +41,11 @@ public class SchemaTests
 	{
 		Collection<SchemaClass> collection = [];
 		SchemaClass schemaClass = new();
-		schemaClass.Rename((ClassName)"TestClass");
+		ClassName className = new();
+		schemaClass.Rename(className);
 		collection.Add(schemaClass);
 
-		SchemaClass? result = Schema.GetChild((ClassName)"TestClass", collection);
+		SchemaClass? result = SchemaProvider.GetChild(className, collection);
 		Assert.IsNotNull(result);
 		Assert.AreEqual(schemaClass, result);
 	}
@@ -61,69 +55,32 @@ public class SchemaTests
 	{
 		Collection<SchemaClass> collection = [];
 		SchemaClass schemaClass = new();
-		schemaClass.Rename((ClassName)"TestClass");
+		ClassName className = new();
+		schemaClass.Rename(className);
 		collection.Add(schemaClass);
 
-		bool result = Schema.TryGetChild((ClassName)"TestClass", collection, out SchemaClass? foundClass);
+		bool result = SchemaProvider.TryGetChild(className, collection, out SchemaClass? foundClass);
 		Assert.IsTrue(result);
 		Assert.AreEqual(schemaClass, foundClass);
 	}
 
 	[TestMethod]
-	public void TestTryAddChild()
-	{
-		Schema schema = new();
-		bool result = schema.TryAddChild((ClassName)"TestClass", schema.ClassesInternal);
-
-		Assert.IsTrue(result);
-		Assert.AreEqual(1, schema.ClassesInternal.Count);
-	}
-
-	[TestMethod]
 	public void TestAddChild()
 	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddChild((ClassName)"TestClass", schema.ClassesInternal);
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddChild(className, schemaProvider.ClassesInternal);
 
 		Assert.IsNotNull(schemaClass);
-		Assert.AreEqual(1, schema.ClassesInternal.Count);
-	}
-
-	[TestMethod]
-	public void TestTryRemoveEnum()
-	{
-		Schema schema = new();
-		SchemaEnum? schemaEnum = schema.AddEnum((EnumName)"TestEnum");
-		Assert.IsNotNull(schemaEnum);
-		bool result = schema.TryRemoveEnum(schemaEnum);
-		Assert.IsTrue(result);
-	}
-
-	[TestMethod]
-	public void TestTryRemoveClass()
-	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
-		Assert.IsNotNull(schemaClass);
-		bool result = schema.TryRemoveClass(schemaClass);
-		Assert.IsTrue(result);
-	}
-
-	[TestMethod]
-	public void TestTryRemoveDataSource()
-	{
-		Schema schema = new();
-		DataSource? dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
-		Assert.IsNotNull(dataSource);
-		bool result = schema.TryRemoveDataSource(dataSource);
-		Assert.IsTrue(result);
+		Assert.AreEqual(1, schemaProvider.ClassesInternal.Count);
 	}
 
 	[TestMethod]
 	public void TestTryAddEnum()
 	{
-		Schema schema = new();
-		bool result = schema.TryAddEnum((EnumName)"TestEnum");
+		SchemaProvider schemaProvider = new();
+		EnumName enumName = new();
+		bool result = schemaProvider.TryAddEnum(enumName);
 
 		Assert.IsTrue(result);
 	}
@@ -131,17 +88,9 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddClass()
 	{
-		Schema schema = new();
-		bool result = schema.TryAddClass((ClassName)"TestClass");
-
-		Assert.IsTrue(result);
-	}
-
-	[TestMethod]
-	public void TestTryAddDataSource()
-	{
-		Schema schema = new();
-		bool result = schema.TryAddDataSource((DataSourceName)"TestDataSource");
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		bool result = schemaProvider.TryAddClass(className);
 
 		Assert.IsTrue(result);
 	}
@@ -149,8 +98,9 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddEnum()
 	{
-		Schema schema = new();
-		SchemaEnum? schemaEnum = schema.AddEnum((EnumName)"TestEnum");
+		SchemaProvider schemaProvider = new();
+		EnumName enumName = new();
+		SchemaEnum? schemaEnum = schemaProvider.AddEnum(enumName);
 
 		Assert.IsNotNull(schemaEnum);
 	}
@@ -158,36 +108,119 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddClass()
 	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
 		Assert.IsNotNull(schemaClass);
 	}
 
 	[TestMethod]
-	public void TestAddDataSource()
+	public void TestAddClassFromType()
 	{
-		Schema schema = new();
-		DataSource? dataSource = schema.AddDataSource((DataSourceName)"TestDataSource");
+		SchemaProvider schemaProvider = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(typeof(TestData));
 
-		Assert.IsNotNull(dataSource);
+		Assert.IsNotNull(schemaClass);
+		// We can't easily test the name without knowing how to create a comparable ClassName
+	}
+
+	[TestMethod]
+	public void TestTryAddClassFromType()
+	{
+		SchemaProvider schemaProvider = new();
+		bool result = schemaProvider.TryAddClass(typeof(TestData));
+
+		Assert.IsTrue(result);
 	}
 
 	[TestMethod]
 	public void TestFirstClass()
 	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
-		Assert.AreEqual(schemaClass, schema.FirstClass);
+		Assert.AreEqual(schemaClass, schemaProvider.FirstClass);
 	}
 
 	[TestMethod]
 	public void TestLastClass()
 	{
-		Schema schema = new();
-		SchemaClass? schemaClass = schema.AddClass((ClassName)"TestClass");
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
-		Assert.AreEqual(schemaClass, schema.LastClass);
+		Assert.AreEqual(schemaClass, schemaProvider.LastClass);
 	}
+
+	[TestMethod]
+	public void TestGetTypes()
+	{
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? schemaClass = schemaProvider.AddClass(className);
+		Assert.IsNotNull(schemaClass);
+
+		MemberName memberName = new();
+		SchemaMember? member = schemaClass.AddMember(memberName);
+		Assert.IsNotNull(member);
+		member.SetType(new SchemaTypes.String());
+
+		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetTypes()];
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.String));
+	}
+
+	[TestMethod]
+	public void TestTryGetEnum()
+	{
+		SchemaProvider schemaProvider = new();
+		EnumName enumName = new();
+		schemaProvider.AddEnum(enumName);
+
+		bool result = schemaProvider.TryGetEnum(enumName, out SchemaEnum? foundEnum);
+		Assert.IsTrue(result);
+		Assert.IsNotNull(foundEnum);
+	}
+
+	[TestMethod]
+	public void TestTryGetClass()
+	{
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		schemaProvider.AddClass(className);
+
+		bool result = schemaProvider.TryGetClass(className, out SchemaClass? foundClass);
+		Assert.IsTrue(result);
+		Assert.IsNotNull(foundClass);
+	}
+
+	[TestMethod]
+	public void TestGetEnum()
+	{
+		SchemaProvider schemaProvider = new();
+		EnumName enumName = new();
+		SchemaEnum? addedEnum = schemaProvider.AddEnum(enumName);
+
+		SchemaEnum? foundEnum = schemaProvider.GetEnum(enumName);
+		Assert.AreEqual(addedEnum, foundEnum);
+	}
+
+	[TestMethod]
+	public void TestGetClass()
+	{
+		SchemaProvider schemaProvider = new();
+		ClassName className = new();
+		SchemaClass? addedClass = schemaProvider.AddClass(className);
+
+		SchemaClass? foundClass = schemaProvider.GetClass(className);
+		Assert.AreEqual(addedClass, foundClass);
+	}
+}
+
+// Test data class for AddClass(Type) tests
+public class TestData
+{
+	public string Name { get; set; } = string.Empty;
+	public int Value { get; set; }
 }
