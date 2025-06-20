@@ -7,7 +7,8 @@ namespace ktsu.SchemaEditor;
 using ImGuiNET;
 
 using ktsu.ImGuiStyler;
-using ktsu.Schema;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
 
 internal class TreeDataSource(SchemaEditor schemaEditor)
 {
@@ -15,7 +16,7 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		Schema? schema = schemaEditor.CurrentSchema;
+		ktsu.Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
 			IReadOnlyCollection<DataSource> children = schema.DataSources;
@@ -45,7 +46,7 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 		}
 	}
 
-	private void ShowNewDataSource(Schema schema)
+	private void ShowNewDataSource(ktsu.Schema schema)
 	{
 		using (Button.Alignment.Left())
 		{

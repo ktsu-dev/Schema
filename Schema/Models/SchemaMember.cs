@@ -2,12 +2,15 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.Schema;
+namespace ktsu.Schema.Models;
+
+using ktsu.Schema.Contracts;
+using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents a member of a schema class.
 /// </summary>
-public class SchemaMember : SchemaClassChild<MemberName>
+public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember
 {
 	/// <summary>
 	/// Gets the type of the schema member.

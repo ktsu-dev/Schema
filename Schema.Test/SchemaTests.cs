@@ -5,8 +5,8 @@
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
-
-using ktsu.Schema;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
@@ -15,7 +15,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestReassociate()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
@@ -31,7 +31,7 @@ public class SchemaTests
 		SchemaClass schemaClass = new();
 		collection.Add(schemaClass);
 
-		bool result = SchemaProvider.TryRemoveChild(schemaClass, collection);
+		bool result = Schema.TryRemoveChild(schemaClass, collection);
 		Assert.IsTrue(result);
 		Assert.AreEqual(0, collection.Count);
 	}
@@ -45,7 +45,7 @@ public class SchemaTests
 		schemaClass.Rename(className);
 		collection.Add(schemaClass);
 
-		SchemaClass? result = SchemaProvider.GetChild(className, collection);
+		SchemaClass? result = Schema.GetChild(className, collection);
 		Assert.IsNotNull(result);
 		Assert.AreEqual(schemaClass, result);
 	}
@@ -59,7 +59,7 @@ public class SchemaTests
 		schemaClass.Rename(className);
 		collection.Add(schemaClass);
 
-		bool result = SchemaProvider.TryGetChild(className, collection, out SchemaClass? foundClass);
+		bool result = Schema.TryGetChild(className, collection, out SchemaClass? foundClass);
 		Assert.IsTrue(result);
 		Assert.AreEqual(schemaClass, foundClass);
 	}
@@ -67,7 +67,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddChild()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddChild(className, schemaProvider.ClassesInternal);
 
@@ -78,7 +78,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddEnum()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		EnumName enumName = new();
 		bool result = schemaProvider.TryAddEnum(enumName);
 
@@ -88,7 +88,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		bool result = schemaProvider.TryAddClass(className);
 
@@ -98,7 +98,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddEnum()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		EnumName enumName = new();
 		SchemaEnum? schemaEnum = schemaProvider.AddEnum(enumName);
 
@@ -108,7 +108,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
@@ -118,7 +118,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestAddClassFromType()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(typeof(TestData));
 
 		Assert.IsNotNull(schemaClass);
@@ -128,7 +128,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryAddClassFromType()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		bool result = schemaProvider.TryAddClass(typeof(TestData));
 
 		Assert.IsTrue(result);
@@ -137,7 +137,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestFirstClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
@@ -147,7 +147,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestLastClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 
@@ -157,7 +157,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestGetTypes()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? schemaClass = schemaProvider.AddClass(className);
 		Assert.IsNotNull(schemaClass);
@@ -174,7 +174,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryGetEnum()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		EnumName enumName = new();
 		schemaProvider.AddEnum(enumName);
 
@@ -186,7 +186,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestTryGetClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		schemaProvider.AddClass(className);
 
@@ -198,7 +198,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestGetEnum()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		EnumName enumName = new();
 		SchemaEnum? addedEnum = schemaProvider.AddEnum(enumName);
 
@@ -209,7 +209,7 @@ public class SchemaTests
 	[TestMethod]
 	public void TestGetClass()
 	{
-		SchemaProvider schemaProvider = new();
+		Schema schemaProvider = new();
 		ClassName className = new();
 		SchemaClass? addedClass = schemaProvider.AddClass(className);
 

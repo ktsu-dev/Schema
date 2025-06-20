@@ -7,7 +7,7 @@ namespace ktsu.SchemaEditor;
 using System.Collections.ObjectModel;
 using ktsu.AppDataStorage;
 using ktsu.ImGuiApp;
-using ktsu.Schema;
+using ktsu.Schema.Models.Names;
 using ktsu.StrongPaths;
 
 internal class AppData : AppData<AppData>

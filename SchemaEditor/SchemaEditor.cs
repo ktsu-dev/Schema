@@ -16,13 +16,14 @@ using ktsu.Extensions;
 using ktsu.ImGuiApp;
 using ktsu.ImGuiStyler;
 using ktsu.ImGuiWidgets;
-using ktsu.Schema;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
 using ktsu.StrongPaths;
 
 public class SchemaEditor
 {
 	public static SchemaEditor Instance { get; } = new();
-	internal Schema? CurrentSchema { get; set; }
+	internal ktsu.Schema? CurrentSchema { get; set; }
 	internal SchemaClass? CurrentClass { get; set; }
 	internal DataSource? CurrentDataSource { get; set; }
 	internal AppData Options { get; }
@@ -71,7 +72,7 @@ public class SchemaEditor
 		Popups = Options.Popups;
 
 		// restore open schema
-		if (Schema.TryLoad(Options.CurrentSchemaPath, out Schema? previouslyOpenSchema) && previouslyOpenSchema is not null)
+		if (ktsu.Schema.TryLoad(Options.CurrentSchemaPath, out ktsu.Schema? previouslyOpenSchema) && previouslyOpenSchema is not null)
 		{
 			CurrentSchema = previouslyOpenSchema;
 			CurrentClass = null;
@@ -194,7 +195,7 @@ public class SchemaEditor
 		Popups.OpenBrowserFileOpen("Open Schema", (filePath) =>
 		{
 			Reset();
-			if (Schema.TryLoad(filePath, out Schema? schema) && schema is not null)
+			if (ktsu.Schema.TryLoad(filePath, out ktsu.Schema? schema) && schema is not null)
 			{
 				CurrentSchema = schema;
 				CurrentClass = CurrentSchema?.FirstClass;
@@ -243,7 +244,7 @@ public class SchemaEditor
 	internal static bool IsVisible(string key) => !Instance.Options.HiddenItems.Contains(key);
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S3267:Loops should be simplified with \"LINQ\" expressions", Justification = "We want to separate out ImGui calls from enumerations")]
-	public void ShowMemberConfig(Schema schema, SchemaMember schemaMember)
+	public void ShowMemberConfig(ktsu.Schema schema, SchemaMember schemaMember)
 	{
 		ArgumentNullException.ThrowIfNull(schema);
 		ArgumentNullException.ThrowIfNull(schemaMember);

@@ -2,39 +2,45 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.Schema;
+namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Reflection;
 using ktsu.Extensions;
+using ktsu.Schema.Contracts;
+using ktsu.Schema.Contracts.Names;
+using ktsu.Schema.Models.Names;
 using ktsu.Semantics;
 
 /// <summary>
 /// Provides schema definitions and management functionality.
 /// This class focuses solely on schema definition without serialization or filesystem concerns.
 /// </summary>
-public class SchemaProvider : ISchemaProvider
+public class Schema : ISchema
 {
-	#region SchemaChildren
-	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
+	#region Contract Implementation
 	/// <summary>
 	/// Gets the collection of schema classes.
 	/// </summary>
-	public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
+	public ISchemaChildSet<ISchemaClass, ISchemaClassName> Classes { get; } = new SchemaChildSet<ISchemaClass, ISchemaClassName>();
 
-	internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of schema enums.
 	/// </summary>
-	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
+	public ISchemaChildSet<ISchemaEnum, ISchemaEnumName> Enums { get; } = new SchemaChildSet<ISchemaEnum, ISchemaEnumName>();
+	#endregion
 
+	#region Legacy Collections (Internal Use)
+	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
+	internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 	internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
+	internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
+
 	/// <summary>
 	/// Gets the collection of code generators.
 	/// </summary>
 	public IReadOnlyCollection<SchemaCodeGenerator> CodeGenerators => CodeGeneratorsInternal;
 
-	internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
 	/// <summary>
 	/// Gets the collection of data sources.
 	/// </summary>
@@ -42,28 +48,34 @@ public class SchemaProvider : ISchemaProvider
 	#endregion
 
 	/// <summary>
-	/// Initializes a new instance of the SchemaProvider class.
+	/// Initializes a new instance of the Schema class.
 	/// </summary>
-	public SchemaProvider() => Reassociate();
+	public Schema() => Reassociate();
 
 	/// <summary>
 	/// Reassociates schema classes and enums with their parent schema provider.
 	/// </summary>
 	internal void Reassociate()
 	{
-		foreach (SchemaClass schemaClass in Classes)
+		// Sync internal collections to contract collections
+		Classes.Clear();
+		Enums.Clear();
+
+		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
 			schemaClass.AssociateWith(this);
-			foreach (SchemaMember member in schemaClass.Members)
+			Classes.Add(schemaClass);
+			foreach (SchemaMember member in schemaClass.Members.OfType<SchemaMember>())
 			{
 				member.AssociateWith(schemaClass);
 				member.Type.AssociateWith(member);
 			}
 		}
 
-		foreach (SchemaEnum schemaEnum in Enums)
+		foreach (SchemaEnum schemaEnum in EnumsInternal)
 		{
 			schemaEnum.AssociateWith(this);
+			Enums.Add(schemaEnum);
 		}
 	}
 
@@ -93,7 +105,7 @@ public class SchemaProvider : ISchemaProvider
 	/// <returns>The child if found; otherwise, null.</returns>
 	public static TChild? GetChild<TName, TChild>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
 	{
 		ArgumentNullException.ThrowIfNull(name);
 		ArgumentNullException.ThrowIfNull(collection);
@@ -120,7 +132,7 @@ public class SchemaProvider : ISchemaProvider
 	/// <returns>True if the child was found; otherwise, false.</returns>
 	public static bool TryGetChild<TName, TChild>(TName name, Collection<TChild> collection, out TChild? child)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
 	{
 		child = GetChild(name, collection);
 		return child is not null;
@@ -166,7 +178,7 @@ public class SchemaProvider : ISchemaProvider
 	/// <returns>The added child, or null if a child with the same name already exists.</returns>
 	public TChild? AddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
 	{
 		ArgumentNullException.ThrowIfNull(name);
 		ArgumentNullException.ThrowIfNull(collection);
@@ -193,7 +205,7 @@ public class SchemaProvider : ISchemaProvider
 
 	internal bool TryAddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
 		=> AddChild(name, collection) is not null;
 
 	/// <summary>

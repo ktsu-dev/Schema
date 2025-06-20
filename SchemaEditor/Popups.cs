@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 using ktsu.ImGuiPopups;
 using ktsu.StrongPaths;
 
-using static ktsu.Schema.SchemaTypes;
+using static ktsu.Schema.Models.SchemaTypes;
 
 internal class Popups
 {

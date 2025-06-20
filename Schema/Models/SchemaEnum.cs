@@ -2,15 +2,17 @@
 // All rights reserved.
 // Licensed under the MIT license.
 
-namespace ktsu.Schema;
+namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
+using ktsu.Schema.Contracts;
+using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents an enumeration in a schema.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "It's representing a custom enumeration")]
-public class SchemaEnum : SchemaChild<EnumName>
+public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 {
 	/// <summary>
 	/// Gets the internal collection of enumeration values.

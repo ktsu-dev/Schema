@@ -8,7 +8,8 @@ using ImGuiNET;
 
 using ktsu.ImGuiStyler;
 using ktsu.ImGuiWidgets;
-using ktsu.Schema;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
 
 internal class TreeEnum(SchemaEditor schemaEditor)
 {
@@ -16,7 +17,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		Schema? schema = schemaEditor.CurrentSchema;
+		ktsu.Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
 			IReadOnlyCollection<SchemaEnum> children = schema.Enums;
@@ -70,7 +71,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 		}, parent);
 	}
 
-	private void ShowNewEnum(Schema schema)
+	private void ShowNewEnum(ktsu.Schema schema)
 	{
 		using (Button.Alignment.Left())
 		{
