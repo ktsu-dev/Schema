@@ -10,6 +10,7 @@ on:
       ["**.md", ".github/ISSUE_TEMPLATE/**", ".github/pull_request_template.md"]
   schedule:
     - cron: "0 23 * * *" # Daily at 11 PM UTC
+  workflow_dispatch: # Allow manual triggers
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +35,7 @@ jobs:
       version: ${{ steps.pipeline.outputs.version }}
       release_hash: ${{ steps.pipeline.outputs.release_hash }}
       should_release: ${{ steps.pipeline.outputs.should_release }}
+      skipped_release: ${{ steps.pipeline.outputs.skipped_release }}
 
     steps:
       - name: Set up JDK 17
@@ -59,28 +61,37 @@ jobs:
           cache-dependency-path: "**/*.csproj"
 
       - name: Cache SonarQube Cloud packages
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: actions/cache@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           path: ~\sonar\cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
       - name: Cache SonarQube Cloud scanner
+        if: ${{ env.SONAR_TOKEN != '' }}
         id: cache-sonar-scanner
         uses: actions/cache@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           path: .\.sonar\scanner
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
 
       - name: Install SonarQube Cloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+        if: ${{ env.SONAR_TOKEN != '' && steps.cache-sonar-scanner.outputs.cache-hit != 'true' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
       - name: Begin SonarQube
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
@@ -105,6 +116,7 @@ jobs:
             -GitHubRepo "${{ github.repository }}" `
             -GithubToken "${{ github.token }}" `
             -NuGetApiKey "${{ secrets.NUGET_KEY }}" `
+            -KtsuPackageKey "${{ secrets.KTSU_PACKAGE_KEY }}" `
             -WorkspacePath "${{ github.workspace }}" `
             -ExpectedOwner "ktsu-dev" `
             -ChangelogFile "CHANGELOG.md" `
@@ -125,12 +137,25 @@ jobs:
               throw $result.Error
           }
 
-          # Set outputs for GitHub Actions from build configuration
-          "version=$($buildConfig.Data.Version)" >> $env:GITHUB_OUTPUT
-          "release_hash=$($buildConfig.Data.ReleaseHash)" >> $env:GITHUB_OUTPUT
-          "should_release=$($buildConfig.Data.ShouldRelease)" >> $env:GITHUB_OUTPUT
+          # Set outputs for GitHub Actions from build configuration and pipeline result
+          # Use pipeline result values when available (for skipped releases), otherwise use buildConfig
+          if ($result.Data.SkippedRelease) {
+            "version=$($result.Data.Version)" >> $env:GITHUB_OUTPUT
+            "release_hash=$($result.Data.ReleaseHash)" >> $env:GITHUB_OUTPUT
+            "should_release=$($buildConfig.Data.ShouldRelease)" >> $env:GITHUB_OUTPUT
+            "skipped_release=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "version=$($buildConfig.Data.Version)" >> $env:GITHUB_OUTPUT
+            "release_hash=$($buildConfig.Data.ReleaseHash)" >> $env:GITHUB_OUTPUT
+            "should_release=$($buildConfig.Data.ShouldRelease)" >> $env:GITHUB_OUTPUT
+            # Check for skipped release from buildConfig as fallback
+            if ($buildConfig.Data.SkippedRelease) {
+              "skipped_release=true" >> $env:GITHUB_OUTPUT
+            }
+          }
 
       - name: End SonarQube
+        if: env.SONAR_TOKEN != '' && steps.pipeline.outputs.skipped_release != 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
@@ -139,7 +164,7 @@ jobs:
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.pipeline.outputs.skipped_release != 'true'
         with:
           name: coverage-report
           path: |
@@ -149,7 +174,7 @@ jobs:
   winget:
     name: Update Winget Manifests
     needs: build
-    if: needs.build.outputs.should_release == 'true'
+    if: needs.build.outputs.should_release == 'true' && needs.build.outputs.skipped_release != 'true'
     runs-on: windows-latest
     timeout-minutes: 10
     permissions:
@@ -186,7 +211,7 @@ jobs:
   security:
     name: Security Scanning
     needs: build
-    if: needs.build.outputs.should_release == 'true'
+    if: needs.build.outputs.should_release == 'true' && needs.build.outputs.skipped_release != 'true'
     runs-on: windows-latest
     timeout-minutes: 10
     permissions:
