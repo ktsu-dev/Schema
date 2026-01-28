@@ -8,7 +8,11 @@
     <PackageVersion Include="CommandLineParser" Version="2.9.1" />
     <PackageVersion Include="ktsu.Extensions" Version="1.5.6" />
     <PackageVersion Include="ktsu.SemanticString" Version="1.4.0" />
-    <PackageVersion Include="ktsu.Semantics" Version="1.0.19" />
+    <PackageVersion Include="ktsu.Semantics.Strings" Version="1.0.28" />
+    <PackageVersion Include="ktsu.Semantics.Paths" Version="1.0.28" />
+    <PackageVersion Include="ktsu.ImGui.App" Version="2.2.3" />
+    <PackageVersion Include="ktsu.ImGui.Popups" Version="2.2.3" />
+    <PackageVersion Include="ktsu.ImGui.Widgets" Version="2.2.3" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="coverlet.msbuild" Version="6.0.4" />
     <PackageVersion Include="DiffPlex" Version="1.8.0" />
@@ -27,9 +31,6 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.SourceLink.Git" Version="1.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="17.14.2" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="1.7.2" />
     <PackageVersion Include="Microsoft.Testing.Extensions.Fakes" Version="17.14.1" />
@@ -53,5 +54,8 @@
     <PackageVersion Include="TestableIO.System.IO.Abstractions.Wrappers" Version="22.0.14" />
     <PackageVersion Include="Tomlyn" Version="0.19.0" />
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="8.0.0" />
+    <PackageVersion Include="Polyfill" Version="9.7.6" />
   </ItemGroup>
 </Project>

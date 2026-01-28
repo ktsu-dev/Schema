@@ -1,6 +1,11 @@
-<Project Sdk="ktsu.Sdk.Lib">
+<Project>
+  <Sdk Name="Microsoft.NET.Sdk" />
+  <Sdk Name="ktsu.Sdk" />
   <ItemGroup>
-    <PackageReference Include="ktsu.Semantics" />
-    <PackageReference Include="ktsu.StrongPaths" />
+    <PackageReference Include="ktsu.Semantics.Strings" />
+    <PackageReference Include="ktsu.Semantics.Paths" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" />
   </ItemGroup>
 </Project>

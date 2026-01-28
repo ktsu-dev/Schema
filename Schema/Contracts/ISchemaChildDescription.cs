@@ -4,7 +4,7 @@
 
 namespace ktsu.Schema.Contracts;
 
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents a description for a schema child.

@@ -4,7 +4,7 @@
 
 namespace ktsu.Schema.Contracts.Names;
 
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Base interface for all schema-related name types.

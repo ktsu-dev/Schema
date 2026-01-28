@@ -5,7 +5,7 @@
 namespace ktsu.Schema.Models.Names;
 
 using ktsu.Schema.Contracts.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents a class name as a strong string type.

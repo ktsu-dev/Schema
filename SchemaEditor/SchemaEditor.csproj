@@ -1,13 +1,12 @@
-﻿
-
-
-
-<Project Sdk="ktsu.Sdk.ImGuiApp">
+﻿<Project>
+  <Sdk Name="Microsoft.NET.Sdk" />
+  <Sdk Name="ktsu.Sdk" />
+  <Sdk Name="ktsu.Sdk.App" />
   <ItemGroup>
     <PackageReference Include="ktsu.AppDataStorage" />
-    <PackageReference Include="ktsu.ImGuiApp" />
-    <PackageReference Include="ktsu.ImGuiPopups" />
-    <PackageReference Include="ktsu.ImGuiWidgets" />
+    <PackageReference Include="ktsu.ImGui.App" />
+    <PackageReference Include="ktsu.ImGui.Popups" />
+    <PackageReference Include="ktsu.ImGui.Widgets" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Schema\Schema.csproj" />

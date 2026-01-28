@@ -5,7 +5,7 @@
 namespace ktsu.Schema.Models;
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Equality comparer for schema child elements based on their name property.
@@ -36,4 +36,4 @@ internal class SchemaChildNameComparer<T, TName> : IEqualityComparer<T>
 		ArgumentNullException.ThrowIfNull(obj, nameof(obj));
 		return nameComparer.GetHashCode(obj.Name);
 	}
-} 
+}

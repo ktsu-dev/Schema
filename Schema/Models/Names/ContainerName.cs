@@ -4,9 +4,8 @@
 
 namespace ktsu.Schema.Models.Names;
 
-using ktsu.Extensions;
 using ktsu.Schema.Contracts.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents a container name as a strong string type.

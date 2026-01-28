@@ -32,7 +32,7 @@ public class SchemaTests
 		collection.Add(schemaClass);
 
 		bool result = Schema.TryRemoveChild(schemaClass, collection);
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryRemoveChild should return true when removing an existing child");
 		Assert.AreEqual(0, collection.Count);
 	}
 
@@ -60,7 +60,7 @@ public class SchemaTests
 		collection.Add(schemaClass);
 
 		bool result = Schema.TryGetChild(className, collection, out SchemaClass? foundClass);
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryGetChild should return true when the child exists in the collection");
 		Assert.AreEqual(schemaClass, foundClass);
 	}
 
@@ -82,7 +82,7 @@ public class SchemaTests
 		EnumName enumName = new();
 		bool result = schemaProvider.TryAddEnum(enumName);
 
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryAddEnum should return true when adding a new enum");
 	}
 
 	[TestMethod]
@@ -92,7 +92,7 @@ public class SchemaTests
 		ClassName className = new();
 		bool result = schemaProvider.TryAddClass(className);
 
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryAddClass should return true when adding a new class");
 	}
 
 	[TestMethod]
@@ -131,7 +131,7 @@ public class SchemaTests
 		Schema schemaProvider = new();
 		bool result = schemaProvider.TryAddClass(typeof(TestData));
 
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryAddClass should return true when adding a new class from a Type");
 	}
 
 	[TestMethod]
@@ -168,7 +168,7 @@ public class SchemaTests
 		member.SetType(new SchemaTypes.String());
 
 		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetTypes()];
-		Assert.IsTrue(types.Any(t => t is SchemaTypes.String));
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.String), "GetTypes should include the String type from the member");
 	}
 
 	[TestMethod]
@@ -179,7 +179,7 @@ public class SchemaTests
 		schemaProvider.AddEnum(enumName);
 
 		bool result = schemaProvider.TryGetEnum(enumName, out SchemaEnum? foundEnum);
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryGetEnum should return true when the enum exists");
 		Assert.IsNotNull(foundEnum);
 	}
 
@@ -191,7 +191,7 @@ public class SchemaTests
 		schemaProvider.AddClass(className);
 
 		bool result = schemaProvider.TryGetClass(className, out SchemaClass? foundClass);
-		Assert.IsTrue(result);
+		Assert.IsTrue(result, "TryGetClass should return true when the class exists");
 		Assert.IsNotNull(foundClass);
 	}
 

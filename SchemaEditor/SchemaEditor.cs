@@ -12,13 +12,12 @@ using System.Numerics;
 
 using ImGuiNET;
 
-using ktsu.Extensions;
-using ktsu.ImGuiApp;
-using ktsu.ImGuiStyler;
-using ktsu.ImGuiWidgets;
+using ktsu.ImGui.App;
+using ktsu.ImGui.Styler;
+using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
-using ktsu.StrongPaths;
+using ktsu.Semantics.Paths;
 
 public class SchemaEditor
 {

@@ -6,7 +6,7 @@ namespace ktsu.Schema.Models;
 
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents a child of a schema with a specific name type.

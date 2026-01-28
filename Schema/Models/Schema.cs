@@ -6,11 +6,10 @@ namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Reflection;
-using ktsu.Extensions;
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Provides schema definitions and management functionality.

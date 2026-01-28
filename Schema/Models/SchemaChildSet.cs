@@ -8,7 +8,7 @@ using System.Collections;
 using System.Diagnostics;
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
-using ktsu.Semantics;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Implementation of a set container for schema child elements with name-based uniqueness.

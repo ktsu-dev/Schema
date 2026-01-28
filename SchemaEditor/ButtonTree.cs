@@ -8,9 +8,8 @@ using System;
 
 using ImGuiNET;
 
-using ktsu.Extensions;
-using ktsu.ImGuiStyler;
-using ktsu.ImGuiWidgets;
+using ktsu.ImGui.Styler;
+using ktsu.ImGui.Widgets;
 
 internal class ButtonTree { }
 internal class ButtonTree<TItem> : ButtonTree
