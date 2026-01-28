@@ -3,6 +3,7 @@
 Changes since v1.3.1:
 
 - Update project SDK from ktsu.Sdk.App to ktsu.Sdk.ImGuiApp in SchemaEditor.csproj ([@matt-edmondson](https://github.com/matt-edmondson))
+- migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Replace StrongStrings and StrongPaths with ktsu.Semantics across the codebase, updating relevant class constraints and references to use ISemanticString. This change enhances type safety and aligns with the latest library standards. ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update tests to use new SchemaProvider API - remove dependency on obsolete Schema class ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package references and add XML declaration in project files ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -12,6 +13,7 @@ Changes since v1.3.1:
 - Update package references and restructure project files for improved organization and clarity ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update project SDK references and README formatting ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add schema contract interfaces for schema definitions, including ISchema, ISchemaChild, ISchemaClass, ISchemaEnum, and related name interfaces. This introduces a structured approach to schema management without serialization concerns. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.3.2-pre.2 (prerelease)
 
 Changes since v1.3.2-pre.1:
