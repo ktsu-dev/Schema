@@ -2,12 +2,19 @@
   <Sdk Name="Microsoft.NET.Sdk" />
   <Sdk Name="ktsu.Sdk" />
   <Sdk Name="ktsu.Sdk.App" />
+  <PropertyGroup>
+    <!-- Braced using statements preferred for ImGui scoping -->
+    <NoWarn>$(NoWarn);IDE0063</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ImGui.NET" />
     <PackageReference Include="ktsu.AppDataStorage" />
     <PackageReference Include="ktsu.ImGui.App" />
     <PackageReference Include="ktsu.ImGui.Popups" />
     <PackageReference Include="ktsu.ImGui.Widgets" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" />
+    <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" />
+    <PackageReference Include="Polyfill" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Schema\Schema.csproj" />

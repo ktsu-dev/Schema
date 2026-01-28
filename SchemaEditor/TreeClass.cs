@@ -13,7 +13,9 @@ using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
-internal class TreeClass(SchemaEditor schemaEditor)
+using ktsu.Semantics.Strings;
+
+internal sealed class TreeClass(SchemaEditor schemaEditor)
 {
 	private Popups Popups => schemaEditor.Popups;
 
@@ -86,7 +88,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Class Name", string.Empty, (newName) =>
 				{
-					ClassName className = (ClassName)newName;
+					ClassName className = newName.As<ClassName>();
 					if (schema.TryAddClass(className))
 					{
 						schemaEditor.EditClass(className);
@@ -108,7 +110,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Member Name", string.Empty, (newName) =>
 				{
-					SchemaMember? schemaMember = schemaClass.AddMember((MemberName)newName);
+					SchemaMember? schemaMember = schemaClass.AddMember(newName.As<MemberName>());
 					if (schemaMember is not null)
 					{
 						Debug.Assert(schemaMember.ParentSchema is not null);

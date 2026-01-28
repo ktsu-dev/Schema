@@ -8,13 +8,14 @@ using System;
 
 using ImGuiNET;
 
+using ktsu.Extensions;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 
 internal class ButtonTree { }
-internal class ButtonTree<TItem> : ButtonTree
+internal sealed class ButtonTree<TItem> : ButtonTree
 {
-	internal class Config
+	internal sealed class Config
 	{
 		public bool Collapsible { get; set; }
 		public Action<ImGuiWidgets.Tree>? OnTreeStart { get; set; }

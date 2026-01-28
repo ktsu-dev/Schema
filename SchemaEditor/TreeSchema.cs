@@ -4,7 +4,7 @@
 
 namespace ktsu.SchemaEditor;
 
-internal class TreeSchema(SchemaEditor schemaEditor)
+internal sealed class TreeSchema(SchemaEditor schemaEditor)
 {
 	private TreeEnum TreeEnum { get; } = new(schemaEditor);
 	private TreeClass TreeClass { get; } = new(schemaEditor);

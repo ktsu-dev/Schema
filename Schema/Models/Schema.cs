@@ -49,8 +49,9 @@ public class Schema
 
 	/// <summary>
 	/// Reassociates schema classes and enums with their parent schema provider.
+	/// Call this after deserializing a schema to re-establish parent-child relationships.
 	/// </summary>
-	internal void Reassociate()
+	public void Reassociate()
 	{
 		foreach (SchemaClass schemaClass in ClassesInternal)
 		{

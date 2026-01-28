@@ -10,7 +10,9 @@ using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
-internal class TreeDataSource(SchemaEditor schemaEditor)
+using ktsu.Semantics.Strings;
+
+internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 {
 	private Popups Popups => schemaEditor.Popups;
 
@@ -54,7 +56,7 @@ internal class TreeDataSource(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Data Source Name", string.Empty, (newName) =>
 				{
-					DataSourceName dataSourceName = (DataSourceName)newName;
+					DataSourceName dataSourceName = newName.As<DataSourceName>();
 					if (schema.TryAddDataSource(dataSourceName))
 					{
 						schemaEditor.EditDataSource(dataSourceName);

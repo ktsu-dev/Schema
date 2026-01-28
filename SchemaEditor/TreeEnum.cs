@@ -11,7 +11,9 @@ using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
-internal class TreeEnum(SchemaEditor schemaEditor)
+using ktsu.Semantics.Strings;
+
+internal sealed class TreeEnum(SchemaEditor schemaEditor)
 {
 	private Popups Popups => schemaEditor.Popups;
 
@@ -79,7 +81,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Enum Name", string.Empty, (newName) =>
 				{
-					if (schema.TryAddEnum((EnumName)newName))
+					if (schema.TryAddEnum(newName.As<EnumName>()))
 					{
 
 					}
@@ -100,7 +102,7 @@ internal class TreeEnum(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Enum Value", string.Empty, (newValue) =>
 				{
-					if (!schemaEnum.TryAddValue((EnumValueName)newValue))
+					if (!schemaEnum.TryAddValue(newValue.As<EnumValueName>()))
 					{
 						Popups.OpenMessageOK("Error", $"A Enum Value with that name ({newValue}) already exists.");
 					}

@@ -8,12 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-using ktsu.ImGui.Popups;
-using ktsu.StrongPaths;
+using static ktsu.ImGui.Popups.ImGuiPopups;
+using ktsu.Semantics.Paths;
 
 using ktsu.Schema.Models.Types;
 
-internal class Popups
+internal sealed class Popups
 {
 	[JsonIgnore] private MessageOK PopupMessageOK { get; init; } = new();
 	[JsonIgnore] private InputString PopupInputString { get; init; } = new();
