@@ -5,8 +5,6 @@
 namespace ktsu.Schema.Models.Types;
 
 using System.Text.Json.Serialization;
-using ktsu.Schema.Contracts;
-using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents the base type for all schema types.
@@ -32,26 +30,25 @@ using ktsu.Schema.Models.Names;
 [JsonDerivedType(typeof(ColorRGBA), nameof(ColorRGBA))]
 [JsonDerivedType(typeof(Object), nameof(Object))]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "TypeName")]
-public abstract class BaseType : ISchemaType, IEquatable<BaseType?>
+public abstract class BaseType : IEquatable<BaseType?>
 {
 	/// <summary>
-	/// Throws an InvalidOperationException as types cannot be removed from a member.
+	/// Gets or sets the parent member of the schema type.
 	/// </summary>
-	/// <returns>Always throws an exception.</returns>
-	public override bool TryRemove() => throw new InvalidOperationException("Cannot remove a type from a member");
+	public SchemaMember? ParentMember { get; private set; }
 
 	/// <summary>
 	/// Associates this type with a schema member.
 	/// </summary>
 	/// <param name="schemaMember">The schema member to associate with.</param>
-	public new void AssociateWith(SchemaMember schemaMember) => base.AssociateWith(schemaMember);
+	public void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
 
 	/// <summary>
 	/// Determines whether the specified object is equal to the current object.
 	/// </summary>
 	/// <param name="other">The object to compare with the current object.</param>
 	/// <returns>True if the specified object is equal to the current object; otherwise, false.</returns>
-	public bool Equals(BaseType? other) => ReferenceEquals(this, other) || (other?.GetType()) == GetType() && other.ToString() != ToString();
+	public bool Equals(BaseType? other) => ReferenceEquals(this, other) || ((other?.GetType() == GetType()) && (other.ToString() != ToString()));
 
 	/// <summary>
 	/// Determines whether the specified object is equal to the current object.
@@ -84,7 +81,8 @@ public abstract class BaseType : ISchemaType, IEquatable<BaseType?>
 			return null;
 		}
 
-		Type? type = typeof(SchemaTypes).GetNestedTypes().FirstOrDefault(t => t.Name == str);
+		Type? type = typeof(BaseType).Assembly.GetTypes()
+			.FirstOrDefault(t => t.IsSubclassOf(typeof(BaseType)) && t.Name == str);
 		return type is null ? null : Activator.CreateInstance(type);
 	}
 
@@ -108,15 +106,43 @@ public abstract class BaseType : ISchemaType, IEquatable<BaseType?>
 		}
 	}
 
+	private static readonly HashSet<Type> PrimitiveTypes =
+	[
+		typeof(Int),
+		typeof(Long),
+		typeof(Float),
+		typeof(Double),
+		typeof(String),
+		typeof(Bool),
+	];
+
+	private static readonly HashSet<Type> BuiltInTypes =
+	[
+		typeof(None),
+		typeof(Int),
+		typeof(Long),
+		typeof(Float),
+		typeof(Double),
+		typeof(String),
+		typeof(DateTime),
+		typeof(TimeSpan),
+		typeof(Bool),
+		typeof(Vector2),
+		typeof(Vector3),
+		typeof(Vector4),
+		typeof(ColorRGB),
+		typeof(ColorRGBA),
+	];
+
 	/// <summary>
 	/// Gets a value indicating whether the type is built-in.
 	/// </summary>
-	public bool IsBuiltIn => BuiltIn.Contains(GetType());
+	public bool IsBuiltIn => BuiltInTypes.Contains(GetType());
 
 	/// <summary>
 	/// Gets a value indicating whether the type is primitive.
 	/// </summary>
-	public bool IsPrimitive => Primitives.Contains(GetType());
+	public bool IsPrimitive => PrimitiveTypes.Contains(GetType());
 
 	/// <summary>
 	/// Gets a value indicating whether the type is integral.

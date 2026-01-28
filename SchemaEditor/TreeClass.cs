@@ -8,8 +8,8 @@ using System.Diagnostics;
 
 using ImGuiNET;
 
-using ktsu.ImGuiStyler;
-using ktsu.ImGuiWidgets;
+using ktsu.ImGui.Styler;
+using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
@@ -19,7 +19,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 
 	internal void Show()
 	{
-		ktsu.Schema? schema = schemaEditor.CurrentSchema;
+		Schema? schema = schemaEditor.CurrentSchema;
 		if (schema is not null)
 		{
 			IReadOnlyCollection<SchemaClass> children = schema.Classes;
@@ -78,7 +78,7 @@ internal class TreeClass(SchemaEditor schemaEditor)
 		ImGui.PopID();
 	}
 
-	private void ShowNewClass(ktsu.Schema schema)
+	private void ShowNewClass(Schema schema)
 	{
 		using (Button.Alignment.Left())
 		{

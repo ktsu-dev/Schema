@@ -12,7 +12,7 @@ using ktsu.Schema.Contracts.Names;
 /// <typeparam name="TValue">The type of schema child elements, must implement ISchemaChild.</typeparam>
 /// <typeparam name="TName">The type of the name used for comparison.</typeparam>
 public interface ISchemaChildSet<TValue, TName> : ISet<TValue>
-	where TValue : ISchemaChild<TName>
+	where TValue : class, ISchemaChild<TName>
 	where TName : ISchemaChildName
 {
 	/// <summary>

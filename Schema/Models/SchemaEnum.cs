@@ -5,14 +5,13 @@
 namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
-using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents an enumeration in a schema.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "It's representing a custom enumeration")]
-public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
+public class SchemaEnum : SchemaChild<EnumName>
 {
 	/// <summary>
 	/// Gets the internal collection of enumeration values.
@@ -32,7 +31,7 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 	/// <exception cref="ArgumentException">Thrown when <paramref name="enumValueName"/> is null or empty.</exception>
 	public bool TryAddValue(EnumValueName enumValueName)
 	{
-		ArgumentException.ThrowIfNullOrEmpty(enumValueName, nameof(enumValueName));
+		Ensure.NotNullOrEmpty(enumValueName, nameof(enumValueName));
 		if (!ValuesInternal.Any(v => v == enumValueName))
 		{
 			ValuesInternal.Add(enumValueName);
@@ -58,6 +57,5 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 	/// <summary>
 	/// Gets a summary of the enumeration.
 	/// </summary>
-	/// <returns>A string summary of the enumeration.</returns>
-	public override string Summary() => $"{Name} ({ValuesInternal.Count})";
+	public string EnumSummary => $"{Name} ({ValuesInternal.Count})";
 }

@@ -6,7 +6,7 @@ namespace ktsu.SchemaEditor;
 
 using System.Collections.ObjectModel;
 using ktsu.AppDataStorage;
-using ktsu.ImGuiApp;
+using ktsu.ImGui.App;
 using ktsu.Schema.Models.Names;
 using ktsu.StrongPaths;
 

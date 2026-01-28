@@ -12,7 +12,7 @@ using ktsu.Semantics.Strings;
 /// Represents a child of a schema with a specific name type.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaChild<TName> : ISchemaChild<TName> where TName : SemanticString<TName>, ISchemaChildName, new()
+public abstract class SchemaChild<TName> where TName : SemanticString<TName>, ISchemaChildName, new()
 {
 	/// <summary>
 	/// Gets the name of the schema child.
@@ -28,16 +28,6 @@ public abstract class SchemaChild<TName> : ISchemaChild<TName> where TName : Sem
 	/// Gets the parent schema provider of the schema child.
 	/// </summary>
 	public Schema? ParentSchema { get; private set; }
-
-	/// <summary>
-	/// Gets the parent schema provider of the schema child as an interface.
-	/// </summary>
-	ISchema? ISchemaChild<TName>.ParentSchema => ParentSchema;
-
-	/// <summary>
-	/// Gets or sets the summary of this child.
-	/// </summary>
-	public ISchemaChildSummary Summary { get; set; } = new SchemaChildSummary();
 
 	/// <summary>
 	/// Returns the name of the schema child as a string.

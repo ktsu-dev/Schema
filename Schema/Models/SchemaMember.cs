@@ -4,29 +4,29 @@
 
 namespace ktsu.Schema.Models;
 
-using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
+using ktsu.Schema.Models.Types;
 
 /// <summary>
 /// Represents a member of a schema class.
 /// </summary>
-public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember
+public class SchemaMember : SchemaClassChild<MemberName>
 {
 	/// <summary>
 	/// Gets the type of the schema member.
 	/// </summary>
-	public SchemaTypes.BaseType Type { get; private set; } = new SchemaTypes.None();
+	public BaseType Type { get; private set; } = new None();
 
 	/// <summary>
-	/// Gets or sets the description of the schema member.
+	/// Gets or sets the member description text.
 	/// </summary>
-	public string Description { get; set; } = string.Empty;
+	public string MemberDescription { get; set; } = string.Empty;
 
 	/// <summary>
 	/// Sets the type of the schema member and associates it with this member.
 	/// </summary>
 	/// <param name="type">The type to set.</param>
-	public void SetType(SchemaTypes.BaseType type)
+	public void SetType(BaseType type)
 	{
 		Type = type;
 		Type.AssociateWith(this);

@@ -11,7 +11,7 @@ using ktsu.Semantics.Strings;
 /// Represents a child of a schema member.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : SemanticString<TName>, ISchemaClassChildName<TName>, new()
+public abstract class SchemaMemberChild<TName> : SchemaClassChild<TName> where TName : SemanticString<TName>, ISchemaClassChildName, new()
 {
 	/// <summary>
 	/// Gets the parent member of the schema member child.

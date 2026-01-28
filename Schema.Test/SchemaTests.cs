@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SchemaTypes = ktsu.Schema.Models.Types;
 
 [TestClass]
 public class SchemaTests
@@ -33,7 +34,7 @@ public class SchemaTests
 
 		bool result = Schema.TryRemoveChild(schemaClass, collection);
 		Assert.IsTrue(result, "TryRemoveChild should return true when removing an existing child");
-		Assert.AreEqual(0, collection.Count);
+		Assert.IsEmpty(collection);
 	}
 
 	[TestMethod]
@@ -72,7 +73,7 @@ public class SchemaTests
 		SchemaClass? schemaClass = schemaProvider.AddChild(className, schemaProvider.ClassesInternal);
 
 		Assert.IsNotNull(schemaClass);
-		Assert.AreEqual(1, schemaProvider.ClassesInternal.Count);
+		Assert.HasCount(1, schemaProvider.ClassesInternal);
 	}
 
 	[TestMethod]

@@ -6,34 +6,31 @@ namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Reflection;
-using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
+using ktsu.Schema.Models.Types;
 using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Provides schema definitions and management functionality.
 /// This class focuses solely on schema definition without serialization or filesystem concerns.
 /// </summary>
-public class Schema : ISchema
+public class Schema
 {
-	#region Contract Implementation
-	/// <summary>
-	/// Gets the collection of schema classes.
-	/// </summary>
-	public ISchemaChildSet<ISchemaClass, ISchemaClassName> Classes { get; } = new SchemaChildSet<ISchemaClass, ISchemaClassName>();
-
-	/// <summary>
-	/// Gets the collection of schema enums.
-	/// </summary>
-	public ISchemaChildSet<ISchemaEnum, ISchemaEnumName> Enums { get; } = new SchemaChildSet<ISchemaEnum, ISchemaEnumName>();
-	#endregion
-
-	#region Legacy Collections (Internal Use)
 	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
 	internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 	internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
 	internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
+
+	/// <summary>
+	/// Gets the collection of schema classes.
+	/// </summary>
+	public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
+
+	/// <summary>
+	/// Gets the collection of schema enums.
+	/// </summary>
+	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
 
 	/// <summary>
 	/// Gets the collection of code generators.
@@ -44,7 +41,6 @@ public class Schema : ISchema
 	/// Gets the collection of data sources.
 	/// </summary>
 	public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
-	#endregion
 
 	/// <summary>
 	/// Initializes a new instance of the Schema class.
@@ -56,15 +52,10 @@ public class Schema : ISchema
 	/// </summary>
 	internal void Reassociate()
 	{
-		// Sync internal collections to contract collections
-		Classes.Clear();
-		Enums.Clear();
-
 		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
 			schemaClass.AssociateWith(this);
-			Classes.Add(schemaClass);
-			foreach (SchemaMember member in schemaClass.Members.OfType<SchemaMember>())
+			foreach (SchemaMember member in schemaClass.Members)
 			{
 				member.AssociateWith(schemaClass);
 				member.Type.AssociateWith(member);
@@ -74,7 +65,6 @@ public class Schema : ISchema
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
 		{
 			schemaEnum.AssociateWith(this);
-			Enums.Add(schemaEnum);
 		}
 	}
 
@@ -88,8 +78,8 @@ public class Schema : ISchema
 	public static bool TryRemoveChild<TChild>(TChild child, Collection<TChild> collection)
 		where TChild : class
 	{
-		ArgumentNullException.ThrowIfNull(child);
-		ArgumentNullException.ThrowIfNull(collection);
+		Ensure.NotNull(child);
+		Ensure.NotNull(collection);
 
 		return collection.Remove(child);
 	}
@@ -104,10 +94,10 @@ public class Schema : ISchema
 	/// <returns>The child if found; otherwise, null.</returns>
 	public static TChild? GetChild<TName, TChild>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName, new()
 	{
-		ArgumentNullException.ThrowIfNull(name);
-		ArgumentNullException.ThrowIfNull(collection);
+		Ensure.NotNull(name);
+		Ensure.NotNull(collection);
 
 		foreach (TChild child in collection)
 		{
@@ -131,7 +121,7 @@ public class Schema : ISchema
 	/// <returns>True if the child was found; otherwise, false.</returns>
 	public static bool TryGetChild<TName, TChild>(TName name, Collection<TChild> collection, out TChild? child)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName, new()
 	{
 		child = GetChild(name, collection);
 		return child is not null;
@@ -177,10 +167,10 @@ public class Schema : ISchema
 	/// <returns>The added child, or null if a child with the same name already exists.</returns>
 	public TChild? AddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName, new()
 	{
-		ArgumentNullException.ThrowIfNull(name);
-		ArgumentNullException.ThrowIfNull(collection);
+		Ensure.NotNull(name);
+		Ensure.NotNull(collection);
 
 		if (GetChild(name, collection) is null)
 		{
@@ -204,7 +194,7 @@ public class Schema : ISchema
 
 	internal bool TryAddChild<TChild, TName>(TName name, Collection<TChild> collection)
 		where TChild : SchemaChild<TName>, new()
-		where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName, new()
 		=> AddChild(name, collection) is not null;
 
 	/// <summary>
@@ -236,6 +226,35 @@ public class Schema : ISchema
 	public SchemaClass? AddClass(ClassName name) => AddChild(name, ClassesInternal);
 
 	/// <summary>
+	/// Tries to add a data source.
+	/// </summary>
+	/// <param name="name">The name of the data source to add.</param>
+	/// <returns>True if added successfully, false otherwise.</returns>
+	public bool TryAddDataSource(DataSourceName name) => TryAddChild(name, DataSourcesInternal);
+
+	/// <summary>
+	/// Adds a data source.
+	/// </summary>
+	/// <param name="name">The name of the data source to add.</param>
+	/// <returns>The added data source if successful, null otherwise.</returns>
+	public DataSource? AddDataSource(DataSourceName name) => AddChild(name, DataSourcesInternal);
+
+	/// <summary>
+	/// Gets a data source by name.
+	/// </summary>
+	/// <param name="name">The name of the data source.</param>
+	/// <returns>The data source if found, null otherwise.</returns>
+	public DataSource? GetDataSource(DataSourceName name) => GetChild(name, DataSourcesInternal);
+
+	/// <summary>
+	/// Tries to get a data source by name.
+	/// </summary>
+	/// <param name="name">The name of the data source.</param>
+	/// <param name="dataSource">The found data source, if any.</param>
+	/// <returns>True if found; otherwise, false.</returns>
+	public bool TryGetDataSource(DataSourceName name, out DataSource? dataSource) => TryGetChild(name, DataSourcesInternal, out dataSource);
+
+	/// <summary>
 	/// Tries to add a class based on a .NET Type.
 	/// </summary>
 	/// <param name="type">The .NET type to add as a schema class.</param>
@@ -249,7 +268,7 @@ public class Schema : ISchema
 	/// <returns>The added class if successful, null otherwise.</returns>
 	public SchemaClass? AddClass(Type type)
 	{
-		ArgumentNullException.ThrowIfNull(type);
+		Ensure.NotNull(type);
 
 		ClassName className = type.Name.As<ClassName>();
 		SchemaClass? schemaClass = AddClass(className);
@@ -262,7 +281,7 @@ public class Schema : ISchema
 				SchemaMember? member = schemaClass.AddMember(memberName);
 				if (member is not null)
 				{
-					SchemaTypes.BaseType? schemaType = GetOrCreateSchemaType(property.PropertyType);
+					BaseType? schemaType = GetOrCreateSchemaType(property.PropertyType);
 					if (schemaType is not null)
 					{
 						member.SetType(schemaType);
@@ -277,7 +296,7 @@ public class Schema : ISchema
 				SchemaMember? member = schemaClass.AddMember(memberName);
 				if (member is not null)
 				{
-					SchemaTypes.BaseType? schemaType = GetOrCreateSchemaType(field.FieldType);
+					BaseType? schemaType = GetOrCreateSchemaType(field.FieldType);
 					if (schemaType is not null)
 					{
 						member.SetType(schemaType);
@@ -289,26 +308,26 @@ public class Schema : ISchema
 		return schemaClass;
 	}
 
-	private SchemaTypes.BaseType? GetOrCreateSchemaType(Type type)
+	private BaseType? GetOrCreateSchemaType(Type type)
 	{
-		ArgumentNullException.ThrowIfNull(type);
+		Ensure.NotNull(type);
 
 		// Handle basic types
 		if (type == typeof(string))
 		{
-			return new SchemaTypes.String();
+			return new Types.String();
 		}
 		else if (type == typeof(int) || type == typeof(long) || type == typeof(short) || type == typeof(byte))
 		{
-			return new SchemaTypes.Int();
+			return new Types.Int();
 		}
 		else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
 		{
-			return new SchemaTypes.Float();
+			return new Types.Float();
 		}
 		else if (type == typeof(bool))
 		{
-			return new SchemaTypes.Bool();
+			return new Types.Bool();
 		}
 		else if (type.IsEnum)
 		{
@@ -317,11 +336,11 @@ public class Schema : ISchema
 			if (schemaEnum is not null)
 			{
 				// Add enum values
-				foreach (string enumValue in Enum.GetNames(type))
+				foreach (string enumValue in System.Enum.GetNames(type))
 				{
 					schemaEnum.TryAddValue(enumValue.As<EnumValueName>());
 				}
-				return new SchemaTypes.Enum() { EnumName = enumName };
+				return new Types.Enum() { EnumName = enumName };
 			}
 		}
 		else if (type.IsClass && type != typeof(string))
@@ -330,26 +349,26 @@ public class Schema : ISchema
 			SchemaClass? schemaClass = GetClass(className) ?? AddClass(type);
 			if (schemaClass is not null)
 			{
-				return new SchemaTypes.Object() { ClassName = className };
+				return new Types.Object() { ClassName = className };
 			}
 		}
 
-		return new SchemaTypes.None();
+		return new Types.None();
 	}
 
 	/// <summary>
 	/// Gets the first class in the schema.
 	/// </summary>
-	public SchemaClass? FirstClass => Classes.FirstOrDefault();
+	public SchemaClass? FirstClass => ClassesInternal.FirstOrDefault();
 
 	/// <summary>
 	/// Gets the last class in the schema.
 	/// </summary>
-	public SchemaClass? LastClass => Classes.LastOrDefault();
+	public SchemaClass? LastClass => ClassesInternal.LastOrDefault();
 
-	private IEnumerable<SchemaTypes.BaseType> GetDiscreteTypes()
+	private IEnumerable<BaseType> GetDiscreteTypes()
 	{
-		foreach (SchemaClass schemaClass in Classes)
+		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
 			foreach (SchemaMember member in schemaClass.Members)
 			{
@@ -362,6 +381,6 @@ public class Schema : ISchema
 	/// Gets all types defined in the schema.
 	/// </summary>
 	/// <returns>Collection of all schema types.</returns>
-	public IEnumerable<SchemaTypes.BaseType> GetTypes() =>
+	public IEnumerable<BaseType> GetTypes() =>
 		GetDiscreteTypes().GroupBy(t => t.GetType()).Select(g => g.First());
 }

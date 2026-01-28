@@ -9,4 +9,4 @@ namespace ktsu.Schema.Models.Types;
 /// </summary>
 public class ColorRGBA : Vector4
 {
-} 
+}

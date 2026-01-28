@@ -8,17 +8,17 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-using ktsu.ImGuiPopups;
+using ktsu.ImGui.Popups;
 using ktsu.StrongPaths;
 
-using static ktsu.Schema.Models.SchemaTypes;
+using ktsu.Schema.Models.Types;
 
 internal class Popups
 {
-	[JsonIgnore] private ImGuiPopups.MessageOK PopupMessageOK { get; init; } = new();
-	[JsonIgnore] private ImGuiPopups.InputString PopupInputString { get; init; } = new();
-	[JsonIgnore] private ImGuiPopups.SearchableList<BaseType> PopupTypeList { get; init; } = new();
-	[JsonInclude] private ImGuiPopups.FilesystemBrowser PopupFilesystemBrowser { get; init; } = new();
+	[JsonIgnore] private MessageOK PopupMessageOK { get; init; } = new();
+	[JsonIgnore] private InputString PopupInputString { get; init; } = new();
+	[JsonIgnore] private SearchableList<BaseType> PopupTypeList { get; init; } = new();
+	[JsonInclude] private FilesystemBrowser PopupFilesystemBrowser { get; init; } = new();
 	[JsonIgnore] private Queue<Action> Queue { get; init; } = [];
 
 	internal void OpenMessageOK(string title, string message) =>

@@ -10,7 +10,7 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a container name as a strong string type.
 /// </summary>
-public sealed record class ContainerName : SemanticString<ContainerName>, ISchemaTypeName<ContainerName>
+public sealed record class ContainerName : SemanticString<ContainerName>, ISchemaTypeName
 {
 	/// <summary>
 	/// Gets the container name for a vector.

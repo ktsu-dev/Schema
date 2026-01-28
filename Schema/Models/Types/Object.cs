@@ -11,6 +11,7 @@ using ktsu.Schema.Models.Names;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "We're mimicing the type")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "We're mimicing the type")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0032:Use auto property", Justification = "Lazy loading requires backing field")]
 public class Object : BaseType
 {
 	private SchemaClass? internalClass;

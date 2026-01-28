@@ -3,6 +3,7 @@
 // Licensed under the MIT license.
 
 namespace ktsu.Schema.Models;
+
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Semantics.Strings;
@@ -13,19 +14,23 @@ using ktsu.Semantics.Strings;
 /// <typeparam name="T">The type of schema child elements.</typeparam>
 /// <typeparam name="TName">The type of the name used for comparison.</typeparam>
 internal class SchemaChildNameComparer<T, TName> : IEqualityComparer<T>
-	where T : ISchemaChild<TName>
-	where TName : SemanticString<TName>, ISchemaChildName<TName>, new()
+	where T : class, ISchemaChild<TName>
+	where TName : SemanticString<TName>, ISchemaChildName, new()
 {
-	private readonly IEqualityComparer<TName> nameComparer = EqualityComparer<TName>.Default;
+	private readonly EqualityComparer<TName> nameComparer = EqualityComparer<TName>.Default;
 
 	/// <inheritdoc/>
 	public bool Equals(T? x, T? y)
 	{
 		if (ReferenceEquals(x, y))
+		{
 			return true;
+		}
 
 		if (x is null || y is null)
+		{
 			return false;
+		}
 
 		return nameComparer.Equals(x.Name, y.Name);
 	}
@@ -33,7 +38,7 @@ internal class SchemaChildNameComparer<T, TName> : IEqualityComparer<T>
 	/// <inheritdoc/>
 	public int GetHashCode(T obj)
 	{
-		ArgumentNullException.ThrowIfNull(obj, nameof(obj));
+		Ensure.NotNull(obj, nameof(obj));
 		return nameComparer.GetHashCode(obj.Name);
 	}
 }

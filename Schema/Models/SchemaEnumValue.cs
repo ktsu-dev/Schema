@@ -4,7 +4,6 @@
 
 namespace ktsu.Schema.Models;
 
-using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -13,17 +12,12 @@ using ktsu.Schema.Models.Names;
 /// - ParentSchema (inherited): References the root schema that owns this enum value
 /// - ParentEnum: References the immediate parent enumeration that contains this value
 /// </summary>
-public class SchemaEnumValue : SchemaChild<EnumValueName>, ISchemaEnumValue
+public class SchemaEnumValue : SchemaChild<EnumValueName>
 {
 	/// <summary>
 	/// Gets the parent enum that contains this enumeration value.
 	/// </summary>
 	public SchemaEnum? ParentEnum { get; private set; }
-
-	/// <summary>
-	/// Gets the parent enum that contains this enumeration value as an interface.
-	/// </summary>
-	ISchemaEnum? ISchemaEnumValue.ParentEnum => ParentEnum;
 
 	/// <summary>
 	/// Associates the schema enum value with a parent enum.
@@ -32,7 +26,7 @@ public class SchemaEnumValue : SchemaChild<EnumValueName>, ISchemaEnumValue
 	/// <exception cref="ArgumentNullException">Thrown when the provided schema enum is null.</exception>
 	public void AssociateWith(SchemaEnum schemaEnum)
 	{
-		ArgumentNullException.ThrowIfNull(schemaEnum);
+		Ensure.NotNull(schemaEnum);
 
 		ParentEnum = schemaEnum;
 		if (schemaEnum.ParentSchema is not null)
@@ -45,5 +39,5 @@ public class SchemaEnumValue : SchemaChild<EnumValueName>, ISchemaEnumValue
 	/// Tries to remove this enum value from its parent enum.
 	/// </summary>
 	/// <returns>True if the enum value was removed; otherwise, false.</returns>
-	public override bool TryRemove() => ParentEnum?.TryRemoveValue(this) ?? false;
-} 
+	public override bool TryRemove() => ParentEnum?.TryRemoveValue(Name) ?? false;
+}
