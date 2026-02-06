@@ -1,3 +1,8 @@
+## v1.3.4 (patch)
+
+Changes since v1.3.3:
+
+- compatibility suppressions ([@matt-edmondson](https://github.com/matt-edmondson))
 ## v1.3.4-pre.7 (prerelease)
 
 Changes since v1.3.4-pre.6:
