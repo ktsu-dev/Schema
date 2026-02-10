@@ -21,6 +21,9 @@ using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
+using ktsu.UndoRedo;
+using ktsu.UndoRedo.Contracts;
+using ktsu.UndoRedo.Core.Services;
 
 using SchemaTypes = ktsu.Schema.Models.Types;
 
@@ -39,6 +42,7 @@ public class SchemaEditor
 #pragma warning restore IDE0052
 	private ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
 
+	internal IUndoRedoService UndoRedo { get; }
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 
@@ -62,6 +66,7 @@ public class SchemaEditor
 
 	public SchemaEditor()
 	{
+		UndoRedo = new UndoRedoService(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 		TreeSchema = new(this);
 		DividerContainerCols =
 			new(
@@ -200,11 +205,27 @@ public class SchemaEditor
 
 			ImGui.EndMenu();
 		}
+
+		if (ImGui.BeginMenu("Edit"))
+		{
+			if (ImGui.MenuItem("Undo", UndoRedo.CanUndo))
+			{
+				UndoRedo.Undo();
+			}
+
+			if (ImGui.MenuItem("Redo", UndoRedo.CanRedo))
+			{
+				UndoRedo.Redo();
+			}
+
+			ImGui.EndMenu();
+		}
 	}
 
 	private void New()
 	{
 		Reset();
+		UndoRedo.Clear();
 		CurrentSchema = new Schema();
 		QueueSaveOptions();
 	}
@@ -216,6 +237,7 @@ public class SchemaEditor
 			Reset();
 			if (SchemaFile.TryLoad(filePath, out Schema? schema) && schema is not null)
 			{
+				UndoRedo.Clear();
 				CurrentSchema = schema;
 				CurrentSchemaPath = filePath;
 				CurrentClass = CurrentSchema?.FirstClass;
@@ -238,7 +260,10 @@ public class SchemaEditor
 
 		if (CurrentSchema is not null)
 		{
-			SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath);
+			if (SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath))
+			{
+				UndoRedo.MarkAsSaved();
+			}
 		}
 	}
 
@@ -338,7 +363,13 @@ public class SchemaEditor
 				string name = schemaMember.Name;
 				if (ImGui.Button($"X##deleteMember{name}", new Vector2(frameHeight, 0)))
 				{
-					schemaMember.TryRemove();
+					SchemaMember captured = schemaMember;
+					SchemaClass parentClass = CurrentClass;
+					UndoRedo.Execute(new DelegateCommand(
+						$"Delete Member '{captured.Name}'",
+						() => captured.TryRemove(),
+						() => parentClass.RestoreMember(captured),
+						ChangeType.Delete));
 				}
 
 				ImGui.SameLine();
