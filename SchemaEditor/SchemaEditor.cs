@@ -139,7 +139,47 @@ public class SchemaEditor
 
 	private void QueueSaveOptions() => OptionsDirty = true;
 
-	private void OnTick(float dt) { }
+	private void OnTick(float dt) => ProcessKeyboardShortcuts();
+
+	private void ProcessKeyboardShortcuts()
+	{
+		ImGuiIOPtr io = ImGui.GetIO();
+		if (io.WantTextInput)
+		{
+			return;
+		}
+
+		bool ctrl = io.KeyCtrl;
+		bool shift = io.KeyShift;
+
+		if (ctrl && ImGui.IsKeyPressed(ImGuiKey.Z, false))
+		{
+			if (shift)
+			{
+				UndoRedo.Redo();
+			}
+			else
+			{
+				UndoRedo.Undo();
+			}
+		}
+		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.Y, false))
+		{
+			UndoRedo.Redo();
+		}
+		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
+		{
+			Save();
+		}
+		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.N, false))
+		{
+			New();
+		}
+		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.O, false))
+		{
+			Open();
+		}
+	}
 
 	private void OnRender(float dt)
 	{
@@ -177,17 +217,17 @@ public class SchemaEditor
 	{
 		if (ImGui.BeginMenu("File"))
 		{
-			if (ImGui.MenuItem("New"))
+			if (ImGui.MenuItem("New", "Ctrl+N"))
 			{
 				New();
 			}
 
-			if (ImGui.MenuItem("Open"))
+			if (ImGui.MenuItem("Open", "Ctrl+O"))
 			{
 				Open();
 			}
 
-			if (ImGui.MenuItem("Save"))
+			if (ImGui.MenuItem("Save", "Ctrl+S"))
 			{
 				Save();
 			}
@@ -208,12 +248,12 @@ public class SchemaEditor
 
 		if (ImGui.BeginMenu("Edit"))
 		{
-			if (ImGui.MenuItem("Undo", UndoRedo.CanUndo))
+			if (ImGui.MenuItem("Undo", "Ctrl+Z", false, UndoRedo.CanUndo))
 			{
 				UndoRedo.Undo();
 			}
 
-			if (ImGui.MenuItem("Redo", UndoRedo.CanRedo))
+			if (ImGui.MenuItem("Redo", "Ctrl+Y", false, UndoRedo.CanRedo))
 			{
 				UndoRedo.Redo();
 			}
