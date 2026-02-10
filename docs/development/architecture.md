@@ -75,64 +75,64 @@ This document provides a high-level overview of the Schema library architecture,
 ### Schema (Root Container)
 
 ```csharp
-public partial class Schema
+public class Schema
 {
-    // Collections of schema elements
+    // Collections of schema elements (read-only public API)
     public IReadOnlyCollection<SchemaClass> Classes { get; }
     public IReadOnlyCollection<SchemaEnum> Enums { get; }
     public IReadOnlyCollection<DataSource> DataSources { get; }
-
-    // File management
-    public AbsoluteFilePath FilePath { get; }
-    public SchemaPaths RelativePaths { get; }
+    public IReadOnlyCollection<SchemaCodeGenerator> CodeGenerators { get; }
 
     // CRUD operations
     public SchemaClass? AddClass(ClassName name);
     public bool TryGetClass(ClassName name, out SchemaClass? schemaClass);
-    // ... similar for Enums, DataSources
+    // ... similar for Enums, DataSources, CodeGenerators
 }
 ```
 
 **Responsibilities:**
 
 -   Container for all schema elements
--   File I/O operations (load/save)
--   Element lifecycle management
--   Cross-reference validation
+-   Element lifecycle management (add, get, remove)
+-   Parent-child relationship management via `Reassociate()`
+-   Type queries across all classes
 
 ### Schema Elements Hierarchy
 
 ```
-SchemaChild<T> (Abstract Base)
+SchemaChild<T> (Abstract Base - has Name, Description, ParentSchema)
 ├── SchemaClass : SchemaChild<ClassName>
 ├── SchemaEnum : SchemaChild<EnumName>
 ├── DataSource : SchemaChild<DataSourceName>
 └── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 
-SchemaMemberChild<T> (Abstract Base)
-└── SchemaTypes.BaseType : SchemaMemberChild<BaseTypeName>
-    ├── Primitive Types (Int, String, Bool, etc.)
-    ├── Vector Types (Vector2, Vector3, etc.)
-    ├── Complex Types (Array, Object, Enum)
-    └── System Types (DateTime, TimeSpan)
+SchemaClassChild<T> : SchemaChild<T> (adds ParentClass)
+└── SchemaMember : SchemaClassChild<MemberName>
+    └── Contains: BaseType (via Type property, set with SetType())
 
-SchemaMember : SchemaMemberChild<MemberName>
-└── Contains: SchemaTypes.BaseType
+BaseType : IEquatable<BaseType?> (standalone hierarchy, not SchemaChild)
+├── Primitive Types: Int, Long, Float, Double, String, Bool
+├── Temporal Types: DateTime, TimeSpan
+├── Vector Types: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
+├── Complex Types: Array, Object, Enum
+└── Special: None
 ```
 
 ### Type System Architecture
 
-The type system is built around a polymorphic hierarchy:
+The type system is built around a polymorphic hierarchy using `System.Text.Json`:
 
 ```csharp
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "TypeName")]
-public abstract class BaseType : SchemaMemberChild<BaseTypeName>
+[JsonDerivedType(typeof(Int), nameof(Int))]
+// ... derived type registrations for all types
+public abstract class BaseType : IEquatable<BaseType?>
 {
-    // Core type functionality
-    public abstract string DisplayName { get; }
-    public bool IsBuiltIn { get; }
-    public bool IsPrimitive { get; }
-    // ... type classification properties
+    public SchemaMember? ParentMember { get; } // [JsonIgnore]
+    public string DisplayName { get; }         // [JsonIgnore]
+    public bool IsBuiltIn { get; }             // [JsonIgnore]
+    public bool IsPrimitive { get; }           // [JsonIgnore]
+    // ... type classification properties (all JsonIgnore)
 }
 ```
 
@@ -142,20 +142,23 @@ public abstract class BaseType : SchemaMemberChild<BaseTypeName>
 -   **Type Classification**: Properties like `IsBuiltIn`, `IsPrimitive` for runtime decisions
 -   **Extensibility**: New types can be added by inheriting from `BaseType`
 
-### Strong String Types
+### Semantic String Types
+
+Uses `ktsu.Semantics.Strings` for type-safe identifiers:
 
 ```csharp
-public sealed record class ClassName : StrongStringAbstract<ClassName> { }
-public sealed record class MemberName : StrongStringAbstract<MemberName> { }
-public sealed record class EnumName : StrongStringAbstract<EnumName> { }
-// ... etc
+// Name types implement SemanticString<T> and marker interfaces
+// ClassName, MemberName, EnumName, EnumValueName, etc.
+
+// Convert strings using the .As<T>() extension
+ClassName name = "User".As<ClassName>();
 ```
 
 **Benefits:**
 
 -   Compile-time prevention of parameter confusion
--   Implicit conversion from strings via `.As<T>()` extension
--   JSON serialization as plain strings
+-   Conversion from strings via `.As<T>()` extension
+-   JSON serialization as plain strings (via `RoundTripStringJsonConverterFactory`)
 -   IntelliSense and refactoring support
 
 ## Design Patterns
@@ -190,19 +193,19 @@ public bool IsNumeric => this switch
 };
 ```
 
-### Observer Pattern (Parent-Child Relationships)
+### Parent-Child Association Pattern
 
 ```csharp
 public abstract class SchemaChild<TName>
 {
-    protected Schema? ParentSchema { get; private set; }
+    [JsonIgnore]
+    public Schema? ParentSchema { get; private set; }
 
-    public void AssociateWith(Schema schema)
-    {
-        ParentSchema = schema;
-    }
+    public void AssociateWith(Schema schema) => ParentSchema = schema;
 }
 ```
+
+After deserialization, `Schema.Reassociate()` re-establishes all parent references. `SchemaSerializer.TryDeserialize()` calls this automatically.
 
 ## Data Flow
 
@@ -264,9 +267,9 @@ Schema (Root)
 **Key Points:**
 
 -   Schema holds strong references to all elements
--   Elements hold weak references back to schema (via interface)
--   JSON serialization creates temporary object graphs
--   No circular reference issues due to careful design
+-   Elements hold direct references back to schema (via `ParentSchema`)
+-   Parent references are marked `[JsonIgnore]` to prevent circular serialization
+-   `Reassociate()` restores parent references after deserialization
 
 ### Performance Considerations
 
@@ -404,7 +407,6 @@ Schema.Test/
 
 ## See Also
 
--   [Project Structure](project-structure.md) - Detailed code organization
--   [API Reference](../api/) - Public API documentation
--   [Contributing](contributing.md) - Development workflow
--   [Performance](performance.md) - Performance optimization guide
+-   [Getting Started](../getting-started.md) - Basic setup and concepts
+-   [Basic Schema Example](../examples/basic-schema.md) - Complete walkthrough
+-   [Schema Editor](../features/schema-editor.md) - Visual editor usage

@@ -42,33 +42,34 @@ using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 using ktsu.Semantics.Strings;
+using SchemaTypes = ktsu.Schema.Models.Types;
 
 // Create a new schema
-var schema = new Schema();
+Schema schema = new();
 
 // Add an enum
-var roleEnum = schema.AddEnum("UserRole".As<EnumName>());
+SchemaEnum? roleEnum = schema.AddEnum("UserRole".As<EnumName>());
 roleEnum?.TryAddValue("Admin".As<EnumValueName>());
 roleEnum?.TryAddValue("User".As<EnumValueName>());
 roleEnum?.TryAddValue("Guest".As<EnumValueName>());
 
 // Add a class with typed members
-var userClass = schema.AddClass("User".As<ClassName>());
+SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
 if (userClass != null)
 {
-    var id = userClass.AddMember("Id".As<MemberName>());
+    SchemaMember? id = userClass.AddMember("Id".As<MemberName>());
     id?.SetType(new SchemaTypes.Int());
 
-    var name = userClass.AddMember("Name".As<MemberName>());
+    SchemaMember? name = userClass.AddMember("Name".As<MemberName>());
     name?.SetType(new SchemaTypes.String());
 
-    var email = userClass.AddMember("Email".As<MemberName>());
+    SchemaMember? email = userClass.AddMember("Email".As<MemberName>());
     email?.SetType(new SchemaTypes.String());
 
-    var role = userClass.AddMember("Role".As<MemberName>());
+    SchemaMember? role = userClass.AddMember("Role".As<MemberName>());
     role?.SetType(new SchemaTypes.Enum { EnumName = "UserRole".As<EnumName>() });
 
-    var createdAt = userClass.AddMember("CreatedAt".As<MemberName>());
+    SchemaMember? createdAt = userClass.AddMember("CreatedAt".As<MemberName>());
     createdAt?.SetType(new SchemaTypes.DateTime());
 }
 ```
@@ -77,14 +78,14 @@ if (userClass != null)
 
 ```csharp
 // Add a Project class
-var projectClass = schema.AddClass("Project".As<ClassName>());
-var projectId = projectClass?.AddMember("Id".As<MemberName>());
+SchemaClass? projectClass = schema.AddClass("Project".As<ClassName>());
+SchemaMember? projectId = projectClass?.AddMember("Id".As<MemberName>());
 projectId?.SetType(new SchemaTypes.Int());
-var projectName = projectClass?.AddMember("Name".As<MemberName>());
+SchemaMember? projectName = projectClass?.AddMember("Name".As<MemberName>());
 projectName?.SetType(new SchemaTypes.String());
 
 // Add an array of projects to the User class
-var projects = userClass?.AddMember("Projects".As<MemberName>());
+SchemaMember? projects = userClass?.AddMember("Projects".As<MemberName>());
 projects?.SetType(new SchemaTypes.Array
 {
     ElementType = new SchemaTypes.Object { ClassName = "Project".As<ClassName>() },
@@ -92,7 +93,7 @@ projects?.SetType(new SchemaTypes.Array
 });
 
 // Use a keyed collection (map)
-var projectsMap = userClass?.AddMember("ProjectsById".As<MemberName>());
+SchemaMember? projectsMap = userClass?.AddMember("ProjectsById".As<MemberName>());
 projectsMap?.SetType(new SchemaTypes.Array
 {
     ElementType = new SchemaTypes.Object { ClassName = "Project".As<ClassName>() },
@@ -108,21 +109,34 @@ projectsMap?.SetType(new SchemaTypes.Array
 schema.AddClass(typeof(MyExistingClass));
 ```
 
+### Serialize and Deserialize
+
+```csharp
+// Serialize to JSON
+string json = SchemaSerializer.Serialize(schema);
+
+// Deserialize from JSON (automatically calls Reassociate())
+if (SchemaSerializer.TryDeserialize(json, out Schema? loaded))
+{
+    Console.WriteLine($"Loaded {loaded.Classes.Count} classes");
+}
+```
+
 ### Query the Schema
 
 ```csharp
 // Retrieve classes and enums
-if (schema.TryGetClass("User".As<ClassName>(), out var userClass))
+if (schema.TryGetClass("User".As<ClassName>(), out SchemaClass? foundClass))
 {
-    foreach (var member in userClass.Members)
+    foreach (SchemaMember member in foundClass.Members)
     {
         Console.WriteLine($"  {member.Name}: {member.Type.DisplayName}");
     }
 }
 
-if (schema.TryGetEnum("UserRole".As<EnumName>(), out var roleEnum))
+if (schema.TryGetEnum("UserRole".As<EnumName>(), out SchemaEnum? foundEnum))
 {
-    foreach (var value in roleEnum.Values)
+    foreach (EnumValueName value in foundEnum.Values)
     {
         Console.WriteLine($"  {value}");
     }
@@ -163,39 +177,43 @@ Convert strings using the `.As<T>()` extension method: `"User".As<ClassName>()`
 
 ## JSON Serialization
 
-Schemas serialize to JSON using `System.Text.Json` with polymorphic type discrimination. The `TypeName` property identifies concrete types:
+Use `SchemaSerializer` for JSON serialization with `System.Text.Json`. The serializer uses camelCase property names and polymorphic type discrimination via the `TypeName` discriminator:
 
 ```json
 {
-    "Classes": [
+  "classes": [
+    {
+      "name": "User",
+      "description": "",
+      "members": [
         {
-            "Name": "User",
-            "Members": [
-                {
-                    "Name": "Id",
-                    "Type": { "TypeName": "Int" }
-                },
-                {
-                    "Name": "Role",
-                    "Type": { "TypeName": "Enum", "EnumName": "UserRole" }
-                }
-            ]
-        }
-    ],
-    "Enums": [
+          "name": "Id",
+          "description": "",
+          "type": { "TypeName": "Int" },
+          "memberDescription": ""
+        },
         {
-            "Name": "UserRole",
-            "Values": [
-                { "Name": "Admin" },
-                { "Name": "User" },
-                { "Name": "Guest" }
-            ]
+          "name": "Role",
+          "description": "",
+          "type": { "TypeName": "Enum", "enumName": "UserRole" },
+          "memberDescription": ""
         }
-    ]
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "UserRole",
+      "description": "",
+      "values": ["Admin", "User", "Guest"]
+    }
+  ],
+  "dataSources": [],
+  "codeGenerators": []
 }
 ```
 
-After deserialization, call `schema.Reassociate()` to re-establish parent-child relationships.
+`SchemaSerializer.TryDeserialize()` automatically calls `Reassociate()` to re-establish parent-child relationships after deserialization.
 
 ## Schema Editor
 
@@ -227,15 +245,6 @@ dotnet test
 # Build a specific project
 dotnet build Schema/Schema.csproj
 ```
-
-## Documentation
-
-Detailed documentation is available in the [docs/](docs/) folder:
-
-- [Getting Started](docs/getting-started.md) - Installation and first schema
-- [Basic Schema Example](docs/examples/basic-schema.md) - Complete walkthrough
-- [Architecture](docs/development/architecture.md) - Design patterns and data flow
-- [Schema Editor Guide](docs/features/schema-editor.md) - Visual editor usage
 
 ## License
 
