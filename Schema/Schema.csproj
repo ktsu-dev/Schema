@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ktsu.RoundTripStringJsonConverter" />
     <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="ktsu.Semantics.Paths" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />

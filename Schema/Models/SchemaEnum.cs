@@ -5,6 +5,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -16,11 +17,14 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// <summary>
 	/// Gets the internal collection of enumeration values.
 	/// </summary>
+	[JsonInclude]
+	[JsonPropertyName("values")]
 	private Collection<EnumValueName> ValuesInternal { get; set; } = [];
 
 	/// <summary>
 	/// Gets the read-only collection of enumeration values.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
 
 	/// <summary>
@@ -57,5 +61,6 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// <summary>
 	/// Gets a summary of the enumeration.
 	/// </summary>
+	[JsonIgnore]
 	public string EnumSummary => $"{Name} ({ValuesInternal.Count})";
 }

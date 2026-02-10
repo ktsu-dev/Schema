@@ -7,6 +7,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageVersion Include="CommandLineParser" Version="2.9.1" />
     <PackageVersion Include="ktsu.Extensions" Version="1.5.6" />
+    <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.7" />
     <PackageVersion Include="ktsu.SemanticString" Version="1.4.0" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="1.0.28" />
     <PackageVersion Include="ktsu.Semantics.Paths" Version="1.0.28" />

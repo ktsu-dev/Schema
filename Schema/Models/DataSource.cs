@@ -4,6 +4,7 @@
 
 namespace ktsu.Schema.Models;
 
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 
@@ -26,6 +27,7 @@ public class DataSource : SchemaChild<DataSourceName>
 	/// Gets the schema class associated with this data source.
 	/// Resolved lazily from the parent schema using ClassName.
 	/// </summary>
+	[JsonIgnore]
 	public SchemaClass? Class
 	{
 		get

@@ -4,7 +4,7 @@
 
 namespace ktsu.Schema.Models;
 
-using ktsu.Schema.Contracts;
+using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Semantics.Strings;
 
@@ -22,11 +22,12 @@ public abstract class SchemaChild<TName> where TName : SemanticString<TName>, IS
 	/// <summary>
 	/// Gets or sets the description of the schema child.
 	/// </summary>
-	public ISchemaChildDescription Description { get; set; } = new SchemaChildDescription();
+	public SchemaChildDescription Description { get; set; } = new();
 
 	/// <summary>
 	/// Gets the parent schema provider of the schema child.
 	/// </summary>
+	[JsonIgnore]
 	public Schema? ParentSchema { get; private set; }
 
 	/// <summary>

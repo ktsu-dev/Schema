@@ -4,6 +4,7 @@
 
 namespace ktsu.Schema.Models.Types;
 
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -29,6 +30,7 @@ public class Array : BaseType
 	/// <summary>
 	/// Gets a value indicating whether the array is keyed.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsKeyed => ElementType.IsObject && !string.IsNullOrEmpty(Key) && !string.IsNullOrEmpty(Container);
 
 	/// <summary>

@@ -4,6 +4,7 @@
 
 namespace ktsu.Schema.Models.Types;
 
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -19,6 +20,7 @@ public class Object : BaseType
 	/// <summary>
 	/// Gets the schema class associated with the object.
 	/// </summary>
+	[JsonIgnore]
 	public SchemaClass? Class
 	{
 		get

@@ -6,6 +6,7 @@ namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Reflection;
+using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
@@ -17,29 +18,44 @@ using ktsu.Semantics.Strings;
 /// </summary>
 public class Schema
 {
+	[JsonInclude]
+	[JsonPropertyName("classes")]
 	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
+
+	[JsonInclude]
+	[JsonPropertyName("enums")]
 	internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
+
+	[JsonInclude]
+	[JsonPropertyName("codeGenerators")]
 	internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
+
+	[JsonInclude]
+	[JsonPropertyName("dataSources")]
 	internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
 
 	/// <summary>
 	/// Gets the collection of schema classes.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<SchemaClass> Classes => ClassesInternal;
 
 	/// <summary>
 	/// Gets the collection of schema enums.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
 
 	/// <summary>
 	/// Gets the collection of code generators.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<SchemaCodeGenerator> CodeGenerators => CodeGeneratorsInternal;
 
 	/// <summary>
 	/// Gets the collection of data sources.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
 
 	/// <summary>
@@ -370,11 +386,13 @@ public class Schema
 	/// <summary>
 	/// Gets the first class in the schema.
 	/// </summary>
+	[JsonIgnore]
 	public SchemaClass? FirstClass => ClassesInternal.FirstOrDefault();
 
 	/// <summary>
 	/// Gets the last class in the schema.
 	/// </summary>
+	[JsonIgnore]
 	public SchemaClass? LastClass => ClassesInternal.LastOrDefault();
 
 	private IEnumerable<BaseType> GetDiscreteTypes()

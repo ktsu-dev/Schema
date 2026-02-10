@@ -35,6 +35,7 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets or sets the parent member of the schema type.
 	/// </summary>
+	[JsonIgnore]
 	public SchemaMember? ParentMember { get; private set; }
 
 	/// <summary>
@@ -89,6 +90,7 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets the display name of the type.
 	/// </summary>
+	[JsonIgnore]
 	public string DisplayName
 	{
 		get
@@ -137,16 +139,19 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets a value indicating whether the type is built-in.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsBuiltIn => BuiltInTypes.Contains(GetType());
 
 	/// <summary>
 	/// Gets a value indicating whether the type is primitive.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsPrimitive => PrimitiveTypes.Contains(GetType());
 
 	/// <summary>
 	/// Gets a value indicating whether the type is integral.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsIntegral => this switch
 	{
 		Int => true,
@@ -157,6 +162,7 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets a value indicating whether the type is decimal.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsDecimal => this switch
 	{
 		Float => true,
@@ -167,11 +173,13 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets a value indicating whether the type is numeric.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsNumeric => IsIntegral || IsDecimal;
 
 	/// <summary>
 	/// Gets a value indicating whether the type is a container.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsContainer => this switch
 	{
 		Array => true,
@@ -181,25 +189,30 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Gets a value indicating whether the type is an object.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsObject => this is Object;
 
 	/// <summary>
 	/// Gets a value indicating whether the type is a system object.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsSystemObject => this is SystemObject;
 
 	/// <summary>
 	/// Gets a value indicating whether the type is an array.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsArray => this is Array;
 
 	/// <summary>
 	/// Gets a value indicating whether the type is a complex array.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsComplexArray => this is Array array && array.ElementType.IsObject;
 
 	/// <summary>
 	/// Gets a value indicating whether the type is a primitive array.
 	/// </summary>
+	[JsonIgnore]
 	public bool IsPrimitiveArray => this is Array array && array.ElementType.IsPrimitive;
 }

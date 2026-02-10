@@ -5,6 +5,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -15,16 +16,20 @@ public class SchemaClass : SchemaChild<ClassName>
 	/// <summary>
 	/// Gets the internal collection of members.
 	/// </summary>
+	[JsonInclude]
+	[JsonPropertyName("members")]
 	internal Collection<SchemaMember> MembersInternal { get; set; } = [];
 
 	/// <summary>
 	/// Gets the members of the schema class.
 	/// </summary>
+	[JsonIgnore]
 	public IReadOnlyCollection<SchemaMember> Members => MembersInternal;
 
 	/// <summary>
 	/// Gets a summary of the schema class.
 	/// </summary>
+	[JsonIgnore]
 	public string ClassSummary => $"{Name} ({Members.Count})";
 
 	/// <summary>
