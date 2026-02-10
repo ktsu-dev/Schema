@@ -282,6 +282,35 @@ public class Schema
 	public bool TryGetDataSource(DataSourceName name, out DataSource? dataSource) => TryGetChild(name, DataSourcesInternal, out dataSource);
 
 	/// <summary>
+	/// Tries to add a code generator.
+	/// </summary>
+	/// <param name="name">The name of the code generator to add.</param>
+	/// <returns>True if added successfully, false otherwise.</returns>
+	public bool TryAddCodeGenerator(CodeGeneratorName name) => TryAddChild(name, CodeGeneratorsInternal);
+
+	/// <summary>
+	/// Adds a code generator.
+	/// </summary>
+	/// <param name="name">The name of the code generator to add.</param>
+	/// <returns>The added code generator if successful, null otherwise.</returns>
+	public SchemaCodeGenerator? AddCodeGenerator(CodeGeneratorName name) => AddChild(name, CodeGeneratorsInternal);
+
+	/// <summary>
+	/// Gets a code generator by name.
+	/// </summary>
+	/// <param name="name">The name of the code generator.</param>
+	/// <returns>The code generator if found, null otherwise.</returns>
+	public SchemaCodeGenerator? GetCodeGenerator(CodeGeneratorName name) => GetChild(name, CodeGeneratorsInternal);
+
+	/// <summary>
+	/// Tries to get a code generator by name.
+	/// </summary>
+	/// <param name="name">The name of the code generator.</param>
+	/// <param name="codeGenerator">The found code generator, if any.</param>
+	/// <returns>True if found; otherwise, false.</returns>
+	public bool TryGetCodeGenerator(CodeGeneratorName name, out SchemaCodeGenerator? codeGenerator) => TryGetChild(name, CodeGeneratorsInternal, out codeGenerator);
+
+	/// <summary>
 	/// Tries to add a class based on a .NET Type.
 	/// </summary>
 	/// <param name="type">The .NET type to add as a schema class.</param>

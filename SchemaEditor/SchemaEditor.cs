@@ -145,7 +145,14 @@ public class SchemaEditor
 	private void ShowRightPanel(float dt)
 	{
 		ShowSchemaConfig();
-		ShowMembers();
+		if (CurrentClass is not null)
+		{
+			ShowMembers();
+		}
+		else if (CurrentDataSource is not null)
+		{
+			ShowDataSourceProperties();
+		}
 	}
 
 	private void Reset()
@@ -362,6 +369,49 @@ public class SchemaEditor
 			}
 
 			ImGui.TextUnformatted($"Schema Path: {CurrentSchemaPath}");
+		}
+	}
+
+	private void ShowDataSourceProperties()
+	{
+		if (CurrentDataSource is not null && ImGui.CollapsingHeader($"{CurrentDataSource.Name} Properties", ImGuiTreeNodeFlags.DefaultOpen))
+		{
+			ImGui.TextUnformatted("File Path:");
+			ImGui.SameLine();
+			ImGui.SetNextItemWidth(FieldWidth * 2);
+			string filePath = CurrentDataSource.File;
+			if (ImGui.InputText("##DataSourceFile", ref filePath, 256))
+			{
+				CurrentDataSource.File = filePath.As<ktsu.Semantics.Paths.RelativeFilePath>();
+			}
+
+			ImGui.TextUnformatted("Class:");
+			ImGui.SameLine();
+			if (CurrentSchema is not null)
+			{
+				if (ImGui.Button(string.IsNullOrEmpty(CurrentDataSource.ClassName)
+					? "<Select Class>"
+					: (string)CurrentDataSource.ClassName, new Vector2(FieldWidth, 0)))
+				{
+					if (ImGui.BeginPopupContextItem("##DataSourceClassSelect", ImGuiPopupFlags.MouseButtonLeft))
+					{
+						if (ImGui.Selectable("<none>"))
+						{
+							CurrentDataSource.ClassName = new();
+						}
+
+						foreach (SchemaClass schemaClass in CurrentSchema.Classes)
+						{
+							if (ImGui.Selectable(schemaClass.Name))
+							{
+								CurrentDataSource.ClassName = schemaClass.Name;
+							}
+						}
+
+						ImGui.EndPopup();
+					}
+				}
+			}
 		}
 	}
 

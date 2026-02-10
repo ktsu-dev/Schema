@@ -5,23 +5,16 @@
 namespace ktsu.SchemaEditor;
 
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
 
 /// <summary>
 /// Provides file persistence functionality for Schema objects.
+/// Delegates serialization to the core SchemaSerializer.
 /// </summary>
 internal static class SchemaFile
 {
-	private static readonly JsonSerializerOptions JsonOptions = new()
-	{
-		WriteIndented = true,
-		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-	};
-
 	/// <summary>
 	/// Tries to load a Schema from a file path.
 	/// </summary>
@@ -45,17 +38,7 @@ internal static class SchemaFile
 			}
 
 			string json = File.ReadAllText(filePath);
-			schema = JsonSerializer.Deserialize<Schema>(json, JsonOptions);
-
-			if (schema is not null)
-			{
-				schema.Reassociate();
-				return true;
-			}
-		}
-		catch (JsonException)
-		{
-			// Invalid JSON
+			return SchemaSerializer.TryDeserialize(json, out schema);
 		}
 		catch (IOException)
 		{
@@ -80,7 +63,7 @@ internal static class SchemaFile
 
 		try
 		{
-			string json = JsonSerializer.Serialize(schema, JsonOptions);
+			string json = SchemaSerializer.Serialize(schema);
 			string? directory = Path.GetDirectoryName((string)filePath);
 
 			if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
