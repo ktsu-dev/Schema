@@ -16,6 +16,7 @@ using ktsu.Extensions;
 using ktsu.ImGui.App;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
+using ktsu.IntervalAction;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
@@ -32,9 +33,10 @@ public class SchemaEditor
 	internal DataSource? CurrentDataSource { get; set; }
 	internal AppData Options { get; }
 	internal static float FieldWidth => ImGui.GetIO().DisplaySize.X * 0.15f;
-	private DateTime LastSaveOptionsTime { get; set; } = DateTime.MinValue;
-	private DateTime SaveOptionsQueuedTime { get; set; } = DateTime.MinValue;
-	private TimeSpan SaveOptionsDebounceTime { get; } = TimeSpan.FromSeconds(3);
+	private bool OptionsDirty { get; set; }
+#pragma warning disable IDE0052 // Remove unread private member - reference needed to prevent GC
+	private readonly IntervalAction? autoSaveOptionsAction;
+#pragma warning restore IDE0052
 	private ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
 
 	internal Popups Popups { get; }
@@ -74,6 +76,20 @@ public class SchemaEditor
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
+
+		autoSaveOptionsAction = IntervalAction.Start(new()
+		{
+			Action = () =>
+			{
+				if (OptionsDirty)
+				{
+					OptionsDirty = false;
+					SaveOptionsInternal();
+				}
+			},
+			ActionInterval = TimeSpan.FromSeconds(3),
+			IntervalType = IntervalType.FromLastCompletion,
+		});
 
 		// restore open schema
 		if (SchemaFile.TryLoad(Options.CurrentSchemaPath, out Schema? previouslyOpenSchema) && previouslyOpenSchema is not null)
@@ -116,19 +132,9 @@ public class SchemaEditor
 		Options.Save();
 	}
 
-	private void QueueSaveOptions() => SaveOptionsQueuedTime = DateTime.Now;
+	private void QueueSaveOptions() => OptionsDirty = true;
 
-	private void SaveOptionsIfRequired()
-	{
-		//debounce the save requests and avoid saving multiple times per frame or multiple frames in a row
-		if ((SaveOptionsQueuedTime > LastSaveOptionsTime) && ((DateTime.Now - SaveOptionsQueuedTime) > SaveOptionsDebounceTime))
-		{
-			SaveOptionsInternal();
-			LastSaveOptionsTime = DateTime.Now;
-		}
-	}
-
-	private void OnTick(float dt) => SaveOptionsIfRequired();
+	private void OnTick(float dt) { }
 
 	private void OnRender(float dt)
 	{
