@@ -1,3 +1,24 @@
-## v1.3.4
+## v1.4.0 (minor)
 
-Changes since v1.3.4:
+Changes since v1.3.0:
+
+- [minor] Complete DataSource and CodeGenerator models, fix Reassociate ([@matt-edmondson](https://github.com/matt-edmondson))
+- [minor] Add SchemaSerializer, JSON serialization support, and comprehensive test suite ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project SDK from ktsu.Sdk.App to ktsu.Sdk.ImGuiApp in SchemaEditor.csproj ([@matt-edmondson](https://github.com/matt-edmondson))
+- migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
+- Replace StrongStrings and StrongPaths with ktsu.Semantics across the codebase, updating relevant class constraints and references to use ISemanticString. This change enhances type safety and aligns with the latest library standards. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor Schema Library Documentation and Examples ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update tests to use new SchemaProvider API - remove dependency on obsolete Schema class ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update packages ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update package references and add XML declaration in project files ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor schema management by introducing a new Schema class and related models, replacing the previous SchemaProvider and related interfaces. This update enhances type safety and aligns with the latest design principles, removing obsolete classes and improving the overall structure of the schema definitions. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Complete Schema refactoring to DI SchemaProvider - remove serialization and filesystem concerns ([@matt-edmondson](https://github.com/matt-edmondson))
+- [minor] Add CodeGenerator tree, DataSource property panel, and use SchemaSerializer in editor ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to schema files; refactor variable declarations for consistency. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update README.md with comprehensive project details and usage examples ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update package references and restructure project files for improved organization and clarity ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update project SDK references and README formatting ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add schema contract interfaces for schema definitions, including ISchema, ISchemaChild, ISchemaClass, ISchemaEnum, and related name interfaces. This introduces a structured approach to schema management without serialization concerns. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- compatibility suppressions ([@matt-edmondson](https://github.com/matt-edmondson))
