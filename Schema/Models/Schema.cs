@@ -67,6 +67,16 @@ public class Schema
 		{
 			schemaEnum.AssociateWith(this);
 		}
+
+		foreach (DataSource dataSource in DataSourcesInternal)
+		{
+			dataSource.AssociateWith(this);
+		}
+
+		foreach (SchemaCodeGenerator codeGenerator in CodeGeneratorsInternal)
+		{
+			codeGenerator.AssociateWith(this);
+		}
 	}
 
 	/// <summary>

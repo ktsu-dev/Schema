@@ -7,6 +7,8 @@ namespace ktsu.Schema.Tests;
 using System.Collections.ObjectModel;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SchemaTypes = ktsu.Schema.Models.Types;
 
@@ -216,6 +218,109 @@ public class SchemaTests
 
 		SchemaClass? foundClass = schemaProvider.GetClass(className);
 		Assert.AreEqual(addedClass, foundClass);
+	}
+	[TestMethod]
+	public void TestDataSourceFileProperty()
+	{
+		Schema schemaProvider = new();
+		DataSource? ds = schemaProvider.AddDataSource("Users".As<DataSourceName>());
+		Assert.IsNotNull(ds);
+
+		RelativeFilePath filePath = "users.json".As<RelativeFilePath>();
+		ds.File = filePath;
+		Assert.AreEqual(filePath, ds.File);
+	}
+
+	[TestMethod]
+	public void TestDataSourceClassNameProperty()
+	{
+		Schema schemaProvider = new();
+		SchemaClass? userClass = schemaProvider.AddClass("User".As<ClassName>());
+		Assert.IsNotNull(userClass);
+
+		DataSource? ds = schemaProvider.AddDataSource("Users".As<DataSourceName>());
+		Assert.IsNotNull(ds);
+
+		ds.ClassName = "User".As<ClassName>();
+		Assert.AreEqual("User".As<ClassName>(), ds.ClassName);
+	}
+
+	[TestMethod]
+	public void TestDataSourceClassResolution()
+	{
+		Schema schemaProvider = new();
+		SchemaClass? userClass = schemaProvider.AddClass("User".As<ClassName>());
+		Assert.IsNotNull(userClass);
+
+		DataSource? ds = schemaProvider.AddDataSource("Users".As<DataSourceName>());
+		Assert.IsNotNull(ds);
+		ds.ClassName = "User".As<ClassName>();
+
+		Assert.AreEqual(userClass, ds.Class);
+	}
+	[TestMethod]
+	public void TestReassociateDataSources()
+	{
+		Schema schemaProvider = new();
+		DataSource? ds = schemaProvider.AddDataSource("Users".As<DataSourceName>());
+		Assert.IsNotNull(ds);
+
+		// Clear the parent reference to simulate deserialization
+		ds.AssociateWith(new Schema());
+
+		schemaProvider.Reassociate();
+		Assert.AreEqual(schemaProvider, ds.ParentSchema);
+	}
+
+	[TestMethod]
+	public void TestReassociateCodeGenerators()
+	{
+		Schema schemaProvider = new();
+		SchemaCodeGenerator? cg = schemaProvider.AddChild("CSharp".As<CodeGeneratorName>(), schemaProvider.CodeGeneratorsInternal);
+		Assert.IsNotNull(cg);
+
+		// Clear the parent reference to simulate deserialization
+		cg.AssociateWith(new Schema());
+
+		schemaProvider.Reassociate();
+		Assert.AreEqual(schemaProvider, cg.ParentSchema);
+	}
+
+	[TestMethod]
+	public void TestAddCodeGenerator()
+	{
+		Schema schemaProvider = new();
+		CodeGeneratorName name = "CSharp".As<CodeGeneratorName>();
+		SchemaCodeGenerator? cg = schemaProvider.AddChild(name, schemaProvider.CodeGeneratorsInternal);
+
+		Assert.IsNotNull(cg);
+		Assert.AreEqual(name, cg.Name);
+	}
+
+	[TestMethod]
+	public void TestCodeGeneratorTryRemove()
+	{
+		Schema schemaProvider = new();
+		CodeGeneratorName name = "CSharp".As<CodeGeneratorName>();
+		SchemaCodeGenerator? cg = schemaProvider.AddChild(name, schemaProvider.CodeGeneratorsInternal);
+		Assert.IsNotNull(cg);
+
+		bool result = cg.TryRemove();
+		Assert.IsTrue(result);
+		Assert.AreEqual(0, schemaProvider.CodeGenerators.Count);
+	}
+
+	[TestMethod]
+	public void TestCodeGeneratorOutputPath()
+	{
+		Schema schemaProvider = new();
+		CodeGeneratorName name = "CSharp".As<CodeGeneratorName>();
+		SchemaCodeGenerator? cg = schemaProvider.AddChild(name, schemaProvider.CodeGeneratorsInternal);
+		Assert.IsNotNull(cg);
+
+		RelativeDirectoryPath path = "Generated/".As<RelativeDirectoryPath>();
+		cg.OutputPath = path;
+		Assert.AreEqual(path, cg.OutputPath);
 	}
 }
 
