@@ -10,8 +10,8 @@ using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
-
 using ktsu.Semantics.Strings;
+using ktsu.UndoRedo;
 
 internal sealed class TreeEnum(SchemaEditor schemaEditor)
 {
@@ -42,7 +42,12 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 				{
 					if (ImGui.Selectable($"Delete {x.Name}"))
 					{
-						x.TryRemove();
+						SchemaEnum captured = x;
+						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+							$"Delete Enum '{captured.Name}'",
+							() => captured.TryRemove(),
+							() => schema.RestoreEnum(captured),
+							ChangeType.Delete));
 					}
 				},
 			}, parent: null);
@@ -60,7 +65,12 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			{
 				if (ImGui.Selectable($"Delete {x}"))
 				{
-					schemaEnum.TryRemoveValue(x);
+					EnumValueName captured = x;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Delete Enum Value '{captured}'",
+						() => schemaEnum.TryRemoveValue(captured),
+						() => schemaEnum.TryAddValue(captured),
+						ChangeType.Delete));
 				}
 			},
 			OnTreeEnd = (t) =>
@@ -81,14 +91,29 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Enum Name", string.Empty, (newName) =>
 				{
-					if (schema.TryAddEnum(newName.As<EnumName>()))
-					{
-
-					}
-					else
+					EnumName enumName = newName.As<EnumName>();
+					if (schema.GetEnum(enumName) is not null)
 					{
 						Popups.OpenMessageOK("Error", $"An Enum with that name ({newName}) already exists.");
+						return;
 					}
+
+					SchemaEnum? addedEnum = null;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Enum '{enumName}'",
+						() =>
+						{
+							if (addedEnum is null)
+							{
+								addedEnum = schema.AddEnum(enumName);
+							}
+							else
+							{
+								schema.RestoreEnum(addedEnum);
+							}
+						},
+						() => addedEnum?.TryRemove(),
+						ChangeType.Insert));
 				});
 			}
 		}
@@ -102,10 +127,18 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Enum Value", string.Empty, (newValue) =>
 				{
-					if (!schemaEnum.TryAddValue(newValue.As<EnumValueName>()))
+					EnumValueName valueName = newValue.As<EnumValueName>();
+					if (schemaEnum.Values.Any(v => v == valueName))
 					{
 						Popups.OpenMessageOK("Error", $"A Enum Value with that name ({newValue}) already exists.");
+						return;
 					}
+
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Enum Value '{valueName}'",
+						() => schemaEnum.TryAddValue(valueName),
+						() => schemaEnum.TryRemoveValue(valueName),
+						ChangeType.Insert));
 				});
 			}
 		}

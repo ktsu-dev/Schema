@@ -9,8 +9,8 @@ using ImGuiNET;
 using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
-
 using ktsu.Semantics.Strings;
+using ktsu.UndoRedo;
 
 internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 {
@@ -40,7 +40,12 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 				{
 					if (ImGui.Selectable($"Delete {x.Name}"))
 					{
-						x.TryRemove();
+						SchemaCodeGenerator captured = x;
+						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+							$"Delete Code Generator '{captured.Name}'",
+							() => captured.TryRemove(),
+							() => schema.RestoreCodeGenerator(captured),
+							ChangeType.Delete));
 					}
 				},
 			}, parent: null);
@@ -56,10 +61,28 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 				Popups.OpenInputString("Input", "New Code Generator Name", string.Empty, (newName) =>
 				{
 					CodeGeneratorName codeGeneratorName = newName.As<CodeGeneratorName>();
-					if (!schema.TryAddCodeGenerator(codeGeneratorName))
+					if (schema.GetCodeGenerator(codeGeneratorName) is not null)
 					{
 						Popups.OpenMessageOK("Error", $"A Code Generator with that name ({newName}) already exists.");
+						return;
 					}
+
+					SchemaCodeGenerator? addedCodeGenerator = null;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Code Generator '{codeGeneratorName}'",
+						() =>
+						{
+							if (addedCodeGenerator is null)
+							{
+								addedCodeGenerator = schema.AddCodeGenerator(codeGeneratorName);
+							}
+							else
+							{
+								schema.RestoreCodeGenerator(addedCodeGenerator);
+							}
+						},
+						() => addedCodeGenerator?.TryRemove(),
+						ChangeType.Insert));
 				});
 			}
 		}

@@ -12,8 +12,8 @@ using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
-
 using ktsu.Semantics.Strings;
+using ktsu.UndoRedo;
 
 internal sealed class TreeClass(SchemaEditor schemaEditor)
 {
@@ -45,7 +45,12 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 				{
 					if (ImGui.Selectable($"Delete {x.Name}"))
 					{
-						x.TryRemove();
+						SchemaClass captured = x;
+						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+							$"Delete Class '{captured.Name}'",
+							() => captured.TryRemove(),
+							() => schema.RestoreClass(captured),
+							ChangeType.Delete));
 					}
 				},
 			}, parent: null);
@@ -73,7 +78,12 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			{
 				if (ImGui.Selectable($"Delete {x.Name}"))
 				{
-					x.TryRemove();
+					SchemaMember captured = x;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Delete Member '{captured.Name}'",
+						() => captured.TryRemove(),
+						() => schemaClass.RestoreMember(captured),
+						ChangeType.Delete));
 				}
 			},
 		}, parent);
@@ -89,14 +99,30 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 				Popups.OpenInputString("Input", "New Class Name", string.Empty, (newName) =>
 				{
 					ClassName className = newName.As<ClassName>();
-					if (schema.TryAddClass(className))
-					{
-						schemaEditor.EditClass(className);
-					}
-					else
+					if (schema.GetClass(className) is not null)
 					{
 						Popups.OpenMessageOK("Error", $"A Class with that name ({newName}) already exists.");
+						return;
 					}
+
+					SchemaClass? addedClass = null;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Class '{className}'",
+						() =>
+						{
+							if (addedClass is null)
+							{
+								addedClass = schema.AddClass(className);
+							}
+							else
+							{
+								schema.RestoreClass(addedClass);
+							}
+
+							schemaEditor.EditClass(className);
+						},
+						() => addedClass?.TryRemove(),
+						ChangeType.Insert));
 				});
 			}
 		}
@@ -110,15 +136,34 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			{
 				Popups.OpenInputString("Input", "New Member Name", string.Empty, (newName) =>
 				{
-					SchemaMember? schemaMember = schemaClass.AddMember(newName.As<MemberName>());
-					if (schemaMember is not null)
-					{
-						Debug.Assert(schemaMember.ParentSchema is not null);
-						Popups.OpenTypeList("Select Type", "Type", schemaMember.ParentSchema.GetTypes(), schemaMember.Type, schemaMember.SetType);
-					}
-					else
+					MemberName memberName = newName.As<MemberName>();
+					if (schemaClass.GetMember(memberName) is not null)
 					{
 						Popups.OpenMessageOK("Error", $"A Member with that name ({newName}) already exists.");
+						return;
+					}
+
+					SchemaMember? addedMember = null;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Member '{memberName}'",
+						() =>
+						{
+							if (addedMember is null)
+							{
+								addedMember = schemaClass.AddMember(memberName);
+							}
+							else
+							{
+								schemaClass.RestoreMember(addedMember);
+							}
+						},
+						() => addedMember?.TryRemove(),
+						ChangeType.Insert));
+
+					if (addedMember is not null)
+					{
+						Debug.Assert(addedMember.ParentSchema is not null);
+						Popups.OpenTypeList("Select Type", "Type", addedMember.ParentSchema.GetTypes(), addedMember.Type, addedMember.SetType);
 					}
 				});
 			}

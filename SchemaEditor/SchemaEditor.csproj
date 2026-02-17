@@ -9,9 +9,14 @@
   <ItemGroup>
     <PackageReference Include="ImGui.NET" />
     <PackageReference Include="ktsu.AppDataStorage" />
+    <PackageReference Include="ktsu.DeepClone" />
+    <PackageReference Include="ktsu.FuzzySearch" />
     <PackageReference Include="ktsu.ImGui.App" />
     <PackageReference Include="ktsu.ImGui.Popups" />
     <PackageReference Include="ktsu.ImGui.Widgets" />
+    <PackageReference Include="ktsu.IntervalAction" />
+    <PackageReference Include="ktsu.Keybinding.Core" />
+    <PackageReference Include="ktsu.UndoRedo.Core" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" />
     <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" />
     <PackageReference Include="Polyfill" />

@@ -9,8 +9,8 @@ using ImGuiNET;
 using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
-
 using ktsu.Semantics.Strings;
+using ktsu.UndoRedo;
 
 internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 {
@@ -41,7 +41,12 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 				{
 					if (ImGui.Selectable($"Delete {x.Name}"))
 					{
-						x.TryRemove();
+						DataSource captured = x;
+						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+							$"Delete Data Source '{captured.Name}'",
+							() => captured.TryRemove(),
+							() => schema.RestoreDataSource(captured),
+							ChangeType.Delete));
 					}
 				},
 			}, parent: null);
@@ -57,14 +62,30 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 				Popups.OpenInputString("Input", "New Data Source Name", string.Empty, (newName) =>
 				{
 					DataSourceName dataSourceName = newName.As<DataSourceName>();
-					if (schema.TryAddDataSource(dataSourceName))
-					{
-						schemaEditor.EditDataSource(dataSourceName);
-					}
-					else
+					if (schema.GetDataSource(dataSourceName) is not null)
 					{
 						Popups.OpenMessageOK("Error", $"A Data Source with that name ({newName}) already exists.");
+						return;
 					}
+
+					DataSource? addedDataSource = null;
+					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						$"Add Data Source '{dataSourceName}'",
+						() =>
+						{
+							if (addedDataSource is null)
+							{
+								addedDataSource = schema.AddDataSource(dataSourceName);
+							}
+							else
+							{
+								schema.RestoreDataSource(addedDataSource);
+							}
+
+							schemaEditor.EditDataSource(dataSourceName);
+						},
+						() => addedDataSource?.TryRemove(),
+						ChangeType.Insert));
 				});
 			}
 		}

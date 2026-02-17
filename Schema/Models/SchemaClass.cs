@@ -67,6 +67,26 @@ public class SchemaClass : SchemaChild<ClassName>
 	internal bool TryRemoveMember(SchemaMember member) => MembersInternal.Remove(member);
 
 	/// <summary>
+	/// Restores a previously removed member back into the class.
+	/// Used for undo operations where the original object reference is preserved.
+	/// </summary>
+	/// <param name="member">The member to restore.</param>
+	/// <returns>True if the member was restored; false if a member with the same name already exists.</returns>
+	public bool RestoreMember(SchemaMember member)
+	{
+		Ensure.NotNull(member);
+
+		if (MembersInternal.Any(m => m.Name == member.Name))
+		{
+			return false;
+		}
+
+		member.AssociateWith(this);
+		MembersInternal.Add(member);
+		return true;
+	}
+
+	/// <summary>
 	/// Tries to get a member by name.
 	/// </summary>
 	/// <param name="name">The name of the member to find.</param>
