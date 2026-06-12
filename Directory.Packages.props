@@ -19,6 +19,8 @@
     <PackageVersion Include="ktsu.ImGui.App" Version="2.15.0" />
     <PackageVersion Include="ktsu.ImGui.Popups" Version="2.15.0" />
     <PackageVersion Include="ktsu.ImGui.Widgets" Version="2.15.0" />
+    <PackageVersion Include="ktsu.ImGuiNodeEditor" Version="2.15.0" />
+    <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="coverlet.msbuild" Version="6.0.4" />
     <PackageVersion Include="DiffPlex" Version="1.8.0" />

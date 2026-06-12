@@ -14,6 +14,8 @@
     <PackageReference Include="ktsu.ImGui.App" />
     <PackageReference Include="ktsu.ImGui.Popups" />
     <PackageReference Include="ktsu.ImGui.Widgets" />
+    <PackageReference Include="ktsu.ImGuiNodeEditor" />
+    <PackageReference Include="ktsu.NodeGraph" />
     <PackageReference Include="ktsu.IntervalAction" />
     <PackageReference Include="ktsu.Keybinding.Core" />
     <PackageReference Include="ktsu.UndoRedo.Core" />
