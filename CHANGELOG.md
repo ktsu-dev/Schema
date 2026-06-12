@@ -1,3 +1,9 @@
+## v1.6.0 (minor)
+
+Changes since v1.5.0:
+
+- Add class graph view to SchemaEditor using NodeGraph and ImGuiNodeEditor ([@Claude](https://github.com/Claude))
+
 ## v1.5.0 (minor)
 
 Changes since v1.4.0:
