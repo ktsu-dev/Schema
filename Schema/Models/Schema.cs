@@ -211,6 +211,60 @@ public partial class Schema
 		return null;
 	}
 
+	/// <summary>
+	/// Restores a previously removed child back into a collection.
+	/// Used for undo operations where the original object reference is preserved.
+	/// </summary>
+	/// <typeparam name="TChild">The type of the child.</typeparam>
+	/// <typeparam name="TName">The type of the name.</typeparam>
+	/// <param name="child">The child to restore.</param>
+	/// <param name="collection">The collection to restore the child into.</param>
+	/// <returns>True if the child was restored; false if a child with the same name already exists.</returns>
+	public bool RestoreChild<TChild, TName>(TChild child, Collection<TChild> collection)
+		where TChild : SchemaChild<TName>, new()
+		where TName : SemanticString<TName>, ISchemaChildName, new()
+	{
+		Ensure.NotNull(child);
+		Ensure.NotNull(collection);
+
+		if (GetChild(child.Name, collection) is not null)
+		{
+			return false;
+		}
+
+		child.AssociateWith(this);
+		collection.Add(child);
+		return true;
+	}
+
+	/// <summary>
+	/// Restores a previously removed class back into the schema.
+	/// </summary>
+	/// <param name="schemaClass">The class to restore.</param>
+	/// <returns>True if restored; false if a class with the same name already exists.</returns>
+	public bool RestoreClass(SchemaClass schemaClass) => RestoreChild<SchemaClass, ClassName>(schemaClass, ClassesInternal);
+
+	/// <summary>
+	/// Restores a previously removed enum back into the schema.
+	/// </summary>
+	/// <param name="schemaEnum">The enum to restore.</param>
+	/// <returns>True if restored; false if an enum with the same name already exists.</returns>
+	public bool RestoreEnum(SchemaEnum schemaEnum) => RestoreChild<SchemaEnum, EnumName>(schemaEnum, EnumsInternal);
+
+	/// <summary>
+	/// Restores a previously removed data source back into the schema.
+	/// </summary>
+	/// <param name="dataSource">The data source to restore.</param>
+	/// <returns>True if restored; false if a data source with the same name already exists.</returns>
+	public bool RestoreDataSource(DataSource dataSource) => RestoreChild<DataSource, DataSourceName>(dataSource, DataSourcesInternal);
+
+	/// <summary>
+	/// Restores a previously removed code generator back into the schema.
+	/// </summary>
+	/// <param name="codeGenerator">The code generator to restore.</param>
+	/// <returns>True if restored; false if a code generator with the same name already exists.</returns>
+	public bool RestoreCodeGenerator(SchemaCodeGenerator codeGenerator) => RestoreChild<SchemaCodeGenerator, CodeGeneratorName>(codeGenerator, CodeGeneratorsInternal);
+
 	internal bool TryRemoveEnum(SchemaEnum schemaEnum) => TryRemoveChild(schemaEnum, EnumsInternal);
 
 	internal bool TryRemoveClass(SchemaClass schemaClass) => TryRemoveChild(schemaClass, ClassesInternal);
