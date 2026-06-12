@@ -1,55 +1,21 @@
 # Schema Class
 
-**Namespace:** `ktsu.Schema`  
-**Assembly:** Schema.dll
+**Namespace:** `ktsu.Schema.Models`
+**Assembly:** ktsu.Schema.dll
 
 The main schema container class that manages classes, enums, data sources, and code generators.
 
 ## Declaration
 
 ```csharp
-public partial class Schema
+public class Schema
 ```
 
 ## Overview
 
-The `Schema` class is the root container for all schema definitions. It provides methods for loading, saving, and manipulating schema elements including classes, enums, data sources, and code generators. Each schema can be serialized to and from JSON while maintaining full type information.
+The `Schema` class is the root container for all schema definitions. It provides methods for adding, querying, and removing schema elements including classes, enums, data sources, and code generators. Schemas are serialized to and from JSON with the companion `SchemaSerializer` class while maintaining full type information.
 
 ## Properties
-
-### File Paths
-
-#### FilePath
-
-```csharp
-[JsonIgnore] public AbsoluteFilePath FilePath { get; private set; }
-```
-
-Gets the absolute file path of the schema.
-
-#### RelativePaths
-
-```csharp
-[JsonInclude] public SchemaPaths RelativePaths { get; private set; }
-```
-
-Gets the relative paths associated with the schema.
-
-#### ProjectRootPath
-
-```csharp
-[JsonIgnore] public AbsoluteDirectoryPath ProjectRootPath { get; }
-```
-
-Gets the project root path based on the file path and relative project root path.
-
-#### DataSourcePath
-
-```csharp
-[JsonIgnore] public AbsoluteDirectoryPath DataSourcePath { get; }
-```
-
-Gets the data source path based on the file path and relative data source path.
 
 ### Collections
 
@@ -87,14 +53,6 @@ Gets the read-only collection of code generators.
 
 ### Utility Properties
 
-#### FileExtension
-
-```csharp
-[JsonIgnore] public static FileExtension FileExtension { get; }
-```
-
-Gets the file extension for schema files (`.schema.json`).
-
 #### FirstClass
 
 ```csharp
@@ -113,57 +71,15 @@ Gets the last class in the schema, or null if no classes exist.
 
 ## Methods
 
-### Loading and Saving
+### Association
 
-#### TryLoad
-
-```csharp
-public static bool TryLoad(AbsoluteFilePath filePath, out Schema? schema)
-```
-
-Tries to load a schema from the specified file path.
-
-**Parameters:**
-
--   `filePath`: The file path to load the schema from
--   `schema`: The loaded schema, or null if loading failed
-
-**Returns:** `true` if the schema was successfully loaded; otherwise, `false`.
-
-**Example:**
+#### Reassociate
 
 ```csharp
-if (Schema.TryLoad("myschema.schema.json".As<AbsoluteFilePath>(), out Schema? schema))
-{
-    Console.WriteLine($"Loaded schema with {schema.Classes.Count} classes");
-}
+public void Reassociate()
 ```
 
-#### Save
-
-```csharp
-public void Save()
-```
-
-Saves the schema to its file path. Uses atomic file operations with backup and recovery.
-
-**Example:**
-
-```csharp
-schema.Save(); // Saves to the current FilePath
-```
-
-#### ChangeFilePath
-
-```csharp
-public void ChangeFilePath(AbsoluteFilePath newFilePath)
-```
-
-Changes the file path of the schema.
-
-**Parameters:**
-
--   `newFilePath`: The new file path
+Re-establishes parent-child relationships between the schema and its elements. Call this after deserializing a schema manually; `SchemaSerializer.TryDeserialize()` calls it for you.
 
 ### Managing Classes
 
@@ -175,10 +91,6 @@ public SchemaClass? AddClass(ClassName name)
 
 Adds a new class with the specified name.
 
-**Parameters:**
-
--   `name`: The name of the class to add
-
 **Returns:** The added schema class, or null if a class with that name already exists.
 
 #### AddClass (from Type)
@@ -187,13 +99,7 @@ Adds a new class with the specified name.
 public SchemaClass? AddClass(Type type)
 ```
 
-Adds a new class based on a .NET Type, automatically creating members for public properties.
-
-**Parameters:**
-
--   `type`: The .NET type to create a schema class from
-
-**Returns:** The added schema class, or null if failed.
+Adds a new class based on a .NET Type, automatically creating members for public properties and fields. Referenced classes and enums are added to the schema recursively.
 
 #### TryAddClass
 
@@ -204,191 +110,136 @@ public bool TryAddClass(Type type)
 
 Tries to add a class without returning the instance.
 
-#### GetClass
+#### GetClass / TryGetClass
 
 ```csharp
 public SchemaClass? GetClass(ClassName name)
+public bool TryGetClass(ClassName name, out SchemaClass? schemaClass)
 ```
 
 Gets a class by name.
 
-**Parameters:**
-
--   `name`: The name of the class to retrieve
-
-**Returns:** The schema class, or null if not found.
-
-#### TryGetClass
-
-```csharp
-public bool TryGetClass(ClassName name, out SchemaClass? schemaClass)
-```
-
-Tries to get a class by name.
-
-**Parameters:**
-
--   `name`: The name of the class to retrieve
--   `schemaClass`: The retrieved schema class, if found
-
-**Returns:** `true` if the class was found; otherwise, `false`.
-
 ### Managing Enums
-
-#### AddEnum
 
 ```csharp
 public SchemaEnum? AddEnum(EnumName name)
-```
-
-Adds a new enum with the specified name.
-
-#### TryAddEnum
-
-```csharp
 public bool TryAddEnum(EnumName name)
-```
-
-Tries to add an enum without returning the instance.
-
-#### GetEnum
-
-```csharp
 public SchemaEnum? GetEnum(EnumName name)
-```
-
-Gets an enum by name.
-
-#### TryGetEnum
-
-```csharp
 public bool TryGetEnum(EnumName name, out SchemaEnum? schemaEnum)
 ```
 
-Tries to get an enum by name.
+Adds or retrieves enums by name, following the same conventions as classes.
 
 ### Managing Data Sources
 
-#### AddDataSource
-
 ```csharp
 public DataSource? AddDataSource(DataSourceName name)
-```
-
-Adds a new data source with the specified name.
-
-#### TryAddDataSource
-
-```csharp
 public bool TryAddDataSource(DataSourceName name)
+public DataSource? GetDataSource(DataSourceName name)
+public bool TryGetDataSource(DataSourceName name, out DataSource? dataSource)
 ```
 
-Tries to add a data source without returning the instance.
+Adds or retrieves data sources by name.
 
-#### GetDataSource
+### Managing Code Generators
 
 ```csharp
-public DataSource? GetDataSource(DataSourceName name)
+public SchemaCodeGenerator? AddCodeGenerator(CodeGeneratorName name)
+public bool TryAddCodeGenerator(CodeGeneratorName name)
+public SchemaCodeGenerator? GetCodeGenerator(CodeGeneratorName name)
+public bool TryGetCodeGenerator(CodeGeneratorName name, out SchemaCodeGenerator? codeGenerator)
 ```
 
-Gets a data source by name.
+Adds or retrieves code generators by name.
 
 ### Type System
 
 #### GetTypes
 
 ```csharp
-public IEnumerable<SchemaTypes.BaseType> GetTypes()
+public IEnumerable<BaseType> GetTypes()
 ```
 
-Gets all available types in the schema, including built-in types and user-defined classes/enums.
+Gets the distinct types currently used by members across the schema.
 
-**Returns:** An enumerable of all available types.
+## SchemaSerializer
 
-### Utility Methods
-
-#### EnsureDirectoryExists
+**Namespace:** `ktsu.Schema.Models`
 
 ```csharp
-public static void EnsureDirectoryExists(string path)
+public static class SchemaSerializer
 ```
 
-Ensures that the directory for the specified path exists.
+Provides JSON serialization for `Schema` objects using `System.Text.Json` with camelCase property names and a `TypeName` polymorphic discriminator.
 
-**Parameters:**
-
--   `path`: The path to ensure the directory exists for
-
-## Static Properties
-
-### JsonSerializerOptions
+#### Serialize
 
 ```csharp
-internal static JsonSerializerOptions JsonSerializerOptions { get; }
+public static string Serialize(Schema schema)
 ```
 
-Gets the JSON serializer options used for schema serialization. Configured with:
+Serializes a schema to an indented JSON string.
 
--   Indented writing
--   Include fields
--   Strong string type converters
--   Enum string conversion
--   Polymorphic type support
+#### TryDeserialize
+
+```csharp
+public static bool TryDeserialize(string json, out Schema? schema)
+```
+
+Tries to deserialize a JSON string to a schema, calling `Reassociate()` automatically on success.
+
+**Returns:** `true` if deserialization succeeded; otherwise, `false`.
 
 ## Usage Examples
 
 ### Creating a Complete Schema
 
 ```csharp
-using ktsu.Schema;
-using ktsu.StrongPaths;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
+using SchemaTypes = ktsu.Schema.Models.Types;
 
 // Create new schema
-var schema = new Schema();
-schema.ChangeFilePath("game.schema.json".As<AbsoluteFilePath>());
+Schema schema = new();
 
 // Add enums
-var difficultyEnum = schema.AddEnum("Difficulty".As<EnumName>());
-difficultyEnum?.AddValue("Easy".As<EnumValueName>());
-difficultyEnum?.AddValue("Normal".As<EnumValueName>());
-difficultyEnum?.AddValue("Hard".As<EnumValueName>());
+SchemaEnum? difficultyEnum = schema.AddEnum("Difficulty".As<EnumName>());
+difficultyEnum?.TryAddValue("Easy".As<EnumValueName>());
+difficultyEnum?.TryAddValue("Normal".As<EnumValueName>());
+difficultyEnum?.TryAddValue("Hard".As<EnumValueName>());
 
-// Add classes
-var playerClass = schema.AddClass("Player".As<ClassName>());
-var nameMember = playerClass?.AddMember("Name".As<MemberName>());
-var levelMember = playerClass?.AddMember("Level".As<MemberName>());
-var difficultyMember = playerClass?.AddMember("Difficulty".As<MemberName>());
-
-// Set types
-if (nameMember != null)
-    nameMember.Type = new SchemaTypes.String();
-if (levelMember != null)
-    levelMember.Type = new SchemaTypes.Int();
-if (difficultyMember != null)
-    difficultyMember.Type = new SchemaTypes.Enum { EnumName = "Difficulty".As<EnumName>() };
+// Add classes and members with types
+SchemaClass? playerClass = schema.AddClass("Player".As<ClassName>());
+playerClass?.AddMember("Name".As<MemberName>())?.SetType(new SchemaTypes.String());
+playerClass?.AddMember("Level".As<MemberName>())?.SetType(new SchemaTypes.Int());
+playerClass?.AddMember("Difficulty".As<MemberName>())?.SetType(
+    new SchemaTypes.Enum { EnumName = "Difficulty".As<EnumName>() });
 
 // Add data source
-var playersDataSource = schema.AddDataSource("Players".As<DataSourceName>());
+DataSource? playersDataSource = schema.AddDataSource("Players".As<DataSourceName>());
 if (playersDataSource != null)
 {
     playersDataSource.File = "players.json".As<RelativeFilePath>();
-    playersDataSource.Class = playerClass;
+    playersDataSource.ClassName = "Player".As<ClassName>();
 }
 
 // Save schema
-schema.Save();
+File.WriteAllText("game.schema.json", SchemaSerializer.Serialize(schema));
 ```
 
 ### Loading and Querying a Schema
 
 ```csharp
-if (Schema.TryLoad("game.schema.json".As<AbsoluteFilePath>(), out Schema? schema))
+string json = File.ReadAllText("game.schema.json");
+if (SchemaSerializer.TryDeserialize(json, out Schema? schema) && schema is not null)
 {
     // List all classes
-    foreach (var schemaClass in schema.Classes)
+    foreach (SchemaClass schemaClass in schema.Classes)
     {
         Console.WriteLine($"Class: {schemaClass.Name}");
-        foreach (var member in schemaClass.Members)
+        foreach (SchemaMember member in schemaClass.Members)
         {
             Console.WriteLine($"  {member.Name}: {member.Type.DisplayName}");
         }
@@ -397,12 +248,12 @@ if (Schema.TryLoad("game.schema.json".As<AbsoluteFilePath>(), out Schema? schema
     // Get specific class
     if (schema.TryGetClass("Player".As<ClassName>(), out SchemaClass? playerClass))
     {
-        Console.WriteLine($"Player class has {playerClass.Members.Count} members");
+        Console.WriteLine($"Player class has {playerClass!.Members.Count} members");
     }
 
-    // List available types
-    var availableTypes = schema.GetTypes().ToList();
-    Console.WriteLine($"Available types: {string.Join(", ", availableTypes.Select(t => t.DisplayName))}");
+    // List the types in use
+    List<SchemaTypes.BaseType> usedTypes = schema.GetTypes().ToList();
+    Console.WriteLine($"Types in use: {string.Join(", ", usedTypes.Select(t => t.DisplayName))}");
 }
 ```
 
@@ -412,7 +263,6 @@ The `Schema` class is not thread-safe. If you need to access a schema from multi
 
 ## See Also
 
--   [SchemaClass](schema-class.md) - Individual classes within a schema
--   [SchemaEnum](schema-enum.md) - Enumerations within a schema
--   [DataSource](data-source.md) - Data source configuration
--   [SchemaTypes](schema-types.md) - Available type system
+-   [API Reference](README.md) - Quick reference for all public types
+-   [Getting Started](../getting-started.md) - Basic usage walkthrough
+-   [Basic Schema Example](../examples/basic-schema.md) - Complete worked example
