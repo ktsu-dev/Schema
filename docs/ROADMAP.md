@@ -113,25 +113,35 @@ and the main reason the project exists ("provides a foundation for code generati
      containers).
    - JSON Schema (draft 2020-12) export/import for ecosystem interop.
 
+   *Decision: C# is the first and primary target; C++ and JSON Schema interop are
+   deferred until there is demand.*
+
 ## Phase 4 — Data sources
 
-Goal: `DataSource` becomes functional — schema-validated data files.
+Goal: `DataSource` fulfills its intended role — tracking which data files reference
+which schema classes, so that code generation can produce **editors** and **migrations**
+for that data.
 
 1. **Data loading/validation** — Load the JSON file a `DataSource` points at and validate
    it against the referenced class (required members, type conformance, enum values,
-   container shapes).
-2. **Editor data view** — Show validation results for a data source; stretch: a
-   schema-driven data editor grid.
-3. **Path resolution** — `RelativeFilePath` needs an anchor; define resolution relative
+   container shapes). Validation is the foundation migrations are checked against.
+2. **Generated data editors** — Extend the Phase 3 generator architecture so a code
+   generator can consume a `DataSource` (class + file binding) and emit a typed editor
+   for that data.
+3. **Generated migrations** — Detect schema changes that affect bound data files
+   (renamed/removed/retyped members, enum value changes) and generate migration code or
+   scripts that upgrade the data in place. Requires the format version field from
+   Phase 5 and a schema-diff capability.
+4. **Path resolution** — `RelativeFilePath` needs an anchor; define resolution relative
    to the `.schema.json` location and document it.
 
 ## Phase 5 — Release & distribution
 
 Goal: the editor reaches users, not just the library.
 
-1. **Editor packaging** — Publish SchemaEditor per-platform (the winget manifest script
-   exists but the editor currently ships nowhere); decide Windows-only vs cross-platform
-   support and test on Linux/macOS if the latter.
+1. **Editor packaging** — Publish SchemaEditor via winget. *Decision: Windows-first;*
+   keep the code defensively cross-platform (e.g. don't hardcode `explorer.exe`) but
+   don't invest in Linux/macOS testing or packaging yet.
 2. **Schema format stability** — Document the `.schema.json` format, add a format
    version field, and define a migration policy before third parties depend on it.
 3. **v2.0 milestone** — Validation + codegen + functional data sources constitutes the
@@ -151,15 +161,15 @@ Goal: the editor reaches users, not just the library.
 | 8 | Data source validation | 4 | M | Completes the last shell model |
 | 9 | Editor packaging + format versioning | 5 | M | Ship it |
 
-## Open questions
+## Decisions
 
-These determine scope and ordering; answers will be folded into this document:
+Resolved with the project owner (2026-06):
 
-1. **Codegen targets** — Is C# the only required output, or is C++ (the historic
-   container/key design driver) also in scope?
-2. **Data source intent** — Validation of external data files, or full data *editing*
-   in SchemaEditor?
-3. **Editor platforms** — Is SchemaEditor Windows-first (winget script suggests so) or
-   should Linux/macOS be supported and tested?
-4. **JSON Schema interop** — Is import/export to standard JSON Schema a goal, or is the
-   proprietary format intentional?
+1. **Codegen targets** — C# first. C++ and other languages deferred until there is
+   demand.
+2. **Data source intent** — `DataSource` tracks which data files reference which schema
+   classes so that editors and migrations can be code-generated for them (see Phase 4).
+3. **Editor platforms** — Windows-first, shipped via winget; code stays defensively
+   cross-platform but Linux/macOS are not tested or packaged.
+4. **JSON Schema interop** — Remains open; treated as a demand-driven Phase 3 follow-on
+   rather than a goal.
