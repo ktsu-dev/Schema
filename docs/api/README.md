@@ -1,115 +1,75 @@
 # API Reference
 
-This section contains detailed API documentation for all public classes, interfaces, and types in the Schema library.
+This section contains API documentation for the public types in the Schema library. All public types carry XML documentation comments in source, which IDEs surface directly; this section covers the core entry points.
 
 ## Core API
 
 ### [Schema Class](schema-core.md)
 
-The main schema container class that manages classes, enums, data sources, and code generators.
-
-### [Schema Types](schema-types.md)
-
-Complete reference for all available types in the schema system, including primitives, vectors, and complex types.
-
-### [Strong String Types](strong-strings.md)
-
-Type-safe string types used throughout the library for compile-time safety.
-
-## Schema Elements
-
-### [Schema Class](schema-class.md)
-
-User-defined classes that contain typed members representing data structures.
-
-### [Schema Member](schema-member.md)
-
-Properties within schema classes that have specific types and behaviors.
-
-### [Schema Enum](schema-enum.md)
-
-Enumeration types with named values for representing discrete choices.
-
-### [Schema Child](schema-child.md)
-
-Base class for all schema elements that can be contained within a schema.
-
-## Data Management
-
-### [Data Source](data-source.md)
-
-Configuration for data sources that provide data for schema instances.
-
-### [Schema Paths](schema-paths.md)
-
-Path management utilities for handling relative and absolute paths within schemas.
-
-## Collections
-
-### [Schema Child Collection](schema-child-collection.md)
-
-Collection management utilities for working with schema children.
-
-## Code Generation
-
-### [Schema Code Generator](schema-code-generator.md)
-
-Configuration and utilities for generating code from schema definitions.
+The main schema container class that manages classes, enums, data sources, and code generators, plus the `SchemaSerializer` used to persist schemas to JSON.
 
 ## Quick Reference
 
 ### Key Classes
 
-| Class          | Purpose                                   |
-| -------------- | ----------------------------------------- |
-| `Schema`       | Main container for all schema definitions |
-| `SchemaClass`  | User-defined class with typed members     |
-| `SchemaMember` | Property within a schema class            |
-| `SchemaEnum`   | Enumeration with named values             |
-| `DataSource`   | Data source configuration                 |
+| Class                 | Purpose                                       |
+| --------------------- | --------------------------------------------- |
+| `Schema`              | Main container for all schema definitions     |
+| `SchemaClass`         | User-defined class with typed members         |
+| `SchemaMember`        | Property within a schema class                |
+| `SchemaEnum`          | Enumeration with named values                 |
+| `DataSource`          | Binds a data file to a schema class           |
+| `SchemaCodeGenerator` | Declares a code generation output             |
+| `SchemaSerializer`    | JSON serialization for `Schema` objects       |
 
 ### Key Types
+
+All types live in the `ktsu.Schema.Models.Types` namespace and derive from `BaseType`:
 
 | Type                   | Description                 |
 | ---------------------- | --------------------------- |
 | `SchemaTypes.BaseType` | Abstract base for all types |
-| `SchemaTypes.Int`      | Integer type                |
+| `SchemaTypes.Int`      | 32-bit integer type         |
+| `SchemaTypes.Long`     | 64-bit integer type         |
+| `SchemaTypes.Float`    | Single-precision type       |
+| `SchemaTypes.Double`   | Double-precision type       |
 | `SchemaTypes.String`   | String type                 |
+| `SchemaTypes.Bool`     | Boolean type                |
+| `SchemaTypes.DateTime` | Date/time type              |
+| `SchemaTypes.TimeSpan` | Duration type               |
 | `SchemaTypes.Array`    | Array/collection type       |
 | `SchemaTypes.Object`   | Reference to a schema class |
 | `SchemaTypes.Enum`     | Reference to a schema enum  |
+| `SchemaTypes.None`     | Unset/placeholder type      |
 
-### Strong String Types
+Vector (`Vector2`, `Vector3`, `Vector4`) and color (`ColorRGB`, `ColorRGBA`) types are also available.
 
-| Type             | Purpose                  |
-| ---------------- | ------------------------ |
-| `ClassName`      | Names of schema classes  |
-| `MemberName`     | Names of class members   |
-| `EnumName`       | Names of enumerations    |
-| `EnumValueName`  | Names of enum values     |
-| `DataSourceName` | Names of data sources    |
-| `ContainerName`  | Names of container types |
+### Semantic String Types
 
-## Navigation
+Identifiers use semantic string wrappers from `ktsu.Semantics.Strings` (namespace `ktsu.Schema.Models.Names`); convert with `"value".As<T>()`:
 
--   **[Getting Started](../getting-started.md)** - Basic usage and setup
--   **[Features](../features/)** - Feature guides and tutorials
--   **[Examples](../examples/)** - Code examples and patterns
--   **[Development](../development/)** - Contributing and development
+| Type                | Purpose                  |
+| ------------------- | ------------------------ |
+| `ClassName`         | Names of schema classes  |
+| `MemberName`        | Names of class members   |
+| `EnumName`          | Names of enumerations    |
+| `EnumValueName`     | Names of enum values     |
+| `BaseTypeName`      | Names of types           |
+| `ContainerName`     | Names of container types |
+| `DataSourceName`    | Names of data sources    |
+| `CodeGeneratorName` | Names of code generators |
 
 ## API Conventions
 
 ### Naming
 
--   Classes use PascalCase: `SchemaClass`, `SchemaMember`
--   Methods use PascalCase: `AddClass()`, `TryGetMember()`
--   Properties use PascalCase: `Name`, `Members`
--   Strong string types end with their type: `ClassName`, `MemberName`
+-   Classes, methods, and properties use PascalCase: `SchemaClass`, `AddClass()`, `Members`
+-   Semantic string types end with their kind: `ClassName`, `MemberName`
 
 ### Error Handling
 
 -   Methods that can fail use the `Try...` pattern returning `bool`
--   Methods that throw exceptions are documented with possible exception types
+-   `Add...` methods return `null` when an element with the same name already exists
 -   Null checking is enforced through nullable reference types
 
 ### Thread Safety
@@ -119,6 +79,13 @@ Configuration and utilities for generating code from schema definitions.
 
 ### JSON Serialization
 
--   All schema objects support JSON serialization using `System.Text.Json`
--   Custom converters handle strong string types and polymorphic types
--   Serialized schemas maintain full type information
+-   Use `SchemaSerializer.Serialize()` / `SchemaSerializer.TryDeserialize()`
+-   camelCase property names with a `TypeName` polymorphic discriminator
+-   `TryDeserialize()` calls `Reassociate()` automatically
+
+## Navigation
+
+-   **[Getting Started](../getting-started.md)** - Basic usage and setup
+-   **[Features](../features/README.md)** - Feature guides and tutorials
+-   **[Examples](../examples/README.md)** - Code examples and patterns
+-   **[Development](../development/README.md)** - Contributing and development

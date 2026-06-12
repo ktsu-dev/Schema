@@ -1,12 +1,6 @@
----
-title: Dependency Injection with SchemaProvider
-description: How to use SchemaProvider in a dependency injection container
-status: draft
----
+# Dependency Injection
 
-# Dependency Injection with SchemaProvider
-
-The Schema library has been refactored to focus solely on schema definition, removing serialization and filesystem concerns. This makes it ideal for dependency injection scenarios.
+The Schema library focuses solely on schema definition — serialization is handled by the separate `SchemaSerializer` class and there are no filesystem concerns baked into the model. This makes it straightforward to use in dependency injection scenarios.
 
 ## Basic Setup
 
@@ -15,220 +9,113 @@ The Schema library has been refactored to focus solely on schema definition, rem
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using ktsu.Schema;
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Strings;
 
-// Configure services
 var builder = Host.CreateApplicationBuilder(args);
 
-// Register SchemaProvider as a singleton
-builder.Services.AddSingleton<ISchemaProvider, SchemaProvider>();
-
-// Or register a pre-configured schema provider
-builder.Services.AddSingleton<ISchemaProvider>(provider =>
+// Register a pre-configured schema as a singleton
+builder.Services.AddSingleton<Schema>(provider =>
 {
-    var schemaProvider = new SchemaProvider();
-    
-    // Pre-configure with some schema definitions
-    schemaProvider.AddClass((ClassName)"User");
-    schemaProvider.AddEnum((EnumName)"Role");
-    
-    return schemaProvider;
+    Schema schema = new();
+    schema.AddClass("User".As<ClassName>());
+    schema.AddEnum("Role".As<EnumName>());
+    return schema;
 });
 
 var host = builder.Build();
 ```
 
-### Using the SchemaProvider
+### Loading a Schema from a File
 
 ```csharp
+builder.Services.AddSingleton<Schema>(provider =>
+{
+    string json = File.ReadAllText("app.schema.json");
+    return SchemaSerializer.TryDeserialize(json, out Schema? schema) && schema is not null
+        ? schema
+        : throw new InvalidOperationException("Failed to load app.schema.json");
+});
+```
+
+## Consuming the Schema
+
+```csharp
+using ktsu.Schema.Models;
+using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Strings;
+using SchemaTypes = ktsu.Schema.Models.Types;
+
 public class MyService
 {
-    private readonly ISchemaProvider _schemaProvider;
-    
-    public MyService(ISchemaProvider schemaProvider)
+    private readonly Schema _schema;
+
+    public MyService(Schema schema)
     {
-        _schemaProvider = schemaProvider;
+        _schema = schema;
     }
-    
+
     public void DefineUserSchema()
     {
-        // Add a User class to the schema
-        var userClass = _schemaProvider.AddClass((ClassName)"User");
+        SchemaClass? userClass = _schema.AddClass("User".As<ClassName>());
         if (userClass != null)
         {
-            // Add members to the User class
-            var nameProperty = userClass.AddMember((MemberName)"Name");
-            nameProperty?.SetType(new SchemaTypes.String());
-            
-            var ageProperty = userClass.AddMember((MemberName)"Age");
-            ageProperty?.SetType(new SchemaTypes.Integer());
-        }
-        
-        // Add an enum for user roles
-        var roleEnum = _schemaProvider.AddEnum((EnumName)"UserRole");
-        if (roleEnum != null)
-        {
-            roleEnum.TryAddValue((EnumValueName)"Admin");
-            roleEnum.TryAddValue((EnumValueName)"User");
-            roleEnum.TryAddValue((EnumValueName)"Guest");
+            userClass.AddMember("Name".As<MemberName>())?.SetType(new SchemaTypes.String());
+            userClass.AddMember("Email".As<MemberName>())?.SetType(new SchemaTypes.String());
         }
     }
-    
-    public void QuerySchema()
+
+    public void DescribeSchema()
     {
-        // Get all classes
-        foreach (var schemaClass in _schemaProvider.Classes)
+        foreach (SchemaClass schemaClass in _schema.Classes)
         {
-            Console.WriteLine($"Class: {schemaClass.Name}");
-            foreach (var member in schemaClass.Members)
-            {
-                Console.WriteLine($"  {member.Name}: {member.Type}");
-            }
-        }
-        
-        // Get all enums
-        foreach (var schemaEnum in _schemaProvider.Enums)
-        {
-            Console.WriteLine($"Enum: {schemaEnum.Name}");
-            foreach (var value in schemaEnum.Values)
-            {
-                Console.WriteLine($"  {value}");
-            }
+            Console.WriteLine($"{schemaClass.Name} ({schemaClass.Members.Count} members)");
         }
     }
 }
 ```
 
-### Adding Schemas from .NET Types
+## Wrapping the Schema in Your Own Abstraction
+
+If your application needs schema management behavior (loading, saving, caching, change tracking), wrap `Schema` in your own service interface so the rest of your code depends on your abstraction rather than the library type:
 
 ```csharp
-public class UserDto
+public interface ISchemaService
 {
-    public string Name { get; set; } = string.Empty;
-    public int Age { get; set; }
-    public UserRole Role { get; set; }
+    Schema Current { get; }
+    void Save();
 }
 
-public enum UserRole
+public class FileSchemaService : ISchemaService
 {
-    Admin,
-    User,
-    Guest
+    private readonly string _path;
+
+    public FileSchemaService(string path)
+    {
+        _path = path;
+        string json = File.ReadAllText(path);
+        Current = SchemaSerializer.TryDeserialize(json, out Schema? schema) && schema is not null
+            ? schema
+            : new Schema();
+    }
+
+    public Schema Current { get; }
+
+    public void Save() => File.WriteAllText(_path, SchemaSerializer.Serialize(Current));
 }
 
-public class SchemaService
-{
-    private readonly ISchemaProvider _schemaProvider;
-    
-    public SchemaService(ISchemaProvider schemaProvider)
-    {
-        _schemaProvider = schemaProvider;
-    }
-    
-    public void RegisterTypes()
-    {
-        // Automatically create schema from .NET types
-        _schemaProvider.AddClass(typeof(UserDto));
-        
-        // The enum will be automatically added when processing UserDto
-        // But you can also add it explicitly:
-        // _schemaProvider.AddClass(typeof(UserRole));
-    }
-}
+// Registration
+builder.Services.AddSingleton<ISchemaService>(_ => new FileSchemaService("app.schema.json"));
 ```
 
-## Separation of Concerns
+## Notes
 
-The refactored SchemaProvider focuses solely on:
+-   `Schema` is not thread-safe; if multiple services mutate a shared schema concurrently, provide your own synchronization.
+-   Register schemas as singletons when they represent application-wide definitions; use factories or scoped services if each scope needs an independent copy.
 
-- **Schema Definition**: Defining classes, enums, and their relationships
-- **Schema Querying**: Retrieving schema information
-- **Type Management**: Managing schema types and their metadata
+## Navigation
 
-It does **NOT** handle:
-
-- **Serialization**: Use separate libraries like System.Text.Json, Newtonsoft.Json, etc.
-- **File I/O**: Use separate services for loading/saving schema definitions
-- **Validation**: Use separate validation libraries
-- **Code Generation**: Use separate code generation tools
-
-## Integration with Other Services
-
-```csharp
-// Separate service for serialization
-public class SchemaSerializationService
-{
-    private readonly ISchemaProvider _schemaProvider;
-    private readonly IJsonSerializer _jsonSerializer;
-    
-    public SchemaSerializationService(
-        ISchemaProvider schemaProvider, 
-        IJsonSerializer jsonSerializer)
-    {
-        _schemaProvider = schemaProvider;
-        _jsonSerializer = jsonSerializer;
-    }
-    
-    public string SerializeSchema()
-    {
-        // Use your preferred serialization library
-        return _jsonSerializer.Serialize(_schemaProvider);
-    }
-}
-
-// Separate service for file operations
-public class SchemaFileService
-{
-    private readonly ISchemaProvider _schemaProvider;
-    private readonly IFileService _fileService;
-    
-    public SchemaFileService(
-        ISchemaProvider schemaProvider,
-        IFileService fileService)
-    {
-        _schemaProvider = schemaProvider;
-        _fileService = fileService;
-    }
-    
-    public async Task SaveSchemaAsync(string filePath)
-    {
-        var serializedSchema = SerializeSchema();
-        await _fileService.WriteAllTextAsync(filePath, serializedSchema);
-    }
-    
-    private string SerializeSchema()
-    {
-        // Implement your serialization logic here
-        return System.Text.Json.JsonSerializer.Serialize(_schemaProvider);
-    }
-}
-```
-
-## Benefits of This Approach
-
-1. **Single Responsibility**: SchemaProvider only handles schema definition
-2. **Testability**: Easy to mock and unit test
-3. **Flexibility**: Use any serialization or file system library you prefer
-4. **Dependency Injection**: Works seamlessly with DI containers
-5. **Separation of Concerns**: Clean architecture with clearly defined responsibilities
-
-## Migration from Legacy Schema Class
-
-If you're migrating from the legacy `Schema` class:
-
-```csharp
-// Old approach (deprecated)
-[Obsolete]
-var schema = new Schema();
-schema.AddClass((ClassName)"User");
-
-// New approach (recommended)
-ISchemaProvider schemaProvider = new SchemaProvider();
-schemaProvider.AddClass((ClassName)"User");
-
-// Or via DI
-public MyService(ISchemaProvider schemaProvider)
-{
-    _schemaProvider = schemaProvider;
-}
-``` 
+-   **[Examples](README.md)** - All examples
+-   **[Basic Schema Creation](basic-schema.md)** - Building a schema from scratch
+-   **[API Reference](../api/schema-core.md)** - Schema and SchemaSerializer details
