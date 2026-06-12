@@ -16,7 +16,7 @@ using ktsu.Semantics.Strings;
 /// Provides schema definitions and management functionality.
 /// This class focuses solely on schema definition without serialization or filesystem concerns.
 /// </summary>
-public class Schema
+public partial class Schema
 {
 	[JsonInclude]
 	[JsonPropertyName("classes")]
@@ -422,22 +422,45 @@ public class Schema
 	{
 		Ensure.NotNull(type);
 
+		type = Nullable.GetUnderlyingType(type) ?? type;
+
 		// Handle basic types
 		if (type == typeof(string))
 		{
 			return new Types.String();
 		}
-		else if (type == typeof(int) || type == typeof(long) || type == typeof(short) || type == typeof(byte))
+		else if (type == typeof(int) || type == typeof(short) || type == typeof(byte))
 		{
 			return new Types.Int();
 		}
-		else if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
+		else if (type == typeof(long))
+		{
+			return new Types.Long();
+		}
+		else if (type == typeof(float))
 		{
 			return new Types.Float();
+		}
+		else if (type == typeof(double) || type == typeof(decimal))
+		{
+			return new Types.Double();
 		}
 		else if (type == typeof(bool))
 		{
 			return new Types.Bool();
+		}
+		else if (type == typeof(System.DateTime))
+		{
+			return new Types.DateTime();
+		}
+		else if (type == typeof(System.TimeSpan))
+		{
+			return new Types.TimeSpan();
+		}
+		else if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
+		{
+			BaseType element = GetOrCreateSchemaType(elementType) ?? new Types.None();
+			return new Types.Array() { ElementType = element, Container = container };
 		}
 		else if (type.IsEnum)
 		{
@@ -465,6 +488,47 @@ public class Schema
 
 		return new Types.None();
 	}
+
+	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
+	{
+		elementType = null;
+		container = null;
+
+		if (type == typeof(string))
+		{
+			return false;
+		}
+
+		if (type.IsArray)
+		{
+			elementType = type.GetElementType();
+			container = "vector".As<ContainerName>();
+			return elementType is not null;
+		}
+
+		Type? dictionaryInterface = GetGenericInterface(type, typeof(IDictionary<,>));
+		if (dictionaryInterface is not null)
+		{
+			elementType = dictionaryInterface.GetGenericArguments()[1];
+			container = "map".As<ContainerName>();
+			return true;
+		}
+
+		Type? enumerableInterface = GetGenericInterface(type, typeof(IEnumerable<>));
+		if (enumerableInterface is not null)
+		{
+			elementType = enumerableInterface.GetGenericArguments()[0];
+			container = "vector".As<ContainerName>();
+			return true;
+		}
+
+		return false;
+	}
+
+	private static Type? GetGenericInterface(Type type, Type genericInterfaceDefinition) =>
+		type.IsInterface && type.IsGenericType && type.GetGenericTypeDefinition() == genericInterfaceDefinition
+			? type
+			: System.Array.Find(type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == genericInterfaceDefinition);
 
 	/// <summary>
 	/// Gets the first class in the schema.
