@@ -45,6 +45,7 @@ public class SchemaEditor
 	internal IUndoRedoService UndoRedo { get; }
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
+	private ClassGraphView ClassGraph { get; } = new();
 
 	private static void Main(string[] _)
 	{
@@ -185,7 +186,22 @@ public class SchemaEditor
 	{
 		using (Theme.FromColor(Color.Palette.Semantic.Primary))
 		{
-			DividerContainerCols.Tick(dt);
+			if (ImGui.BeginTabBar("##MainViews"))
+			{
+				if (ImGui.BeginTabItem("Editor"))
+				{
+					DividerContainerCols.Tick(dt);
+					ImGui.EndTabItem();
+				}
+
+				if (ImGui.BeginTabItem("Class Graph"))
+				{
+					ClassGraph.Show(CurrentSchema, dt);
+					ImGui.EndTabItem();
+				}
+
+				ImGui.EndTabBar();
+			}
 
 			Popups.Update();
 		}
