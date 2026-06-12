@@ -4,6 +4,7 @@
 
 namespace ktsu.Schema.Tests;
 
+using System.Collections.ObjectModel;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Strings;
@@ -286,8 +287,9 @@ public class TypeWithNullable
 
 public class TypeWithCollections
 {
-	public int[] Scores { get; set; } = [];
-	public List<string> Tags { get; set; } = [];
-	public List<SimpleClass> Items { get; set; } = [];
-	public Dictionary<string, SimpleClass> ItemsById { get; set; } = [];
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Exercises array import via reflection")]
+	public int[] Scores { get; } = [];
+	public Collection<string> Tags { get; } = [];
+	public Collection<SimpleClass> Items { get; } = [];
+	public Dictionary<string, SimpleClass> ItemsById { get; } = [];
 }
