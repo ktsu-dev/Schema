@@ -46,6 +46,10 @@ public class SchemaEditor
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private ClassGraphView ClassGraph { get; } = new();
+	private ImGuiWidgets.TabPanel MainTabs { get; }
+
+	// Tab content delegates are parameterless, so the current frame's delta is stashed here for them.
+	private float currentDeltaTime;
 
 	private static void Main(string[] _)
 	{
@@ -79,6 +83,12 @@ public class SchemaEditor
 					new("Right", 0.75f, ShowRightPanel),
 				]
 			);
+
+		// The tab bar lives inside the right divider zone, which is already a child window, so the tab
+		// content flows from the cursor without overlapping the bar. The left zone keeps the schema tree.
+		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
+		MainTabs.AddTab("Editor", ShowEditorPanel);
+		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
@@ -184,32 +194,21 @@ public class SchemaEditor
 
 	private void OnRender(float dt)
 	{
+		// Stashed for the parameterless tab content delegates (the Class Graph needs the frame delta).
+		currentDeltaTime = dt;
 		using (Theme.FromColor(Color.Palette.Semantic.Primary))
 		{
-			if (ImGui.BeginTabBar("##MainViews"))
-			{
-				if (ImGui.BeginTabItem("Editor"))
-				{
-					DividerContainerCols.Tick(dt);
-					ImGui.EndTabItem();
-				}
-
-				if (ImGui.BeginTabItem("Class Graph"))
-				{
-					ClassGraph.Show(CurrentSchema, dt);
-					ImGui.EndTabItem();
-				}
-
-				ImGui.EndTabBar();
-			}
-
+			DividerContainerCols.Tick(dt);
 			Popups.Update();
 		}
 	}
 
 	private void ShowLeftPanel(float dt) => TreeSchema.Show();
 
-	private void ShowRightPanel(float dt)
+	// The right zone hosts the Editor / Class Graph tab bar.
+	private void ShowRightPanel(float dt) => MainTabs.Draw();
+
+	private void ShowEditorPanel()
 	{
 		ShowSchemaConfig();
 		if (CurrentClass is not null)
