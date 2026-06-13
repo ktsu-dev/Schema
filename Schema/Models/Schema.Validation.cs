@@ -81,15 +81,15 @@ public partial class Schema
 	{
 		switch (type)
 		{
-			case Types.Enum enumType:
+			case Enum enumType:
 				ValidateEnumReference(issues, enumType, path);
 				break;
 
-			case Types.Object objectType:
+			case Object objectType:
 				ValidateClassReference(issues, objectType.ClassName, path);
 				break;
 
-			case Types.Array arrayType:
+			case Array arrayType:
 				ValidateArray(issues, arrayType, path);
 				break;
 
@@ -98,7 +98,7 @@ public partial class Schema
 		}
 	}
 
-	private void ValidateEnumReference(Collection<SchemaValidationIssue> issues, Types.Enum enumType, string path)
+	private void ValidateEnumReference(Collection<SchemaValidationIssue> issues, Enum enumType, string path)
 	{
 		if (string.IsNullOrEmpty(enumType.EnumName))
 		{
@@ -142,7 +142,7 @@ public partial class Schema
 		}
 	}
 
-	private void ValidateArray(Collection<SchemaValidationIssue> issues, Types.Array arrayType, string path)
+	private void ValidateArray(Collection<SchemaValidationIssue> issues, Array arrayType, string path)
 	{
 		ValidateType(issues, arrayType.ElementType, path);
 
@@ -151,7 +151,7 @@ public partial class Schema
 			return;
 		}
 
-		if (arrayType.ElementType is not Types.Object elementObject)
+		if (arrayType.ElementType is not Object elementObject)
 		{
 			issues.Add(new()
 			{

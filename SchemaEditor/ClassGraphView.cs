@@ -15,7 +15,7 @@ using ktsu.ImGuiNodeEditor;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
-using SchemaTypes = ktsu.Schema.Models.Types;
+using SchemaTypes = Schema.Models.Types;
 
 /// <summary>
 /// Renders the relationships between schema classes and enums as an interactive node graph
@@ -172,7 +172,7 @@ internal sealed class ClassGraphView
 		for (int i = 0; i < count; i++)
 		{
 			NodeDescriptor descriptor = descriptors[i];
-			float angle = (i / (float)count) * MathF.Tau;
+			float angle = i / (float)count * MathF.Tau;
 			Vector2 position = new(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius);
 			Node node = engine.CreateNode(position, descriptor.Title, inputLabels[descriptor.Key], outputLabels[descriptor.Key]);
 			nodesByKey[descriptor.Key] = node;

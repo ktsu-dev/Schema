@@ -25,7 +25,7 @@ using ktsu.UndoRedo;
 using ktsu.UndoRedo.Contracts;
 using ktsu.UndoRedo.Core.Services;
 
-using SchemaTypes = ktsu.Schema.Models.Types;
+using SchemaTypes = Schema.Models.Types;
 
 public class SchemaEditor
 {
@@ -475,7 +475,7 @@ public class SchemaEditor
 			string filePath = CurrentDataSource.File;
 			if (ImGui.InputText("##DataSourceFile", ref filePath, 256))
 			{
-				CurrentDataSource.File = filePath.As<ktsu.Semantics.Paths.RelativeFilePath>();
+				CurrentDataSource.File = filePath.As<RelativeFilePath>();
 			}
 
 			ImGui.TextUnformatted("Class:");

@@ -427,40 +427,40 @@ public partial class Schema
 		// Handle basic types
 		if (type == typeof(string))
 		{
-			return new Types.String();
+			return new String();
 		}
 		else if (type == typeof(int) || type == typeof(short) || type == typeof(byte))
 		{
-			return new Types.Int();
+			return new Int();
 		}
 		else if (type == typeof(long))
 		{
-			return new Types.Long();
+			return new Long();
 		}
 		else if (type == typeof(float))
 		{
-			return new Types.Float();
+			return new Float();
 		}
 		else if (type == typeof(double) || type == typeof(decimal))
 		{
-			return new Types.Double();
+			return new Double();
 		}
 		else if (type == typeof(bool))
 		{
-			return new Types.Bool();
+			return new Bool();
 		}
 		else if (type == typeof(System.DateTime))
 		{
-			return new Types.DateTime();
+			return new DateTime();
 		}
 		else if (type == typeof(System.TimeSpan))
 		{
-			return new Types.TimeSpan();
+			return new TimeSpan();
 		}
 		else if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
 		{
-			BaseType element = GetOrCreateSchemaType(elementType) ?? new Types.None();
-			return new Types.Array() { ElementType = element, Container = container };
+			BaseType element = GetOrCreateSchemaType(elementType) ?? new None();
+			return new Array() { ElementType = element, Container = container };
 		}
 		else if (type.IsEnum)
 		{
@@ -473,7 +473,7 @@ public partial class Schema
 				{
 					schemaEnum.TryAddValue(enumValue.As<EnumValueName>());
 				}
-				return new Types.Enum() { EnumName = enumName };
+				return new Enum() { EnumName = enumName };
 			}
 		}
 		else if (type.IsClass && type != typeof(string))
@@ -482,11 +482,11 @@ public partial class Schema
 			SchemaClass? schemaClass = GetClass(className) ?? AddClass(type);
 			if (schemaClass is not null)
 			{
-				return new Types.Object() { ClassName = className };
+				return new Object() { ClassName = className };
 			}
 		}
 
-		return new Types.None();
+		return new None();
 	}
 
 	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)

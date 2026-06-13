@@ -7,12 +7,12 @@
     <NoWarn>$(NoWarn);IDE0063</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ImGui.NET" />
     <PackageReference Include="ktsu.AppDataStorage" />
     <PackageReference Include="ktsu.DeepClone" />
     <PackageReference Include="ktsu.FuzzySearch" />
     <PackageReference Include="ktsu.ImGui.App" />
     <PackageReference Include="ktsu.ImGui.Popups" />
+    <PackageReference Include="ktsu.ImGui.Styler" />
     <PackageReference Include="ktsu.ImGui.Widgets" />
     <PackageReference Include="ktsu.ImGuiNodeEditor" />
     <PackageReference Include="ktsu.NodeGraph" />

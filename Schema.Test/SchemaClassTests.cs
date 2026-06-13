@@ -8,7 +8,7 @@ using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Strings;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SchemaTypes = ktsu.Schema.Models.Types;
+using SchemaTypes = Models.Types;
 
 [TestClass]
 public class SchemaClassTests

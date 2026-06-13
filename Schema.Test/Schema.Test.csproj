@@ -12,4 +12,10 @@
     <ProjectReference Include="..\Schema\Schema.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
+      <VersionOverride>18.8.0</VersionOverride>
+    </PackageReference>
+  </ItemGroup>
+
 </Project>

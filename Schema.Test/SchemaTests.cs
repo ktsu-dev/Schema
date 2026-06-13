@@ -10,7 +10,7 @@ using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SchemaTypes = ktsu.Schema.Models.Types;
+using SchemaTypes = Models.Types;
 
 [TestClass]
 public class SchemaTests

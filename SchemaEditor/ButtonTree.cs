@@ -6,7 +6,7 @@ namespace ktsu.SchemaEditor;
 
 using System;
 
-using ImGuiNET;
+using Hexa.NET.ImGui;
 
 using ktsu.Extensions;
 using ktsu.ImGui.Styler;
