@@ -84,16 +84,10 @@ public class SchemaEditor
 				]
 			);
 
+		// The tab bar lives inside the right divider zone, which is already a child window, so the tab
+		// content flows from the cursor without overlapping the bar. The left zone keeps the schema tree.
 		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
-		MainTabs.AddTab("Editor", () =>
-		{
-			// The divider container pins itself to the host window's top-left and fills the whole
-			// window, ignoring the cursor. Run it inside a child that begins below the tab bar so it
-			// resolves its geometry against that child instead of painting over the tabs.
-			ImGui.BeginChild("##EditorTab", ImGui.GetContentRegionAvail(), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
-			DividerContainerCols.Tick(currentDeltaTime);
-			ImGui.EndChild();
-		});
+		MainTabs.AddTab("Editor", ShowEditorPanel);
 		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
 
 		Options = AppData.LoadOrCreate();
@@ -200,17 +194,21 @@ public class SchemaEditor
 
 	private void OnRender(float dt)
 	{
+		// Stashed for the parameterless tab content delegates (the Class Graph needs the frame delta).
 		currentDeltaTime = dt;
 		using (Theme.FromColor(Color.Palette.Semantic.Primary))
 		{
-			MainTabs.Draw();
+			DividerContainerCols.Tick(dt);
 			Popups.Update();
 		}
 	}
 
 	private void ShowLeftPanel(float dt) => TreeSchema.Show();
 
-	private void ShowRightPanel(float dt)
+	// The right zone hosts the Editor / Class Graph tab bar.
+	private void ShowRightPanel(float dt) => MainTabs.Draw();
+
+	private void ShowEditorPanel()
 	{
 		ShowSchemaConfig();
 		if (CurrentClass is not null)
