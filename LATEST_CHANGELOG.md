@@ -1,7 +1,7 @@
-## v1.6.0 (minor)
+## v1.6.1 (patch)
 
-Changes since v1.5.0:
+Changes since v1.6.0:
 
-- Update package versions and refactor type references in schema models ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add class graph view to SchemaEditor using NodeGraph and ImGuiNodeEditor ([@Claude](https://github.com/Claude))
+- Move the views tab bar into the right divider zone ([@Claude](https://github.com/Claude))
+- Fix editor content rendering over the tab bar ([@Claude](https://github.com/Claude))
 
