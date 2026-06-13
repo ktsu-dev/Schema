@@ -1,7 +1,7 @@
-## v1.6.1 (patch)
+## v1.6.2 (patch)
 
-Changes since v1.6.0:
+Changes since v1.6.1:
 
-- Move the views tab bar into the right divider zone ([@Claude](https://github.com/Claude))
-- Fix editor content rendering over the tab bar ([@Claude](https://github.com/Claude))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
