@@ -46,6 +46,10 @@ public class SchemaEditor
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private ClassGraphView ClassGraph { get; } = new();
+	private ImGuiWidgets.TabPanel MainTabs { get; }
+
+	// Tab content delegates are parameterless, so the current frame's delta is stashed here for them.
+	private float currentDeltaTime;
 
 	private static void Main(string[] _)
 	{
@@ -79,6 +83,18 @@ public class SchemaEditor
 					new("Right", 0.75f, ShowRightPanel),
 				]
 			);
+
+		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
+		MainTabs.AddTab("Editor", () =>
+		{
+			// The divider container pins itself to the host window's top-left and fills the whole
+			// window, ignoring the cursor. Run it inside a child that begins below the tab bar so it
+			// resolves its geometry against that child instead of painting over the tabs.
+			ImGui.BeginChild("##EditorTab", ImGui.GetContentRegionAvail(), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
+			DividerContainerCols.Tick(currentDeltaTime);
+			ImGui.EndChild();
+		});
+		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
@@ -184,25 +200,10 @@ public class SchemaEditor
 
 	private void OnRender(float dt)
 	{
+		currentDeltaTime = dt;
 		using (Theme.FromColor(Color.Palette.Semantic.Primary))
 		{
-			if (ImGui.BeginTabBar("##MainViews"))
-			{
-				if (ImGui.BeginTabItem("Editor"))
-				{
-					DividerContainerCols.Tick(dt);
-					ImGui.EndTabItem();
-				}
-
-				if (ImGui.BeginTabItem("Class Graph"))
-				{
-					ClassGraph.Show(CurrentSchema, dt);
-					ImGui.EndTabItem();
-				}
-
-				ImGui.EndTabBar();
-			}
-
+			MainTabs.Draw();
 			Popups.Update();
 		}
 	}
