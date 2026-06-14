@@ -2,8 +2,7 @@
 
 Changes since v1.6.1:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Update package refs: remove dev deps, add Hexa.NET.ImGui ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.6.1 (patch)
 
