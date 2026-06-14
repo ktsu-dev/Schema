@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <Sdk Name="Microsoft.NET.Sdk" />
   <Sdk Name="ktsu.Sdk" />
   <Sdk Name="ktsu.Sdk.App" />
@@ -7,8 +7,11 @@
     <NoWarn>$(NoWarn);IDE0063</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Hexa.NET.ImGui" />
     <PackageReference Include="ktsu.AppDataStorage" />
     <PackageReference Include="ktsu.DeepClone" />
+    <PackageReference Include="ktsu.Extensions" />
+    <PackageReference Include="ktsu.ForceDirectedLayout" />
     <PackageReference Include="ktsu.FuzzySearch" />
     <PackageReference Include="ktsu.ImGui.App" />
     <PackageReference Include="ktsu.ImGui.Popups" />
@@ -18,6 +21,8 @@
     <PackageReference Include="ktsu.NodeGraph" />
     <PackageReference Include="ktsu.IntervalAction" />
     <PackageReference Include="ktsu.Keybinding.Core" />
+    <PackageReference Include="ktsu.Semantics.Paths" />
+    <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="ktsu.UndoRedo.Core" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" />
     <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" />
