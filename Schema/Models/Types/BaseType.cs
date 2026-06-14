@@ -137,6 +137,29 @@ public abstract class BaseType : IEquatable<BaseType?>
 	];
 
 	/// <summary>
+	/// Creates fresh instances of every built-in type.
+	/// </summary>
+	/// <returns>A new instance of each built-in type.</returns>
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "Allocates new instances on each call, which is not appropriate for a property.")]
+	public static IEnumerable<BaseType> GetBuiltInTypes() =>
+	[
+		new None(),
+		new Bool(),
+		new Int(),
+		new Long(),
+		new Float(),
+		new Double(),
+		new String(),
+		new DateTime(),
+		new TimeSpan(),
+		new Vector2(),
+		new Vector3(),
+		new Vector4(),
+		new ColorRGB(),
+		new ColorRGBA(),
+	];
+
+	/// <summary>
 	/// Gets a value indicating whether the type is built-in.
 	/// </summary>
 	[JsonIgnore]

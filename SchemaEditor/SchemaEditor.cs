@@ -354,7 +354,7 @@ public class SchemaEditor
 
 		if (ImGui.Button($"{schemaMember.Type.DisplayName}##Type{schemaMember.Name}", new Vector2(FieldWidth, 0)))
 		{
-			Popups.OpenTypeList("Select Type", "Type", schema.GetTypes(), schemaMember.Type, schemaMember.SetType);
+			Popups.OpenTypeList("Select Type", "Type", schema.GetAvailableTypes(), schemaMember.Type, schemaMember.SetType);
 		}
 
 		if (schemaMember.Type is SchemaTypes.Array array)
