@@ -175,6 +175,62 @@ public class SchemaTests
 	}
 
 	[TestMethod]
+	public void TestGetAvailableTypesIncludesBuiltInTypesForEmptySchema()
+	{
+		Schema schemaProvider = new();
+
+		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetAvailableTypes()];
+
+		// An empty schema should still offer every built-in type to pick from, not just None.
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.None), "GetAvailableTypes should include None");
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.Int), "GetAvailableTypes should include Int");
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.String), "GetAvailableTypes should include String");
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.Bool), "GetAvailableTypes should include Bool");
+		Assert.IsTrue(types.Any(t => t is SchemaTypes.Float), "GetAvailableTypes should include Float");
+		Assert.IsTrue(types.Count > 1, "GetAvailableTypes should offer more than just None");
+	}
+
+	[TestMethod]
+	public void TestGetAvailableTypesIncludesDefinedEnumsAndClasses()
+	{
+		Schema schemaProvider = new();
+		schemaProvider.AddEnum("Status".As<EnumName>());
+		schemaProvider.AddClass("User".As<ClassName>());
+
+		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetAvailableTypes()];
+
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Enum e && e.EnumName == "Status".As<EnumName>()),
+			"GetAvailableTypes should include an Enum for each defined enum");
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Object o && o.ClassName == "User".As<ClassName>()),
+			"GetAvailableTypes should include an Object for each defined class");
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Array a && a.ElementType is SchemaTypes.Object o && o.ClassName == "User".As<ClassName>()),
+			"GetAvailableTypes should include an Array of each defined class");
+	}
+
+	[TestMethod]
+	public void TestGetAvailableTypesReturnsDistinctInstances()
+	{
+		Schema schemaProvider = new();
+
+		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetAvailableTypes()];
+
+		// Each entry must be a unique instance so selecting one does not mutate another.
+		HashSet<SchemaTypes.BaseType> uniqueInstances = new(ReferenceEqualityComparer.Instance);
+		foreach (SchemaTypes.BaseType type in types)
+		{
+			Assert.IsTrue(uniqueInstances.Add(type), "GetAvailableTypes should return distinct instances");
+
+			if (type is SchemaTypes.Array array)
+			{
+				Assert.IsTrue(uniqueInstances.Add(array.ElementType), "Array element types should be distinct instances");
+			}
+		}
+	}
+
+	[TestMethod]
 	public void TestTryGetEnum()
 	{
 		Schema schemaProvider = new();

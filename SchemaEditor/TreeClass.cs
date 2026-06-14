@@ -163,7 +163,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 					if (addedMember is not null)
 					{
 						Debug.Assert(addedMember.ParentSchema is not null);
-						Popups.OpenTypeList("Select Type", "Type", addedMember.ParentSchema.GetTypes(), addedMember.Type, addedMember.SetType);
+						Popups.OpenTypeList("Select Type", "Type", addedMember.ParentSchema.GetAvailableTypes(), addedMember.Type, addedMember.SetType);
 					}
 				});
 			}

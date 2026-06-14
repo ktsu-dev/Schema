@@ -559,4 +559,47 @@ public partial class Schema
 	/// <returns>Collection of all schema types.</returns>
 	public IEnumerable<BaseType> GetTypes() =>
 		GetDiscreteTypes().GroupBy(t => t.GetType()).Select(g => g.First());
+
+	/// <summary>
+	/// Gets every type a member can be assigned, suitable for populating a type picker.
+	/// This includes the built-in types, an <see cref="Enum"/> for each defined enum,
+	/// an <see cref="Object"/> for each defined class, and an <see cref="Array"/> of each
+	/// of those element types.
+	/// </summary>
+	/// <returns>Collection of all selectable schema types.</returns>
+	public IEnumerable<BaseType> GetAvailableTypes()
+	{
+		yield return new None();
+
+		foreach (BaseType elementType in GetSelectableElementTypes())
+		{
+			yield return elementType;
+		}
+
+		foreach (BaseType elementType in GetSelectableElementTypes())
+		{
+			yield return new Array() { ElementType = elementType };
+		}
+	}
+
+	private IEnumerable<BaseType> GetSelectableElementTypes()
+	{
+		foreach (BaseType builtInType in BaseType.GetBuiltInTypes())
+		{
+			if (builtInType is not None)
+			{
+				yield return builtInType;
+			}
+		}
+
+		foreach (SchemaEnum schemaEnum in EnumsInternal)
+		{
+			yield return new Enum() { EnumName = schemaEnum.Name };
+		}
+
+		foreach (SchemaClass schemaClass in ClassesInternal)
+		{
+			yield return new Object() { ClassName = schemaClass.Name };
+		}
+	}
 }
