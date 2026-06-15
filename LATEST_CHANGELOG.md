@@ -1,6 +1,4 @@
-## v1.7.1 (patch)
+## v1.7.1
 
-Changes since v1.7.0:
-
-- Remove stale files ([@matt-edmondson](https://github.com/matt-edmondson))
+No significant changes detected since v1.7.1.
 
