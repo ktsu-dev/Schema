@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="Hexa.NET.ImGui" Version="2.2.9" />
     <PackageVersion Include="ktsu.DeepClone" Version="2.0.11" />
-    <PackageVersion Include="ktsu.Extensions" Version="1.5.18" />
+    <PackageVersion Include="ktsu.Extensions" Version="1.5.19" />
     <PackageVersion Include="ktsu.ForceDirectedLayout" Version="2.15.2" />
     <PackageVersion Include="ktsu.FuzzySearch" Version="1.2.18" />
     <PackageVersion Include="ktsu.ImGui.Styler" Version="2.15.2" />
@@ -24,6 +24,6 @@
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.23" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.300" />
-    <PackageVersion Include="Polyfill" Version="10.10.0" />
+    <PackageVersion Include="Polyfill" Version="10.11.0" />
   </ItemGroup>
 </Project>
