@@ -2,6 +2,8 @@
 
 Changes since v1.7.2:
 
+- Bump Polyfill from 10.11.0 to 10.11.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 23 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 16 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
