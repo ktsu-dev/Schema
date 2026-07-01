@@ -24,6 +24,6 @@
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.26" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.300" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.300" />
-    <PackageVersion Include="Polyfill" Version="10.11.1" />
+    <PackageVersion Include="Polyfill" Version="10.11.2" />
   </ItemGroup>
 </Project>
