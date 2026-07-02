@@ -2,6 +2,7 @@
 
 Changes since v1.7.2:
 
+- Bump the ktsu group with 24 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump Polyfill from 10.11.1 to 10.11.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 17 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump Polyfill from 10.11.0 to 10.11.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
