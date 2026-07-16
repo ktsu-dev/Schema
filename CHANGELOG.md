@@ -2,6 +2,8 @@
 
 Changes since v1.7.2:
 
+- Bump Polyfill from 11.0.0 to 11.0.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 14 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump Microsoft.SourceLink.AzureRepos.Git and Microsoft.SourceLink.GitHub ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump Polyfill from 10.11.2 to 11.0.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 13 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
