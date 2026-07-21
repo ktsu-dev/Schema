@@ -2,6 +2,8 @@
 
 Changes since v1.7.2:
 
+- Bump ktsu.ForceDirectedLayout and 8 others ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump Polyfill from 11.0.0 to 11.0.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 14 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
