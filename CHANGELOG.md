@@ -4,6 +4,7 @@ Changes since v1.7.2:
 
 - Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 11 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 19 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump ktsu.ForceDirectedLayout and 8 others ([@dependabot[bot]](https://github.com/dependabot[bot]))
