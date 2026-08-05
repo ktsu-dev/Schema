@@ -2,6 +2,7 @@
 
 Changes since v1.7.2:
 
+- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 7 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
@@ -333,13 +334,11 @@ Changes since v1.0.0-pre.9:
 
 ## v1.0.0-pre.9 (prerelease)
 
-Changes since v1.0.0-pre.8:
-
+No significant changes detected since v1.0.0-pre.8.
 
 ## v1.0.0-pre.8 (prerelease)
 
-Changes since v1.0.0-pre.7:
-
+No significant changes detected since v1.0.0-pre.7.
 
 ## v1.0.0-pre.7 (prerelease)
 
@@ -349,13 +348,11 @@ Changes since v1.0.0-pre.6:
 
 ## v1.0.0-pre.6 (prerelease)
 
-Changes since v1.0.0-pre.5:
-
+No significant changes detected since v1.0.0-pre.5.
 
 ## v1.0.0-pre.5 (prerelease)
 
-Changes since v1.0.0-pre.4:
-
+No significant changes detected since v1.0.0-pre.4.
 
 ## v1.0.0-pre.4 (prerelease)
 
@@ -371,8 +368,7 @@ Changes since v1.0.0-pre.2:
 
 ## v1.0.0-pre.2 (prerelease)
 
-Changes since v1.0.0-pre.1:
-
+No significant changes detected since v1.0.0-pre.1.
 
 ## v1.0.0-pre.1 (prerelease)
 
