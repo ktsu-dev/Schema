@@ -22,8 +22,8 @@
     <PackageVersion Include="ktsu.ImGuiNodeEditor" Version="3.3.9" />
     <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.33" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.301" />
-    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.301" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.400" />
     <PackageVersion Include="Polyfill" Version="11.0.2" />
   </ItemGroup>
 </Project>
