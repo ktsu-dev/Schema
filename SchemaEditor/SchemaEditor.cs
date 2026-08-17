@@ -1,6 +1,4 @@
-// Copyright (c) ktsu.dev
-// All rights reserved.
-// Licensed under the MIT license.
+// Copyright (c) 2023-2026 ktsu-dev contributors
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
@@ -196,7 +194,7 @@ public class SchemaEditor
 	{
 		// Stashed for the parameterless tab content delegates (the Class Graph needs the frame delta).
 		currentDeltaTime = dt;
-		using (Theme.FromColor(Color.Palette.Semantic.Primary))
+		using (Theme.FromColor(Palette.Semantic.Primary))
 		{
 			DividerContainerCols.Tick(dt);
 			Popups.Update();
@@ -447,7 +445,7 @@ public class SchemaEditor
 		{
 			if (string.IsNullOrEmpty(CurrentSchemaPath))
 			{
-				using (Theme.FromColor(Color.Palette.Semantic.Error))
+				using (Theme.FromColor(Palette.Semantic.Error))
 				{
 					ImGui.TextUnformatted("Schema has not been saved. Save it before configuring relative paths.");
 
