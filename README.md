@@ -2,8 +2,13 @@
 
 A C# library for defining, managing, and editing data structure schemas with a rich type system, type-safe identifiers, and polymorphic JSON serialization.
 
-[![NuGet](https://img.shields.io/nuget/v/ktsu.Schema)](https://www.nuget.org/packages/ktsu.Schema)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
+[![License](https://img.shields.io/github/license/ktsu-dev/Schema.svg?label=License&logo=nuget)](LICENSE.md)
+[![NuGet Version](https://img.shields.io/nuget/v/ktsu.Schema?label=Stable&logo=nuget)](https://nuget.org/packages/ktsu.Schema)
+[![NuGet Version](https://img.shields.io/nuget/vpre/ktsu.Schema?label=Latest&logo=nuget)](https://nuget.org/packages/ktsu.Schema)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ktsu.Schema?label=Downloads&logo=nuget)](https://nuget.org/packages/ktsu.Schema)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/Schema?label=Commits&logo=github)](https://github.com/ktsu-dev/Schema/commits/main)
+[![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/Schema?label=Contributors&logo=github)](https://github.com/ktsu-dev/Schema/graphs/contributors)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/Schema/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/Schema/actions)
 
 ## Overview
 

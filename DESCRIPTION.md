@@ -1,1 +1,1 @@
-Schema
+A .NET library for defining, managing, and editing data structure schemas with a rich type system, type-safe identifiers, and polymorphic JSON serialization. Define structured data models programmatically or visually and serialize them to .schema.json files, providing a metadata foundation for code generation, data validation, and tooling that needs to reason about your data structures. Ships with an accompanying Dear ImGui desktop editor for visual schema authoring.
