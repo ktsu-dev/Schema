@@ -8,7 +8,7 @@ A C# library for defining, managing, and editing data structure schemas with a r
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ktsu.Schema?label=Downloads&logo=nuget)](https://nuget.org/packages/ktsu.Schema)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/Schema?label=Commits&logo=github)](https://github.com/ktsu-dev/Schema/commits/main)
 [![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/Schema?label=Contributors&logo=github)](https://github.com/ktsu-dev/Schema/graphs/contributors)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/Schema/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/Schema/actions)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/Schema/dotnet.yml?branch=main&label=Build&logo=github)](https://github.com/ktsu-dev/Schema/actions)
 
 ## Overview
 
