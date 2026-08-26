@@ -1,6 +1,6 @@
-## v1.7.9 (patch)
+## v1.7.10 (patch)
 
-Changes since v1.7.8:
+Changes since v1.7.9:
 
-- Bump the ktsu group with 5 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
 
