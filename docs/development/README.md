@@ -16,7 +16,7 @@ Current state of the project and planned work.
 
 | Component | Requirement                                          |
 | --------- | ---------------------------------------------------- |
-| .NET SDK  | 10.0 (see `global.json`; the library multi-targets net7.0–net10.0) |
+| .NET SDK  | 10.0.400 or newer (see `global.json`; the library multi-targets net8.0–net10.0) |
 | IDE       | Visual Studio 2022 or VS Code                        |
 | Git       | Latest version                                       |
 

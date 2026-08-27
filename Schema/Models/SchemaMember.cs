@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Models;
 
+using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 
@@ -13,6 +14,12 @@ public class SchemaMember : SchemaClassChild<MemberName>
 	/// <summary>
 	/// Gets the type of the schema member.
 	/// </summary>
+	/// <remarks>
+	/// <see cref="JsonIncludeAttribute"/> is required because the setter is private: without it
+	/// System.Text.Json writes the type on save but silently ignores it on load, so every member
+	/// in a loaded schema came back as <see cref="None"/>.
+	/// </remarks>
+	[JsonInclude]
 	public BaseType Type { get; private set; } = new None();
 
 	/// <summary>

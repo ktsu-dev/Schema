@@ -42,4 +42,11 @@ public class Object : BaseType
 	/// </summary>
 	/// <returns>The class name.</returns>
 	public override string ToString() => ClassName;
+
+	/// <inheritdoc />
+	protected override bool EqualsCore(BaseType other) =>
+		other is Object otherObject && string.Equals(ClassName, otherObject.ClassName, StringComparison.Ordinal);
+
+	/// <inheritdoc />
+	public override int GetHashCode() => HashCode.Combine(GetType(), ClassName.ToString());
 }

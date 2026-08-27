@@ -1,11 +1,9 @@
-﻿<Project>
+<Project>
   <Sdk Name="MSTest.Sdk" />
-  <Sdk Name="ktsu.Sdk" />
+  <Import Project="Sdk.props" Sdk="ktsu.Sdk" />
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
-    <TargetFramework>net10.0</TargetFramework>
-    <TargetFrameworks></TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,5 +15,16 @@
       <VersionOverride>18.8.0</VersionOverride>
     </PackageReference>
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="ktsu.Sdk" />
+
+  <!-- ktsu.Sdk pins test projects to a single framework (it sets TargetFramework in its
+       props and clears TargetFrameworks in its targets). Schema publishes three frameworks,
+       so the suite has to run on all three - see issue #109. This PropertyGroup is placed
+       after the explicit Sdk.targets import so the project, not the SDK, has the last word. -->
+  <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+  </PropertyGroup>
 
 </Project>

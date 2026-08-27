@@ -15,4 +15,11 @@ public class Enum : BaseType
 	/// Gets or sets the name of the enumeration.
 	/// </summary>
 	public EnumName EnumName { get; init; } = new();
+
+	/// <inheritdoc />
+	protected override bool EqualsCore(BaseType other) =>
+		other is Enum otherEnum && string.Equals(EnumName, otherEnum.EnumName, StringComparison.Ordinal);
+
+	/// <inheritdoc />
+	public override int GetHashCode() => HashCode.Combine(GetType(), EnumName.ToString());
 }

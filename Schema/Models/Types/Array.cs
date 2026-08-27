@@ -46,4 +46,15 @@ public class Array : BaseType
 
 		return keyMember is not null;
 	}
+
+	/// <inheritdoc />
+	protected override bool EqualsCore(BaseType other) =>
+		other is Array otherArray
+			&& ElementType.Equals(otherArray.ElementType)
+			&& string.Equals(Container, otherArray.Container, StringComparison.Ordinal)
+			&& string.Equals(Key, otherArray.Key, StringComparison.Ordinal);
+
+	/// <inheritdoc />
+	public override int GetHashCode() =>
+		HashCode.Combine(GetType(), ElementType, Container.ToString(), Key.ToString());
 }

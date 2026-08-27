@@ -48,6 +48,23 @@ public class SchemaValidationTests
 	}
 
 	[TestMethod]
+	public void TestVectorAndColorMembersHaveNoIssues()
+	{
+		// Before issue #107 these types derived from Object, so the validator saw an empty
+		// inherited ClassName and reported "Object type does not specify a class name."
+		Schema schema = new();
+		SchemaClass? playerClass = schema.AddClass("Player".As<ClassName>());
+		playerClass?.AddMember("Position".As<MemberName>())?.SetType(new SchemaTypes.Vector3());
+		playerClass?.AddMember("Tint".As<MemberName>())?.SetType(new SchemaTypes.ColorRGB());
+		playerClass?.AddMember("Velocity".As<MemberName>())?.SetType(new SchemaTypes.Vector2());
+		playerClass?.AddMember("Rotation".As<MemberName>())?.SetType(new SchemaTypes.Vector4());
+		playerClass?.AddMember("Overlay".As<MemberName>())?.SetType(new SchemaTypes.ColorRGBA());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.AreEqual(0, issues.Count, string.Join("; ", issues));
+	}
+
+	[TestMethod]
 	public void TestEmptySchemaHasNoIssues()
 	{
 		Schema schema = new();

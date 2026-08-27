@@ -5,4 +5,4 @@ namespace ktsu.Schema.Models.Types;
 /// <summary>
 /// Represents a vector type.
 /// </summary>
-public class Vector : SystemObject { }
+public abstract class Vector : SystemObject { }

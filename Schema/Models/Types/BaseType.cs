@@ -43,11 +43,31 @@ public abstract class BaseType : IEquatable<BaseType?>
 	public void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
 
 	/// <summary>
-	/// Determines whether the specified object is equal to the current object.
+	/// Determines whether the specified type is equal to the current type.
 	/// </summary>
-	/// <param name="other">The object to compare with the current object.</param>
-	/// <returns>True if the specified object is equal to the current object; otherwise, false.</returns>
-	public bool Equals(BaseType? other) => ReferenceEquals(this, other) || ((other?.GetType() == GetType()) && (other.ToString() != ToString()));
+	/// <remarks>
+	/// Two types are equal when they are the same CLR type and their type-specific state
+	/// matches. Types that carry no state - the primitives, the vectors and colors - are equal
+	/// to any other instance of the same type; the types that do carry state compare it in
+	/// <see cref="EqualsCore(BaseType)"/>.
+	/// </remarks>
+	/// <param name="other">The type to compare with the current type.</param>
+	/// <returns>True if the specified type is equal to the current type; otherwise, false.</returns>
+	public bool Equals(BaseType? other) =>
+		ReferenceEquals(this, other) || (other is not null && other.GetType() == GetType() && EqualsCore(other));
+
+	/// <summary>
+	/// Compares the type-specific state of two instances that are already known to be of the
+	/// same CLR type.
+	/// </summary>
+	/// <remarks>
+	/// The default implementation returns true, which is correct for every stateless type.
+	/// Derived types that carry state - <see cref="Object"/>, <see cref="Enum"/> and
+	/// <see cref="Array"/> - override this and must keep <see cref="GetHashCode"/> in step.
+	/// </remarks>
+	/// <param name="other">The instance to compare against; guaranteed to be the same CLR type as this one.</param>
+	/// <returns>True if the type-specific state matches; otherwise, false.</returns>
+	protected virtual bool EqualsCore(BaseType other) => true;
 
 	/// <summary>
 	/// Determines whether the specified object is equal to the current object.
@@ -60,7 +80,24 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// Serves as the default hash function.
 	/// </summary>
 	/// <returns>A hash code for the current object.</returns>
-	public override int GetHashCode() => HashCode.Combine(ToString());
+	public override int GetHashCode() => GetType().GetHashCode();
+
+	/// <summary>
+	/// Determines whether two types are equal.
+	/// </summary>
+	/// <param name="left">The first type to compare.</param>
+	/// <param name="right">The second type to compare.</param>
+	/// <returns>True if the types are equal; otherwise, false.</returns>
+	public static bool operator ==(BaseType? left, BaseType? right) =>
+		left is null ? right is null : left.Equals(right);
+
+	/// <summary>
+	/// Determines whether two types are not equal.
+	/// </summary>
+	/// <param name="left">The first type to compare.</param>
+	/// <param name="right">The second type to compare.</param>
+	/// <returns>True if the types are not equal; otherwise, false.</returns>
+	public static bool operator !=(BaseType? left, BaseType? right) => !(left == right);
 
 	/// <summary>
 	/// Returns a string representation of the type.
