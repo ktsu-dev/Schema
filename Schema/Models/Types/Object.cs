@@ -48,5 +48,5 @@ public class Object : BaseType
 		other is Object otherObject && string.Equals(ClassName, otherObject.ClassName, StringComparison.Ordinal);
 
 	/// <inheritdoc />
-	public override int GetHashCode() => HashCode.Combine(GetType(), ClassName.ToString());
+	protected override int GetHashCodeCore() => StringComparer.Ordinal.GetHashCode(ClassName.ToString());
 }

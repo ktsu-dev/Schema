@@ -21,5 +21,5 @@ public class Enum : BaseType
 		other is Enum otherEnum && string.Equals(EnumName, otherEnum.EnumName, StringComparison.Ordinal);
 
 	/// <inheritdoc />
-	public override int GetHashCode() => HashCode.Combine(GetType(), EnumName.ToString());
+	protected override int GetHashCodeCore() => StringComparer.Ordinal.GetHashCode(EnumName.ToString());
 }

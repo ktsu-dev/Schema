@@ -76,6 +76,8 @@ public class Array : BaseType
 			&& string.Equals(Key, otherArray.Key, StringComparison.Ordinal);
 
 	/// <inheritdoc />
-	public override int GetHashCode() =>
-		HashCode.Combine(GetType(), ElementType, Container.ToString(), Key.ToString());
+	protected override int GetHashCodeCore() => HashCode.Combine(
+		ElementType,
+		StringComparer.Ordinal.GetHashCode(Container.ToString()),
+		StringComparer.Ordinal.GetHashCode(Key.ToString()));
 }

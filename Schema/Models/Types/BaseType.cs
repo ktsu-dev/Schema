@@ -79,8 +79,25 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Serves as the default hash function.
 	/// </summary>
+	/// <remarks>
+	/// Mirrors <see cref="Equals(BaseType?)"/>: the CLR type identifies the type, and
+	/// <see cref="GetHashCodeCore"/> contributes whatever state
+	/// <see cref="EqualsCore(BaseType)"/> compares. Derived types override that hook rather
+	/// than this method, so equality and hashing cannot drift apart.
+	/// </remarks>
 	/// <returns>A hash code for the current object.</returns>
-	public override int GetHashCode() => GetType().GetHashCode();
+	public override int GetHashCode() => HashCode.Combine(GetType(), GetHashCodeCore());
+
+	/// <summary>
+	/// Contributes the type-specific state to the hash code.
+	/// </summary>
+	/// <remarks>
+	/// The default returns a constant, which is correct for every stateless type. A derived
+	/// type that overrides <see cref="EqualsCore(BaseType)"/> must override this too, hashing
+	/// exactly the state that method compares.
+	/// </remarks>
+	/// <returns>A hash of the type-specific state.</returns>
+	protected virtual int GetHashCodeCore() => 0;
 
 	/// <summary>
 	/// Determines whether two types are equal.
