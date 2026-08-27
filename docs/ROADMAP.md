@@ -1,175 +1,131 @@
 # Project Roadmap
 
-This roadmap captures the current state of ktsu.Schema (v1.4.0) and the work required to
-complete the project's stated goals: a schema definition library with a rich type system,
-a visual editor, code generation, and data source management.
+This roadmap captures the current state of ktsu.Schema and the work left to complete the
+project's stated goals: a schema definition library with a rich type system, a visual editor,
+code generation, and data source management.
 
-## Current State Assessment
+Version and test-count figures are deliberately absent — they were the first things to rot last
+time. For what the library actually does, the tests in
+[`Schema.Test`](../Schema.Test) are the live answer; for what is left, the
+[open issues](https://github.com/ktsu-dev/Schema/issues) are.
+
+## Current state
 
 ### What works today
 
-- **Core model (Schema)** — Classes, enums, members, and a polymorphic type system
-  (18 types) with full CRUD, parent/child association, and `Reassociate()` after load.
-- **Serialization** — `SchemaSerializer` round-trips schemas to `.schema.json` via
-  `System.Text.Json` with `TypeName` discriminators.
-- **Reflection import** — `Schema.AddClass(Type)` builds schema classes from .NET types
-  for primitives, enums, and nested classes.
-- **Test suite** — 121 passing MSTest tests covering the model, type system,
-  serialization, and reflection import.
-- **Editor (SchemaEditor)** — Tree navigation for classes/enums/data sources/code
-  generators, member type editing, array container/key configuration, data source
-  property panel, file new/open/save, persistent layout settings.
-- **CI/CD** — GitHub Actions pipeline (PSBuild) with build, test, NuGet publishing, and
-  winget manifest updates; Dependabot with auto-merge.
+- **Core model** — Classes, enums, members, and a polymorphic type system with full CRUD,
+  parent/child association, and `Reassociate()` after load. Vector and colour types are their own
+  branch of the type hierarchy rather than class references, so `IsObject` means "references a
+  user-defined class".
+- **Serialization** — `SchemaSerializer` round-trips schemas to `.schema.json`, with a
+  `formatVersion` field, migration of older files, and a distinguishable error for a file written
+  by a newer version. The format is specified in [`schema-format.md`](schema-format.md).
+- **Validation** — `Schema.Validate()` returns structured diagnostics (severity, element path,
+  message, and a reference to the offending element). It covers dangling enum and class
+  references, array key rules, duplicate names, empty names, untyped members, container
+  vocabulary, keyed maps without a key, and data sources pointing at files that are not there.
+- **Reflection import** — `Schema.AddClass(Type)` handles primitives, `long`/`double`/`decimal`,
+  `DateTime`, `TimeSpan`, nullable value types, arrays, `IEnumerable`, `IDictionary`, enums,
+  nested classes, `System.Numerics` vectors, and the library's colour types.
+- **Code generation** — `ISchemaCodeGenerator` plus a first-party C# generator emitting POCOs,
+  enums, container mappings and XML doc comments. Generation is refused for a schema with
+  validation errors. Runnable from the editor and from `SchemaTool`.
+- **Data sources** — Relative paths resolve against the schema file's own directory, and
+  `SchemaDataValidator` checks a bound data file against its class.
+- **Editor** — Tree navigation, rename with reference cascade, descriptions, member reordering,
+  type and container editing, code generator configuration and a Generate action, a diagnostics
+  panel with click-to-navigate, undo/redo across every edit, Save As, dirty tracking, and a
+  recent-files list.
+- **CLI** — `SchemaTool` validates a schema or runs its code generators, exiting non-zero on
+  errors so it can gate a build.
+- **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL, NuGet
+  publishing and winget manifest updates; Dependabot with auto-merge.
 
-### Gaps
+### What is left
 
-Two of the four schema element kinds are metadata shells with no behavior behind them:
+The full list is in the [issue tracker](https://github.com/ktsu-dev/Schema/issues). The
+substantial items:
 
-- **Code generation** — `SchemaCodeGenerator` stores only a name and an output path.
-  No code is ever generated, despite code generation being a headline feature in the
-  README and package tags.
-- **Data sources** — `DataSource` stores a file path and a class reference, but nothing
-  loads, validates, or edits the referenced data.
+| Issue | Work | Why it is not done |
+| --- | --- | --- |
+| [#110](https://github.com/ktsu-dev/Schema/issues/110) | Implement or delete the unused `Schema.Contracts` API | Needs a decision from the project owner; deleting is a breaking change |
+| [#116](https://github.com/ktsu-dev/Schema/issues/116) | Editor window title and close prompt | Blocked by `ktsu.ImGui.App`: `Title` is init-only and there is no cancellable close hook |
+| [#126](https://github.com/ktsu-dev/Schema/issues/126) | Generated data editors | Builds on the generator architecture |
+| [#127](https://github.com/ktsu-dev/Schema/issues/127) | Generated data migrations | Needs a schema diff, which does not exist yet |
+| [#128](https://github.com/ktsu-dev/Schema/issues/128) | A test harness for the editor | The editor has never had tests; its code needs a live ImGui context to run |
 
-Cross-cutting gaps:
+## Phase status
 
-- **No schema validation** — Nothing checks referential integrity: an `Enum` type can
-  reference a deleted enum, an `Object` type a deleted class, an `Array` key a removed
-  member. Renames and deletes silently break references.
-- **Stale documentation** — `docs/README.md` reports v1.3.2 and documents removed APIs
-  (`Schema.TryLoad`, `schema.Save()`, `SchemaProvider`, `ktsu.StrongPaths`/`StrongStrings`),
-  and links to pages that don't exist (`development/contributing.md`,
-  `development/testing.md`). Four docs files reference obsolete APIs.
+The phases below were the original plan. They are kept for continuity, marked with where each one
+actually stands.
 
-## Phase 1 — Foundation hardening
+### Phase 1 — Foundation hardening — **done**
 
-Goal: the library is trustworthy as a dependency; what's documented matches what exists.
+Validation, reflection import correctness, and the documentation refresh have all landed. The
+build blocker that made the repository unbuildable on a current SDK
+([#123](https://github.com/ktsu-dev/Schema/issues/123)) is fixed, and the test suite now runs
+against every published target framework rather than just the newest.
 
-1. **Schema validation API**
-   - `Schema.Validate()` returning structured diagnostics (error/warning, element path,
-     message).
-   - Rules: enum/class/member references resolve; array keys point at existing primitive
-     members of the element class; duplicate names; data source class references resolve.
-   - Unit tests for every rule.
-2. **Reflection import correctness** (`Schema.AddClass(Type)`)
-   - `long` currently maps to `Int` and `double`/`decimal` to `Float`, despite `Long`
-     and `Double` existing — fix lossy mappings.
-   - Handle `DateTime`, `TimeSpan`, nullable value types, arrays, `List<T>`,
-     `Dictionary<TKey,TValue>`, and `System.Numerics` vector types; today these fall
-     through to `None` or are skipped.
-   - Tests for each mapping.
-3. **Documentation refresh**
-   - Rewrite `docs/README.md`, `docs/api/schema-core.md`, `docs/examples/*` against the
-     v1.4 API (root `README.md` is already accurate and can be the reference).
-   - Add or unlink `development/contributing.md` and `development/testing.md`.
-   - Add a link-check to CI or a docs test to prevent re-rot.
+### Phase 2 — Editor completeness — **done except two window behaviours**
 
-## Phase 2 — Editor completeness
+Renaming, descriptions, the code generator panel, member reordering, validation surfacing, undo
+coverage, Save As, dirty tracking and recent files have landed. Cross-platform "Open Externally"
+is fixed.
 
-Goal: every model capability is editable in the editor, and the editor behaves like a
-proper desktop app. (PR #6 — undo/redo, keyboard shortcuts, auto-save debounce — overlaps
-heavily with this phase and should be reviewed/merged first.)
+Outstanding: the window title cannot reflect the open document and the window's close button
+cannot prompt to save, because `ktsu.ImGui.App` exposes neither a settable title nor a cancellable
+close hook. The document name, dirty marker and a guarded Exit item live in the menu bar instead.
+Both would be small upstream changes to that package.
 
-1. **Editing parity with the model**
-   - Rename classes, enums, members, enum values, data sources, and code generators
-     (model `Rename()` exists; the editor exposes no rename anywhere — member name fields
-     are read-only).
-   - Edit `Description`/`MemberDescription` (model supports them; editor never shows them).
-   - Code generator property panel (only data sources have one today).
-   - Member reordering.
-2. **File-handling robustness**
-   - "Save As" menu item (currently only reachable when the path is empty).
-   - Dirty-state tracking: title-bar indicator and unsaved-changes prompt on
-     New/Open/exit.
-   - Window title updates when a schema is opened (currently computed once at startup).
-   - Recent-files menu.
-   - Cross-platform "Open Externally" (hardcoded `explorer.exe` fails on Linux/macOS).
-3. **Validation surfacing**
-   - Run Phase 1 validation live; show diagnostics inline (broken type references
-     highlighted in the tree and member grid).
+### Phase 3 — Code generation — **done, less the deferred targets**
 
-## Phase 3 — Code generation
+The generator architecture, the C# generator, the editor action and the CLI have landed. The
+generate → compile → reimport round trip is an automated test, which is what keeps the generator's
+type mapping and the reflection importer's from drifting apart.
 
-Goal: `SchemaCodeGenerator` does what its name says. This is the largest missing feature
-and the main reason the project exists ("provides a foundation for code generation").
+Still deferred by the recorded decision below: additional languages, and JSON Schema interop.
 
-1. **Generator architecture**
-   - `ISchemaCodeGenerator` abstraction in the core library; generators consume a
-     validated `Schema` and emit files to `OutputPath`.
-   - Extend the `SchemaCodeGenerator` model with the settings a real generator needs
-     (language/template id, namespace, naming conventions).
-2. **First-party C# generator**
-   - POCO classes, enums, and container mappings (`vector` → `List<T>`,
-     `map` → `Dictionary<TKey,TValue>` keyed by the array `Key` member).
-   - Round-trip guarantee: generated types re-imported via `AddClass(Type)` produce an
-     equivalent schema (this becomes the integration test).
-3. **Invocation paths**
-   - CLI entry point (`dotnet schema generate <file>`) or MSBuild task for build-time
-     generation.
-   - "Generate" action in the editor.
-4. **Candidate follow-ons** (sequence by demand)
-   - Additional languages (C++ was the historic motivation for `ContainerName`-style
-     containers).
-   - JSON Schema (draft 2020-12) export/import for ecosystem interop.
+### Phase 4 — Data sources — **path resolution and validation done**
 
-   *Decision: C# is the first and primary target; C++ and JSON Schema interop are
-   deferred until there is demand.*
+Relative paths now resolve against the schema file, and a bound data file can be validated against
+its class. Generated data editors and generated migrations are
+[#126](https://github.com/ktsu-dev/Schema/issues/126) and
+[#127](https://github.com/ktsu-dev/Schema/issues/127).
 
-## Phase 4 — Data sources
+### Phase 5 — Release & distribution — **format stability done**
 
-Goal: `DataSource` fulfills its intended role — tracking which data files reference
-which schema classes, so that code generation can produce **editors** and **migrations**
-for that data.
+The `.schema.json` format is documented and versioned with a stated compatibility policy.
 
-1. **Data loading/validation** — Load the JSON file a `DataSource` points at and validate
-   it against the referenced class (required members, type conformance, enum values,
-   container shapes). Validation is the foundation migrations are checked against.
-2. **Generated data editors** — Extend the Phase 3 generator architecture so a code
-   generator can consume a `DataSource` (class + file binding) and emit a typed editor
-   for that data.
-3. **Generated migrations** — Detect schema changes that affect bound data files
-   (renamed/removed/retyped members, enum value changes) and generate migration code or
-   scripts that upgrade the data in place. Requires the format version field from
-   Phase 5 and a schema-diff capability.
-4. **Path resolution** — `RelativeFilePath` needs an anchor; define resolution relative
-   to the `.schema.json` location and document it.
+Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
 
-## Phase 5 — Release & distribution
+## What to do next
 
-Goal: the editor reaches users, not just the library.
-
-1. **Editor packaging** — Publish SchemaEditor via winget. *Decision: Windows-first;*
-   keep the code defensively cross-platform (e.g. don't hardcode `explorer.exe`) but
-   don't invest in Linux/macOS testing or packaging yet.
-2. **Schema format stability** — Document the `.schema.json` format, add a format
-   version field, and define a migration policy before third parties depend on it.
-3. **v2.0 milestone** — Validation + codegen + functional data sources constitutes the
-   "complete" project; cut v2.0 when Phases 1–4 land.
-
-## Suggested sequencing
-
-| Order | Work item | Phase | Effort | Rationale |
-| ----- | --------------------------------------- | ----- | ------ | --------------------------------------------- |
-| 1 | Review/merge PR #6 | 2 | S | Already written; unblocks editor work |
-| 2 | Schema validation API | 1 | M | Prerequisite for codegen, data sources, editor diagnostics |
-| 3 | Reflection import fixes | 1 | S | Known lossy-mapping bugs |
-| 4 | Docs refresh | 1 | S | Actively misleading today |
-| 5 | Editor parity (rename/descriptions) | 2 | M | Biggest day-to-day editor gap |
-| 6 | Editor file-handling robustness | 2 | S | Data-loss guardrails |
-| 7 | Codegen architecture + C# generator | 3 | L | Headline missing feature |
-| 8 | Data source validation | 4 | M | Completes the last shell model |
-| 9 | Editor packaging + format versioning | 5 | M | Ship it |
+| Order | Work item | Effort | Rationale |
+| ----- | --- | --- | --- |
+| 1 | Decide [#110](https://github.com/ktsu-dev/Schema/issues/110): implement or delete `Schema.Contracts` | S | A decision, not a build. It is public API on a published package that nothing implements, and `docs/examples/dependency-injection.md` documents it as though it works |
+| 2 | [#128](https://github.com/ktsu-dev/Schema/issues/128): a test harness for the editor | M | The editor is now the largest untested surface, and it grew a lot recently |
+| 3 | [#126](https://github.com/ktsu-dev/Schema/issues/126): generated data editors | L | The first thing the data source binding was for |
+| 4 | Upstream the two `ktsu.ImGui.App` changes, then finish [#116](https://github.com/ktsu-dev/Schema/issues/116) | S | Small change in another repository, then a small change here |
+| 5 | [#127](https://github.com/ktsu-dev/Schema/issues/127): generated migrations | L | Needs a schema diff first; the largest remaining design problem |
+| 6 | Editor packaging and the v2.0 milestone | M | Ship it |
 
 ## Decisions
 
 Resolved with the project owner (2026-06):
 
-1. **Codegen targets** — C# first. C++ and other languages deferred until there is
-   demand.
-2. **Data source intent** — `DataSource` tracks which data files reference which schema
-   classes so that editors and migrations can be code-generated for them (see Phase 4).
+1. **Codegen targets** — C# first. C++ and other languages deferred until there is demand.
+2. **Data source intent** — `DataSource` tracks which data files reference which schema classes so
+   that editors and migrations can be code-generated for them.
 3. **Editor platforms** — Windows-first, shipped via winget; code stays defensively
    cross-platform but Linux/macOS are not tested or packaged.
-4. **JSON Schema interop** — Remains open; treated as a demand-driven Phase 3 follow-on
-   rather than a goal.
+4. **JSON Schema interop** — Remains open; treated as a demand-driven follow-on rather than a goal.
+
+Made while implementing, and open to revision:
+
+5. **Renames cascade.** Renaming a class or enum repoints every reference to it, rather than being
+   blocked while references exist or allowed to dangle. It is the only option that neither loses
+   work nor knowingly breaks the schema.
+6. **A data file's root** is either one object of the bound class or an array of them, and every
+   member of a class is required, since the schema has no notion of an optional member.
+7. **Colour types live in the library** (`ktsu.Schema.Runtime`), because the base class library has
+   no counterpart and a generator inventing its own would break the reimport round trip.
