@@ -14,7 +14,11 @@ public class Enum : BaseType
 	/// <summary>
 	/// Gets or sets the name of the enumeration.
 	/// </summary>
-	public EnumName EnumName { get; init; } = new();
+	/// <remarks>
+	/// Settable rather than init-only so <see cref="Schema.TryRenameEnum"/> can repoint this
+	/// reference when the enum it names is renamed.
+	/// </remarks>
+	public EnumName EnumName { get; set; } = new();
 
 	/// <inheritdoc />
 	protected override bool EqualsCore(BaseType other) =>

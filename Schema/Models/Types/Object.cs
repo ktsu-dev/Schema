@@ -35,7 +35,11 @@ public class Object : BaseType
 	/// <summary>
 	/// Gets or sets the class name.
 	/// </summary>
-	public ClassName ClassName { get; init; } = new();
+	/// <remarks>
+	/// Settable rather than init-only so <see cref="Schema.TryRenameClass"/> can repoint this
+	/// reference when the class it names is renamed.
+	/// </remarks>
+	public ClassName ClassName { get; set; } = new();
 
 	/// <summary>
 	/// Returns a string representation of the object.
