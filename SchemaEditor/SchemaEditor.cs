@@ -40,6 +40,7 @@ public partial class SchemaEditor
 	internal IUndoRedoService UndoRedo { get; }
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
+	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
 	private ClassGraphView ClassGraph { get; } = new();
 	private ImGuiWidgets.TabPanel MainTabs { get; }
 
@@ -65,6 +66,7 @@ public partial class SchemaEditor
 	{
 		UndoRedo = new UndoRedoService(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 		TreeSchema = new(this);
+		CodeGeneratorPanel = new(this);
 		DividerContainerCols =
 			new(
 				"RootDivider",
@@ -255,9 +257,9 @@ public partial class SchemaEditor
 		{
 			ShowEnumProperties();
 		}
-		else if (CurrentCodeGenerator is not null)
+		else if (CurrentCodeGenerator is not null && CurrentSchema is not null)
 		{
-			ShowCodeGeneratorProperties();
+			CodeGeneratorPanel.Show(CurrentSchema, CurrentCodeGenerator);
 		}
 	}
 

@@ -11,7 +11,22 @@ using ktsu.Semantics.Strings;
 public sealed record class ContainerName : SemanticString<ContainerName>, ISchemaTypeName
 {
 	/// <summary>
+	/// The container name for an ordered sequence, mapped to a list by a code generator.
+	/// </summary>
+	public const string VectorName = "vector";
+
+	/// <summary>
+	/// The container name for a lookup keyed by a member, mapped to a dictionary by a code generator.
+	/// </summary>
+	public const string MapName = "map";
+
+	/// <summary>
 	/// Gets the container name for a vector.
 	/// </summary>
-	public static ContainerName Vector { get; } = "vector".As<ContainerName>();
+	public static ContainerName Vector { get; } = VectorName.As<ContainerName>();
+
+	/// <summary>
+	/// Gets the container name for a map.
+	/// </summary>
+	public static ContainerName Map { get; } = MapName.As<ContainerName>();
 }

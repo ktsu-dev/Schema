@@ -378,6 +378,17 @@ public partial class Schema
 					Element = codeGenerator,
 				});
 			}
+
+			if (string.IsNullOrEmpty(codeGenerator.Language))
+			{
+				issues.Add(new()
+				{
+					Severity = SchemaValidationSeverity.Warning,
+					Path = codeGenerator.Name,
+					Message = "Code generator does not specify a target language.",
+					Element = codeGenerator,
+				});
+			}
 		}
 	}
 }

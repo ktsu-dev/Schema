@@ -102,6 +102,8 @@ not be empty.
 ```json
 {
   "outputPath": "generated",
+  "language": "csharp",
+  "namespace": "My.Game",
   "name": "CSharp",
   "description": ""
 }
@@ -110,6 +112,10 @@ not be empty.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `outputPath` | string | A relative directory to write generated files into. See [Path resolution](#path-resolution). |
+| `language` | string | Which generator handles this configuration. Matched case-insensitively; `csharp` is the only one built in. |
+| `namespace` | string | The namespace generated code is emitted into. Optional; omitting it emits into the global namespace. |
+
+See [Code generation](#code-generation) for what a generator does with these.
 
 ## Types
 
@@ -285,6 +291,70 @@ worked.
 
 Saving always writes `formatVersion` at the current version, so opening and saving an old file
 upgrades it.
+
+## Code generation
+
+`SchemaGenerator` runs the generators a schema declares:
+
+```csharp
+SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, codeGenerator);
+```
+
+Generation is **refused for a schema with error-severity validation issues**. Emitting code from a
+schema whose references do not resolve would produce either code that does not compile, or code
+that compiles into something the schema does not describe - and the resulting error would point at
+generated code instead of at the schema mistake behind it. Warnings do not refuse: an incomplete
+schema is a legitimate work in progress.
+
+The built-in `csharp` generator emits one file per class and per enum, named `<Name>.g.cs`.
+Descriptions become XML doc comments, which is what descriptions are for.
+
+### C# type mapping
+
+| Schema type | C# |
+| --- | --- |
+| `Bool` | `bool` |
+| `Int` | `int` |
+| `Long` | `long` |
+| `Float` | `float` |
+| `Double` | `double` |
+| `String` | `string` |
+| `DateTime` | `System.DateTime` |
+| `TimeSpan` | `System.TimeSpan` |
+| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4` |
+| `ColorRGB` / `ColorRGBA` | `ktsu.Schema.Runtime.ColorRgb` / `ColorRgba` |
+| `Enum` | the generated enum |
+| `Object` | the generated class |
+| `Array` with `vector` | `List<T>` |
+| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
+
+The colours have no counterpart in the base class library, so the library provides the two types
+they map to. A generator inventing its own would break the round trip below.
+
+### The round trip
+
+This mapping is the exact inverse of the one `Schema.AddClass(Type)` uses to import CLR types, so
+generating C# from a schema and reimporting the compiled result reproduces the schema it started
+from. A test compiles the generated source and reimports it, so the two mappings cannot drift
+apart unnoticed.
+
+One thing needs help to survive that trip: a `Dictionary<TKey, T>` records the key's *type* but
+not which member it came from. Generated properties for keyed maps therefore carry
+`[ktsu.Schema.Runtime.SchemaKey("Id")]`, which the importer reads back.
+
+### Running a generator
+
+From the editor, select a code generator and press **Generate**.
+
+From the command line:
+
+```shell
+dotnet run --project SchemaTool -- generate path/to/game.schema.json
+dotnet run --project SchemaTool -- validate path/to/game.schema.json
+```
+
+`validate` exits non-zero when the schema has errors, so it can gate a build. Warnings do not fail
+it.
 
 ## Compatibility policy
 

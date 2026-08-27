@@ -39,8 +39,14 @@ public abstract class BaseType : IEquatable<BaseType?>
 	/// <summary>
 	/// Associates this type with a schema member.
 	/// </summary>
+	/// <remarks>
+	/// Virtual so a type that contains another type can pass the association on. Without that, an
+	/// <see cref="Array"/>'s element type has no parent member and therefore no route back to the
+	/// schema, so <see cref="Object.Class"/> and <see cref="Array.TryGetKeyMember"/> silently
+	/// resolve to nothing for anything nested inside an array.
+	/// </remarks>
 	/// <param name="schemaMember">The schema member to associate with.</param>
-	public void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
+	public virtual void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
 
 	/// <summary>
 	/// Determines whether the specified type is equal to the current type.

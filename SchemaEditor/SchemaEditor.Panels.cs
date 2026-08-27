@@ -36,7 +36,7 @@ public partial class SchemaEditor
 	/// <param name="label">The label shown above the editor.</param>
 	/// <param name="current">The description the element currently holds.</param>
 	/// <param name="apply">Writes a description back to the element.</param>
-	private void ShowDescriptionEditor(string id, string label, SchemaChildDescription current, Action<SchemaChildDescription> apply)
+	internal void ShowDescriptionEditor(string id, string label, SchemaChildDescription current, Action<SchemaChildDescription> apply)
 	{
 		ImGui.TextUnformatted(label);
 		if (EditField.MultilineText(id, DescriptionSize, current, out string committed))
@@ -55,7 +55,7 @@ public partial class SchemaEditor
 	/// Draws the name field for the selected element, renaming through the schema so references
 	/// are repointed and collisions are rejected.
 	/// </summary>
-	private void ShowRenameField(string id, string currentName, Func<string, bool> tryRename, string kind)
+	internal void ShowRenameField(string id, string currentName, Func<string, bool> tryRename, string kind)
 	{
 		ImGui.TextUnformatted("Name:");
 		ImGui.SameLine();
@@ -226,63 +226,6 @@ public partial class SchemaEditor
 			$"Set Data Source Class '{className}'",
 			() => dataSource.ClassName = className,
 			() => dataSource.ClassName = previous,
-			ChangeType.Modify));
-	}
-
-	/// <summary>
-	/// Draws the property panel for a code generator.
-	/// </summary>
-	/// <remarks>
-	/// Until this existed a code generator could be created and deleted but never configured, so
-	/// its output path could not be set and every code generator in a saved schema tripped the
-	/// "does not specify an output path" validation warning.
-	/// </remarks>
-	private void ShowCodeGeneratorProperties()
-	{
-		if (CurrentCodeGenerator is null || CurrentSchema is null)
-		{
-			return;
-		}
-
-		SchemaCodeGenerator codeGenerator = CurrentCodeGenerator;
-		Schema schema = CurrentSchema;
-
-		if (!ImGui.CollapsingHeader($"{codeGenerator.Name} Properties", ImGuiTreeNodeFlags.DefaultOpen))
-		{
-			return;
-		}
-
-		ShowRenameField(
-			$"##CodeGeneratorName{codeGenerator.Name}",
-			codeGenerator.Name,
-			newName => schema.TryRenameCodeGenerator(codeGenerator, newName.As<CodeGeneratorName>()),
-			"code generator");
-
-		ImGui.TextUnformatted("Output Path:");
-		ImGui.SameLine();
-		if (EditField.Text($"##CodeGeneratorOutput{codeGenerator.Name}", FieldWidth * 2, codeGenerator.OutputPath, out string outputPath))
-		{
-			SetCodeGeneratorOutputPath(codeGenerator, outputPath.As<RelativeDirectoryPath>());
-		}
-
-		ImGui.SameLine();
-		if (ImGui.Button($"Browse...##CodeGeneratorBrowse{codeGenerator.Name}"))
-		{
-			SchemaCodeGenerator captured = codeGenerator;
-			Popups.OpenBrowserDirectory("Choose Output Directory", (directory) =>
-				SetCodeGeneratorOutputPath(captured, ((string)directory).As<RelativeDirectoryPath>()));
-		}
-
-		ShowDescriptionEditor($"##CodeGeneratorDescription{codeGenerator.Name}", "Description:", codeGenerator.Description, value => codeGenerator.Description = value);
-	}
-
-	private void SetCodeGeneratorOutputPath(SchemaCodeGenerator codeGenerator, RelativeDirectoryPath path)
-	{
-		RelativeDirectoryPath previous = codeGenerator.OutputPath;
-		Execute(new DelegateCommand(
-			$"Set Output Path '{path}'",
-			() => codeGenerator.OutputPath = path,
-			() => codeGenerator.OutputPath = previous,
 			ChangeType.Modify));
 	}
 

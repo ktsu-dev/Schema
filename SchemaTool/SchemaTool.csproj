@@ -1,0 +1,22 @@
+<Project>
+  <Sdk Name="Microsoft.NET.Sdk" />
+  <Sdk Name="ktsu.Sdk" />
+  <Sdk Name="ktsu.Sdk.ConsoleApp" />
+
+  <PropertyGroup>
+    <!-- Deliberately not packed as a `dotnet tool`. Publishing a new public package is the
+         repository owner's call, not something this project should decide for them; setting
+         PackAsTool here is the one-line change that makes it one. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ktsu.Semantics.Paths" />
+    <PackageReference Include="ktsu.Semantics.Strings" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Schema\Schema.csproj" />
+  </ItemGroup>
+</Project>

@@ -435,6 +435,7 @@ public partial class Schema
 					BaseType? schemaType = GetOrCreateSchemaType(property.PropertyType);
 					if (schemaType is not null)
 					{
+						ApplySchemaKey(schemaType, property);
 						member.SetType(schemaType);
 					}
 				}
@@ -450,6 +451,7 @@ public partial class Schema
 					BaseType? schemaType = GetOrCreateSchemaType(field.FieldType);
 					if (schemaType is not null)
 					{
+						ApplySchemaKey(schemaType, field);
 						member.SetType(schemaType);
 					}
 				}
@@ -465,40 +467,12 @@ public partial class Schema
 
 		type = Nullable.GetUnderlyingType(type) ?? type;
 
-		// Handle basic types
-		if (type == typeof(string))
+		if (DirectTypeMappings.TryGetValue(type, out Func<BaseType>? create))
 		{
-			return new String();
+			return create();
 		}
-		else if (type == typeof(int) || type == typeof(short) || type == typeof(byte))
-		{
-			return new Int();
-		}
-		else if (type == typeof(long))
-		{
-			return new Long();
-		}
-		else if (type == typeof(float))
-		{
-			return new Float();
-		}
-		else if (type == typeof(double) || type == typeof(decimal))
-		{
-			return new Double();
-		}
-		else if (type == typeof(bool))
-		{
-			return new Bool();
-		}
-		else if (type == typeof(System.DateTime))
-		{
-			return new DateTime();
-		}
-		else if (type == typeof(System.TimeSpan))
-		{
-			return new TimeSpan();
-		}
-		else if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
+
+		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
 		{
 			BaseType element = GetOrCreateSchemaType(elementType) ?? new None();
 			return new Array() { ElementType = element, Container = container };
@@ -529,6 +503,53 @@ public partial class Schema
 
 		return new None();
 	}
+
+	/// <summary>
+	/// Restores an array's key member from the attribute a generator wrote it into.
+	/// </summary>
+	/// <remarks>
+	/// The CLR type of a keyed map carries the key's type but not which member it came from, so
+	/// this is the only place that information survives a trip through generated code.
+	/// </remarks>
+	private static void ApplySchemaKey(BaseType schemaType, MemberInfo member)
+	{
+		if (schemaType is Array arrayType &&
+			member.GetCustomAttribute<Runtime.SchemaKeyAttribute>() is Runtime.SchemaKeyAttribute key)
+		{
+			arrayType.Key = key.KeyMemberName.As<MemberName>();
+		}
+	}
+
+	/// <summary>
+	/// The CLR types that map straight onto a schema type, with no further inspection.
+	/// </summary>
+	/// <remarks>
+	/// A table rather than a chain of comparisons: it reads as the mapping it is, and it is the
+	/// exact inverse of what a code generator emits, so the two can be checked against each other.
+	/// The vector types are <see cref="System.Numerics"/> ones and the colours are the types this
+	/// library provides, because the base class library has none - without them, reimporting
+	/// generated code would turn a Vector3 member into an object referencing a class called
+	/// "Vector3" and the generate-then-reimport round trip would not hold.
+	/// </remarks>
+	private static readonly Dictionary<Type, Func<BaseType>> DirectTypeMappings = new()
+	{
+		[typeof(string)] = () => new String(),
+		[typeof(int)] = () => new Int(),
+		[typeof(short)] = () => new Int(),
+		[typeof(byte)] = () => new Int(),
+		[typeof(long)] = () => new Long(),
+		[typeof(float)] = () => new Float(),
+		[typeof(double)] = () => new Double(),
+		[typeof(decimal)] = () => new Double(),
+		[typeof(bool)] = () => new Bool(),
+		[typeof(System.DateTime)] = () => new DateTime(),
+		[typeof(System.TimeSpan)] = () => new TimeSpan(),
+		[typeof(System.Numerics.Vector2)] = () => new Vector2(),
+		[typeof(System.Numerics.Vector3)] = () => new Vector3(),
+		[typeof(System.Numerics.Vector4)] = () => new Vector4(),
+		[typeof(Runtime.ColorRgb)] = () => new ColorRGB(),
+		[typeof(Runtime.ColorRgba)] = () => new ColorRGBA(),
+	};
 
 	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
 	{
