@@ -16,6 +16,34 @@ using ktsu.Semantics.Strings;
 /// </summary>
 public partial class Schema
 {
+	/// <summary>
+	/// The format version this build of the library writes.
+	/// </summary>
+	/// <remarks>
+	/// Version 1 is the first versioned format. A file with no version field predates versioning
+	/// and is treated as version <see cref="PreVersioningFormatVersion"/>; see
+	/// <c>docs/schema-format.md</c> for the migration path and the compatibility policy.
+	/// </remarks>
+	public const int CurrentFormatVersion = 1;
+
+	/// <summary>
+	/// The version attributed to a file written before the format carried a version field.
+	/// </summary>
+	public const int PreVersioningFormatVersion = 0;
+
+	/// <summary>
+	/// Gets the format version of this schema.
+	/// </summary>
+	/// <remarks>
+	/// Declared first so it is the first property in the serialized file, where a reader looking
+	/// for it does not have to scan the whole document. Defaults to
+	/// <see cref="CurrentFormatVersion"/> for a schema built in memory; a schema loaded from a
+	/// file carries the version that file declared until it is migrated.
+	/// </remarks>
+	[JsonInclude]
+	[JsonPropertyName("formatVersion")]
+	public int FormatVersion { get; internal set; } = CurrentFormatVersion;
+
 	[JsonInclude]
 	[JsonPropertyName("classes")]
 	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];

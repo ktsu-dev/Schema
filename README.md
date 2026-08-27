@@ -12,7 +12,7 @@ A C# library for defining, managing, and editing data structure schemas with a r
 
 ## Overview
 
-**ktsu.Schema** lets you define structured data models programmatically or visually, then serialize them to `.schema.json` files. It provides a foundation for code generation, data validation, and tooling that needs to understand your data structures at a metadata level.
+**ktsu.Schema** lets you define structured data models programmatically or visually, then serialize them to `.schema.json` files (documented in the [schema file format reference](docs/schema-format.md)). It provides a foundation for code generation, data validation, and tooling that needs to understand your data structures at a metadata level.
 
 The solution contains three projects:
 

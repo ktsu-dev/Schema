@@ -137,20 +137,27 @@ public partial class SchemaEditor
 
 	private void LoadFrom(AbsoluteFilePath filePath)
 	{
-		if (SchemaFile.TryLoad(filePath, out Schema? schema) && schema is not null)
+		SchemaLoadResult result = SchemaFile.Load(filePath);
+
+		if (!result.IsSuccess || result.Schema is null)
 		{
-			Reset();
-			CurrentSchema = schema;
-			CurrentSchemaPath = filePath;
-			CurrentClass = CurrentSchema.FirstClass;
-			Options.RecordRecentFile(filePath);
-			RequestValidation();
-			QueueSaveOptions();
+			// The reason matters: a file from a newer build of the library is not a broken file,
+			// and telling the user it is would send them looking for the wrong problem.
+			string title = result.Status == SchemaLoadStatus.UnsupportedFutureVersion
+				? "Schema Is Too New"
+				: "Error";
+
+			Popups.OpenMessageOK(title, $"Could not open '{filePath}'.\n\n{result.Message}");
+			return;
 		}
-		else
-		{
-			Popups.OpenMessageOK("Error", $"Failed to load schema from '{filePath}'.");
-		}
+
+		Reset();
+		CurrentSchema = result.Schema;
+		CurrentSchemaPath = filePath;
+		CurrentClass = CurrentSchema.FirstClass;
+		Options.RecordRecentFile(filePath);
+		RequestValidation();
+		QueueSaveOptions();
 	}
 
 	private void Reset()
