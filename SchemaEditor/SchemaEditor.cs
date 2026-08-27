@@ -250,10 +250,7 @@ public class SchemaEditor
 			string schemaFilePath = CurrentSchemaPath;
 			if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
 			{
-				using Process p = new();
-				p.StartInfo.FileName = $"explorer.exe";
-				p.StartInfo.Arguments = schemaFilePath;
-				p.Start();
+				OpenExternally(schemaFilePath);
 			}
 
 			ImGui.EndMenu();
@@ -272,6 +269,34 @@ public class SchemaEditor
 			}
 
 			ImGui.EndMenu();
+		}
+	}
+
+	/// <summary>
+	/// Opens a path with the operating system's default handler for it.
+	/// </summary>
+	/// <remarks>
+	/// Delegates to the platform shell rather than naming an executable: "explorer.exe" does
+	/// not exist on Linux or macOS, so the menu item used to take the editor down with an
+	/// unhandled Win32Exception there. Process.Start can still fail on any platform - no shell
+	/// association, a file that has since been removed - so failures are surfaced as a popup.
+	/// </remarks>
+	/// <param name="path">The path to open.</param>
+	private void OpenExternally(string path)
+	{
+		try
+		{
+			using Process process = new();
+			process.StartInfo.FileName = path;
+			process.StartInfo.UseShellExecute = true;
+			process.Start();
+		}
+		catch (Exception ex) when (ex is System.ComponentModel.Win32Exception
+			or ObjectDisposedException
+			or InvalidOperationException
+			or PlatformNotSupportedException)
+		{
+			Popups.OpenMessageOK("Error", $"Failed to open '{path}' externally.\n\n{ex.Message}");
 		}
 	}
 

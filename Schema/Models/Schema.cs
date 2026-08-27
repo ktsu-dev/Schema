@@ -500,7 +500,7 @@ public partial class Schema
 		if (type.IsArray)
 		{
 			elementType = type.GetElementType();
-			container = "vector".As<ContainerName>();
+			container = Types.Array.VectorContainer.As<ContainerName>();
 			return elementType is not null;
 		}
 
@@ -508,7 +508,7 @@ public partial class Schema
 		if (dictionaryInterface is not null)
 		{
 			elementType = dictionaryInterface.GetGenericArguments()[1];
-			container = "map".As<ContainerName>();
+			container = Types.Array.MapContainer.As<ContainerName>();
 			return true;
 		}
 
@@ -516,7 +516,7 @@ public partial class Schema
 		if (enumerableInterface is not null)
 		{
 			elementType = enumerableInterface.GetGenericArguments()[0];
-			container = "vector".As<ContainerName>();
+			container = Types.Array.VectorContainer.As<ContainerName>();
 			return true;
 		}
 

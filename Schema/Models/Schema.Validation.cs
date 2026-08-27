@@ -54,15 +54,54 @@ public partial class Schema
 		}
 	}
 
+	/// <summary>
+	/// Renders a name for use in an issue path, standing in for a name that is empty.
+	/// </summary>
+	private static string PathSegment(string name) => string.IsNullOrEmpty(name) ? "(unnamed)" : name;
+
+	/// <summary>
+	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
+	/// duplicate detection only catches multiple empty names by accident.
+	/// </summary>
+	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path)
+	{
+		if (string.IsNullOrEmpty(name))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"{kind} has an empty name.",
+			});
+		}
+	}
+
 	private void ValidateClasses(Collection<SchemaValidationIssue> issues)
 	{
 		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
+			string classPath = PathSegment(schemaClass.Name);
+			ValidateNameNotEmpty(issues, schemaClass.Name, "Class", classPath);
+
 			ReportDuplicates(issues, schemaClass.Members.Select(m => $"{schemaClass.Name}.{m.Name}"), "member");
 
 			foreach (SchemaMember member in schemaClass.Members)
 			{
-				ValidateType(issues, member.Type, $"{schemaClass.Name}.{member.Name}");
+				string memberPath = $"{classPath}.{PathSegment(member.Name)}";
+				ValidateNameNotEmpty(issues, member.Name, "Member", memberPath);
+
+				if (member.Type is None)
+				{
+					// A valid intermediate editing state, but not a generatable schema.
+					issues.Add(new()
+					{
+						Severity = SchemaValidationSeverity.Warning,
+						Path = memberPath,
+						Message = "Member does not have a type set.",
+					});
+				}
+
+				ValidateType(issues, member.Type, memberPath);
 			}
 		}
 	}
@@ -71,7 +110,15 @@ public partial class Schema
 	{
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
 		{
+			string enumPath = PathSegment(schemaEnum.Name);
+			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath);
+
 			ReportDuplicates(issues, schemaEnum.Values.Select(v => $"{schemaEnum.Name}.{v}"), "enum value");
+
+			foreach (Names.EnumValueName value in schemaEnum.Values)
+			{
+				ValidateNameNotEmpty(issues, value, "Enum value", $"{enumPath}.{PathSegment(value)}");
+			}
 		}
 	}
 
@@ -143,6 +190,7 @@ public partial class Schema
 	private void ValidateArray(Collection<SchemaValidationIssue> issues, Array arrayType, string path)
 	{
 		ValidateType(issues, arrayType.ElementType, path);
+		ValidateArrayContainer(issues, arrayType, path);
 
 		if (string.IsNullOrEmpty(arrayType.Key))
 		{
@@ -182,6 +230,42 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Array key '{arrayType.Key}' on class '{elementClass.Name}' must be a primitive type but is '{keyMember.Type.DisplayName}'.",
+			});
+		}
+	}
+
+	private static void ValidateArrayContainer(Collection<SchemaValidationIssue> issues, Array arrayType, string path)
+	{
+		if (string.IsNullOrEmpty(arrayType.Container))
+		{
+			// Array.IsKeyed requires a container, and a generator has nothing to map without one.
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Warning,
+				Path = path,
+				Message = "Array does not specify a container.",
+			});
+			return;
+		}
+
+		if (!Array.KnownContainers.Contains(arrayType.Container.ToString()))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Warning,
+				Path = path,
+				Message = $"Array specifies container '{arrayType.Container}', which is not one of the containers this library understands ({string.Join(", ", Array.KnownContainers)}).",
+			});
+			return;
+		}
+
+		if (arrayType.Container.ToString() == Array.MapContainer && string.IsNullOrEmpty(arrayType.Key))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array uses the '{Array.MapContainer}' container but does not specify a key to map by.",
 			});
 		}
 	}
