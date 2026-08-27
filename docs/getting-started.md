@@ -6,7 +6,7 @@ This guide will help you get up and running with the Schema library quickly.
 
 ### Prerequisites
 
--   .NET 7.0, 8.0, 9.0, or 10.0
+-   .NET 8.0, 9.0, or 10.0
 -   Visual Studio 2022 or Visual Studio Code (recommended)
 
 ### Adding the Library

@@ -31,6 +31,44 @@ public class SchemaSerializerTests
 	}
 
 	[TestMethod]
+	public void TestVectorAndColorMembersSerializeWithoutAClassName()
+	{
+		Schema original = new();
+		SchemaClass? playerClass = original.AddClass("Player".As<ClassName>());
+		Assert.IsNotNull(playerClass);
+		playerClass.AddMember("Position".As<MemberName>())?.SetType(new SchemaTypes.Vector3());
+		playerClass.AddMember("Tint".As<MemberName>())?.SetType(new SchemaTypes.ColorRGB());
+
+		string json = SchemaSerializer.Serialize(original);
+
+		// Before issue #107 these types derived from Object and wrote an empty "className".
+		Assert.IsFalse(json.Contains("className", StringComparison.Ordinal), json);
+		Assert.IsTrue(json.Contains("Vector3", StringComparison.Ordinal), json);
+		Assert.IsTrue(json.Contains("ColorRGB", StringComparison.Ordinal), json);
+	}
+
+	[TestMethod]
+	public void TestRoundtripWithVectorAndColorMembers()
+	{
+		Schema original = new();
+		SchemaClass? playerClass = original.AddClass("Player".As<ClassName>());
+		Assert.IsNotNull(playerClass);
+		playerClass.AddMember("Position".As<MemberName>())?.SetType(new SchemaTypes.Vector3());
+		playerClass.AddMember("Tint".As<MemberName>())?.SetType(new SchemaTypes.ColorRGBA());
+
+		string json = SchemaSerializer.Serialize(original);
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? deserialized));
+		Assert.IsNotNull(deserialized);
+
+		SchemaClass? roundTripped = deserialized.GetClass("Player".As<ClassName>());
+		Assert.IsNotNull(roundTripped);
+		Assert.IsTrue(roundTripped.TryGetMember("Position".As<MemberName>(), out SchemaMember? position));
+		Assert.IsTrue(roundTripped.TryGetMember("Tint".As<MemberName>(), out SchemaMember? tint));
+		Assert.AreEqual(new SchemaTypes.Vector3(), position!.Type);
+		Assert.AreEqual(new SchemaTypes.ColorRGBA(), tint!.Type);
+	}
+
+	[TestMethod]
 	public void TestRoundtripWithClasses()
 	{
 		Schema original = new();
@@ -49,6 +87,8 @@ public class SchemaSerializerTests
 		Assert.IsTrue(deserialized.TryGetClass("User".As<ClassName>(), out SchemaClass? deserializedClass));
 		Assert.IsNotNull(deserializedClass);
 		Assert.AreEqual(1, deserializedClass.Members.Count);
+		Assert.IsTrue(deserializedClass.TryGetMember("Name".As<MemberName>(), out SchemaMember? deserializedMember));
+		Assert.AreEqual(new SchemaTypes.String(), deserializedMember!.Type);
 	}
 
 	[TestMethod]
@@ -109,6 +149,14 @@ public class SchemaSerializerTests
 		Assert.IsTrue(deserialized.TryGetClass("Test".As<ClassName>(), out SchemaClass? deserializedClass));
 		Assert.IsNotNull(deserializedClass);
 		Assert.AreEqual(types.Length, deserializedClass.Members.Count);
+
+		// Counting the members is not enough: the member type is what the format exists to
+		// carry, so assert each one survived the round trip.
+		for (int index = 0; index < types.Length; index++)
+		{
+			Assert.IsTrue(deserializedClass.TryGetMember($"Field{index}".As<MemberName>(), out SchemaMember? member));
+			Assert.AreEqual(types[index], member!.Type);
+		}
 	}
 
 	[TestMethod]

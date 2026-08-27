@@ -102,49 +102,46 @@ public class TypeSystemTests
 	}
 
 	[TestMethod]
-	public void TestVector2Type()
+	[DataRow(typeof(Vector2), "Vector2")]
+	[DataRow(typeof(Vector3), "Vector3")]
+	[DataRow(typeof(Vector4), "Vector4")]
+	[DataRow(typeof(ColorRGB), "ColorRGB")]
+	[DataRow(typeof(ColorRGBA), "ColorRGBA")]
+	public void TestSystemObjectTypeClassification(Type clrType, string expectedName)
 	{
-		Vector2 type = new();
+		BaseType type = (BaseType)Activator.CreateInstance(clrType)!;
 		Assert.IsFalse(type.IsPrimitive);
 		Assert.IsTrue(type.IsBuiltIn);
-		Assert.IsTrue(type.IsObject);
 		Assert.IsTrue(type.IsSystemObject);
+
+		// A vector or color is structured, but it is not a reference to a user-defined class,
+		// which is what IsObject means. See issue #107.
+		Assert.IsFalse(type.IsObject);
+
+		Assert.AreEqual(expectedName, type.ToString());
+		Assert.AreEqual(expectedName, type.DisplayName);
 	}
 
 	[TestMethod]
-	public void TestVector3Type()
+	[DataRow("Vector2")]
+	[DataRow("Vector3")]
+	[DataRow("Vector4")]
+	[DataRow("ColorRGB")]
+	[DataRow("ColorRGBA")]
+	public void TestSystemObjectTypeRoundTripsThroughCreateFromString(string typeName)
 	{
-		Vector3 type = new();
-		Assert.IsFalse(type.IsPrimitive);
-		Assert.IsTrue(type.IsBuiltIn);
-		Assert.IsTrue(type.IsObject);
+		object? recreated = BaseType.CreateFromString(typeName);
+		Assert.IsNotNull(recreated);
+		Assert.AreEqual(typeName, recreated.ToString());
 	}
 
 	[TestMethod]
-	public void TestVector4Type()
+	public void TestSystemObjectAndVectorAreAbstract()
 	{
-		Vector4 type = new();
-		Assert.IsFalse(type.IsPrimitive);
-		Assert.IsTrue(type.IsBuiltIn);
-		Assert.IsTrue(type.IsObject);
-	}
-
-	[TestMethod]
-	public void TestColorRGBType()
-	{
-		ColorRGB type = new();
-		Assert.IsFalse(type.IsPrimitive);
-		Assert.IsTrue(type.IsBuiltIn);
-		Assert.IsTrue(type.IsObject);
-	}
-
-	[TestMethod]
-	public void TestColorRGBAType()
-	{
-		ColorRGBA type = new();
-		Assert.IsFalse(type.IsPrimitive);
-		Assert.IsTrue(type.IsBuiltIn);
-		Assert.IsTrue(type.IsObject);
+		// Neither is registered as a [JsonDerivedType] on BaseType, so an instance of either
+		// would fail to serialize. They exist only as intermediate bases.
+		Assert.IsTrue(typeof(SystemObject).IsAbstract);
+		Assert.IsTrue(typeof(Vector).IsAbstract);
 	}
 
 	[TestMethod]
@@ -207,6 +204,123 @@ public class TypeSystemTests
 		Int a = new();
 		Int b = new();
 		Assert.AreEqual(a.GetHashCode(), b.GetHashCode());
+	}
+
+	[TestMethod]
+	public void TestDistinctInstancesOfSameTypeAreEqual()
+	{
+		Assert.IsTrue(new Int().Equals(new Int()));
+		Assert.IsTrue(new String().Equals(new String()));
+		Assert.IsTrue(new Vector3().Equals(new Vector3()));
+	}
+
+	[TestMethod]
+	public void TestDerivedSystemObjectTypesAreNotEqualToTheirBase()
+	{
+		// ColorRGB derives from Vector3, but they are distinct schema types.
+		Assert.IsFalse(new ColorRGB().Equals(new Vector3()));
+		Assert.IsFalse(new Vector3().Equals(new ColorRGB()));
+	}
+
+	[TestMethod]
+	public void TestObjectEqualityComparesClassName()
+	{
+		Object a = new() { ClassName = "A".As<ClassName>() };
+		Object b = new() { ClassName = "B".As<ClassName>() };
+		Object anotherA = new() { ClassName = "A".As<ClassName>() };
+
+		Assert.IsFalse(a.Equals(b));
+		Assert.IsTrue(a.Equals(anotherA));
+		Assert.AreEqual(a.GetHashCode(), anotherA.GetHashCode());
+	}
+
+	[TestMethod]
+	public void TestEnumEqualityComparesEnumName()
+	{
+		Enum a = new() { EnumName = "Color".As<EnumName>() };
+		Enum b = new() { EnumName = "Shape".As<EnumName>() };
+		Enum anotherA = new() { EnumName = "Color".As<EnumName>() };
+
+		Assert.IsFalse(a.Equals(b));
+		Assert.IsTrue(a.Equals(anotherA));
+		Assert.AreEqual(a.GetHashCode(), anotherA.GetHashCode());
+	}
+
+	[TestMethod]
+	public void TestArrayEqualityComparesElementTypeContainerAndKey()
+	{
+		Array intVector = new() { ElementType = new Int(), Container = "vector".As<ContainerName>() };
+		Array stringVector = new() { ElementType = new String(), Container = "vector".As<ContainerName>() };
+		Array intMap = new() { ElementType = new Int(), Container = "map".As<ContainerName>() };
+		Array keyedIntVector = new()
+		{
+			ElementType = new Int(),
+			Container = "vector".As<ContainerName>(),
+			Key = "Id".As<MemberName>(),
+		};
+		Array anotherIntVector = new() { ElementType = new Int(), Container = "vector".As<ContainerName>() };
+
+		Assert.IsFalse(intVector.Equals(stringVector));
+		Assert.IsFalse(intVector.Equals(intMap));
+		Assert.IsFalse(intVector.Equals(keyedIntVector));
+		Assert.IsTrue(intVector.Equals(anotherIntVector));
+		Assert.AreEqual(intVector.GetHashCode(), anotherIntVector.GetHashCode());
+	}
+
+	[TestMethod]
+	public void TestEqualInstancesDedupeInAHashSet()
+	{
+		HashSet<BaseType> types =
+		[
+			new Int(),
+			new Int(),
+			new String(),
+			new Object() { ClassName = "A".As<ClassName>() },
+			new Object() { ClassName = "A".As<ClassName>() },
+			new Object() { ClassName = "B".As<ClassName>() },
+		];
+
+		Assert.AreEqual(4, types.Count);
+	}
+
+	[TestMethod]
+	public void TestEqualityOperators()
+	{
+		Int a = new();
+		Int b = new();
+		String s = new();
+
+		Assert.IsTrue(a == b);
+		Assert.IsFalse(a != b);
+		Assert.IsTrue(a != s);
+		Assert.IsFalse(a == s);
+	}
+
+	[TestMethod]
+	public void TestEqualityOperatorsWithNull()
+	{
+		// Indirected through an array so the operands are not constant-folded away.
+		BaseType?[] operands = [new Int(), null];
+		BaseType? value = operands[0];
+		BaseType? nothing = operands[1];
+
+		Assert.IsFalse(value == nothing);
+		Assert.IsTrue(value != nothing);
+		Assert.IsFalse(nothing == value);
+		Assert.IsTrue(nothing != value);
+		Assert.IsTrue(nothing == operands[1]);
+	}
+
+	[TestMethod]
+	public void TestEqualsObjectOverload()
+	{
+		object?[] operands = [new Int(), new String(), null, "Int"];
+		Int a = new();
+
+		Assert.IsTrue(a.Equals(operands[0]));
+		Assert.IsFalse(a.Equals(operands[1]));
+		Assert.IsFalse(a.Equals(operands[2]));
+		Assert.IsFalse(a.Equals(operands[3]));
 	}
 
 	[TestMethod]

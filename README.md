@@ -36,7 +36,7 @@ Or add to your project file:
 
 ### Requirements
 
-- .NET 7.0, 8.0, 9.0, or 10.0
+- .NET 8.0, 9.0, or 10.0
 
 ## Quick Start
 
@@ -239,6 +239,12 @@ dotnet run --project SchemaEditor
 - Resizable split-panel layout with persistent settings
 
 ## Building
+
+Building the solution requires the **.NET SDK 10.0.400 or newer**. This is the floor
+pinned in `global.json`: the analyzers shipped by `ktsu.Sdk` are built against the
+Roslyn version in that feature band, and an older 10.0.x SDK fails the build with
+`CS9057` before compiling any source. An SDK newer than the floor is fine —
+`global.json` sets `rollForward: latestFeature`.
 
 ```shell
 # Build the entire solution

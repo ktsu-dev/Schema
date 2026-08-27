@@ -48,6 +48,23 @@ public class SchemaValidationTests
 	}
 
 	[TestMethod]
+	public void TestVectorAndColorMembersHaveNoIssues()
+	{
+		// Before issue #107 these types derived from Object, so the validator saw an empty
+		// inherited ClassName and reported "Object type does not specify a class name."
+		Schema schema = new();
+		SchemaClass? playerClass = schema.AddClass("Player".As<ClassName>());
+		playerClass?.AddMember("Position".As<MemberName>())?.SetType(new SchemaTypes.Vector3());
+		playerClass?.AddMember("Tint".As<MemberName>())?.SetType(new SchemaTypes.ColorRGB());
+		playerClass?.AddMember("Velocity".As<MemberName>())?.SetType(new SchemaTypes.Vector2());
+		playerClass?.AddMember("Rotation".As<MemberName>())?.SetType(new SchemaTypes.Vector4());
+		playerClass?.AddMember("Overlay".As<MemberName>())?.SetType(new SchemaTypes.ColorRGBA());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.AreEqual(0, issues.Count, string.Join("; ", issues));
+	}
+
+	[TestMethod]
 	public void TestEmptySchemaHasNoIssues()
 	{
 		Schema schema = new();
@@ -164,6 +181,159 @@ public class SchemaValidationTests
 			i.Severity == SchemaValidationSeverity.Error &&
 			i.Path == "Users" &&
 			i.Message.Contains("unknown class")));
+	}
+
+	[TestMethod]
+	public void TestEmptyClassNameIsError()
+	{
+		Schema schema = new();
+		schema.AddClass(string.Empty.As<ClassName>());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Error &&
+			i.Path == "(unnamed)" &&
+			i.Message.Contains("Class has an empty name")));
+	}
+
+	[TestMethod]
+	public void TestEmptyEnumDeclarationNameIsError()
+	{
+		Schema schema = new();
+		schema.AddEnum(string.Empty.As<EnumName>());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Error &&
+			i.Path == "(unnamed)" &&
+			i.Message.Contains("Enum has an empty name")));
+	}
+
+	[TestMethod]
+	public void TestEmptyMemberNameIsError()
+	{
+		Schema schema = new();
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		SchemaMember? member = userClass?.AddMember(string.Empty.As<MemberName>());
+		member?.SetType(new SchemaTypes.Int());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Error &&
+			i.Path == "User.(unnamed)" &&
+			i.Message.Contains("Member has an empty name")));
+	}
+
+	[TestMethod]
+	public void TestEmptyEnumValueNameIsError()
+	{
+		// TryAddValue rejects an empty value, so this state is only reachable by loading a
+		// hand-edited schema file - which is exactly what the validator is there to catch.
+		const string json = """
+		{
+		  "classes": [],
+		  "enums": [ { "name": "Status", "values": [ "Active", "" ] } ],
+		  "dataSources": [],
+		  "codeGenerators": []
+		}
+		""";
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? schema));
+		Assert.IsNotNull(schema);
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(
+			issues.Any(i =>
+				i.Severity == SchemaValidationSeverity.Error &&
+				i.Path == "Status.(unnamed)" &&
+				i.Message.Contains("Enum value has an empty name")),
+			string.Join("; ", issues));
+	}
+
+	[TestMethod]
+	public void TestMemberWithoutATypeIsWarning()
+	{
+		Schema schema = new();
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		userClass?.AddMember("Name".As<MemberName>());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Warning &&
+			i.Path == "User.Name" &&
+			i.Message.Contains("does not have a type set")));
+	}
+
+	[TestMethod]
+	public void TestArrayWithoutAContainerIsWarning()
+	{
+		Schema schema = new();
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		SchemaMember? tags = userClass?.AddMember("Tags".As<MemberName>());
+		tags?.SetType(new SchemaTypes.Array() { ElementType = new SchemaTypes.String() });
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Warning &&
+			i.Path == "User.Tags" &&
+			i.Message.Contains("does not specify a container")));
+	}
+
+	[TestMethod]
+	public void TestArrayWithUnrecognizedContainerIsWarning()
+	{
+		Schema schema = new();
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		SchemaMember? tags = userClass?.AddMember("Tags".As<MemberName>());
+		tags?.SetType(new SchemaTypes.Array()
+		{
+			ElementType = new SchemaTypes.String(),
+			Container = "linked-list".As<ContainerName>(),
+		});
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Warning &&
+			i.Path == "User.Tags" &&
+			i.Message.Contains("linked-list")));
+	}
+
+	[TestMethod]
+	public void TestKnownContainersValidateClean()
+	{
+		Schema schema = new();
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		SchemaMember? tags = userClass?.AddMember("Tags".As<MemberName>());
+		tags?.SetType(new SchemaTypes.Array()
+		{
+			ElementType = new SchemaTypes.String(),
+			Container = SchemaTypes.Array.VectorContainer.As<ContainerName>(),
+		});
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.AreEqual(0, issues.Count, string.Join("; ", issues));
+	}
+
+	[TestMethod]
+	public void TestMapWithoutAKeyIsError()
+	{
+		Schema schema = new();
+		SchemaClass? itemClass = schema.AddClass("Item".As<ClassName>());
+		itemClass?.AddMember("Id".As<MemberName>())?.SetType(new SchemaTypes.Int());
+
+		SchemaClass? userClass = schema.AddClass("User".As<ClassName>());
+		SchemaMember? items = userClass?.AddMember("Items".As<MemberName>());
+		items?.SetType(new SchemaTypes.Array()
+		{
+			ElementType = new SchemaTypes.Object() { ClassName = "Item".As<ClassName>() },
+			Container = SchemaTypes.Array.MapContainer.As<ContainerName>(),
+		});
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Error &&
+			i.Path == "User.Items" &&
+			i.Message.Contains("does not specify a key")));
 	}
 
 	[TestMethod]

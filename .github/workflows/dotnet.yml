@@ -156,7 +156,13 @@ jobs:
       - name: Setup .NET SDK ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}.x
+          # Schema.Test multi-targets every framework the library publishes, so the
+          # test hosts for net8.0 and net9.0 need those runtimes present alongside the
+          # SDK. global.json pins the SDK, so the extra versions only add runtimes.
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            ${{ env.DOTNET_VERSION }}.x
           cache: true
           cache-dependency-path: |
             **/*.csproj
@@ -255,7 +261,13 @@ jobs:
       - name: Setup .NET SDK ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}.x
+          # Schema.Test multi-targets every framework the library publishes, so the
+          # test hosts for net8.0 and net9.0 need those runtimes present alongside the
+          # SDK. global.json pins the SDK, so the extra versions only add runtimes.
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            ${{ env.DOTNET_VERSION }}.x
           cache: true
           cache-dependency-path: |
             **/*.csproj
