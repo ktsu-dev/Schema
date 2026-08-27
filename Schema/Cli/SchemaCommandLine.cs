@@ -93,7 +93,7 @@ public static class SchemaCommandLine
 		}
 
 		string? only = GetOption(args, GeneratorOption);
-		List<SchemaCodeGenerator> generators = [.. schema!.CodeGenerators
+		List<SchemaCodeGenerator> generators = [.. schema.CodeGenerators
 			.Where(g => only is null || string.Equals(g.Name, only, StringComparison.OrdinalIgnoreCase))];
 
 		if (generators.Count == 0)
@@ -134,7 +134,7 @@ public static class SchemaCommandLine
 			return Failure;
 		}
 
-		List<SchemaValidationIssue> issues = [.. schema!.Validate()];
+		List<SchemaValidationIssue> issues = [.. schema.Validate()];
 
 		foreach (SchemaValidationIssue issue in issues)
 		{
@@ -148,7 +148,11 @@ public static class SchemaCommandLine
 		return errors == 0 ? Success : Failure;
 	}
 
-	private static bool TryLoad(string[] args, TextWriter error, out Models.Schema? schema, out string? schemaPath)
+	private static bool TryLoad(
+		string[] args,
+		TextWriter error,
+		[System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Models.Schema? schema,
+		out string? schemaPath)
 	{
 		schema = null;
 		schemaPath = FindSchemaPath(args);
@@ -168,7 +172,9 @@ public static class SchemaCommandLine
 		AbsoluteFilePath fullPath = Path.GetFullPath(schemaPath).As<AbsoluteFilePath>();
 		SchemaLoadResult result = SchemaSerializer.Load(File.ReadAllText(fullPath), fullPath);
 
-		if (!result.IsSuccess)
+		// Schema is nullable on the result type, so it is checked rather than assumed: the
+		// out parameter promises non-null on true and that promise has to be kept.
+		if (!result.IsSuccess || result.Schema is null)
 		{
 			error.WriteLine($"Could not open '{schemaPath}': {result.Message}");
 			return false;
@@ -188,17 +194,16 @@ public static class SchemaCommandLine
 	/// </remarks>
 	private static string? FindSchemaPath(string[] args)
 	{
-		for (int index = 0; index < args.Length; index++)
+		int index = 0;
+		while (index < args.Length)
 		{
 			if (!args[index].StartsWith('-'))
 			{
 				return args[index];
 			}
 
-			if (TakesAValue(args[index]))
-			{
-				index++;
-			}
+			// Step over the option, and over the value it consumes.
+			index += TakesAValue(args[index]) ? 2 : 1;
 		}
 
 		return null;
