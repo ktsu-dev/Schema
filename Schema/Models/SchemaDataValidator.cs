@@ -188,18 +188,24 @@ public static class SchemaDataValidator
 			ValidateValue(member.Type, value, $"{path}.{member.Name}", issues);
 		}
 
-		foreach (JsonProperty property in element.EnumerateObject())
+		foreach (string propertyName in element.EnumerateObject()
+			.Select(candidate => candidate.Name)
+			.Where(name => !accountedFor.Contains(name)))
 		{
-			if (!accountedFor.Contains(property.Name))
-			{
-				issues.Add(Warning($"{path}.{property.Name}", $"Class '{schemaClass.Name}' has no member '{property.Name}'."));
-			}
+			issues.Add(Warning($"{path}.{propertyName}", $"Class '{schemaClass.Name}' has no member '{propertyName}'."));
 		}
 	}
 
 	/// <summary>
 	/// Looks a member up in the data, accepting the casing the serializer would have written.
 	/// </summary>
+	/// <remarks>
+	/// The loop stops at the first match, which is the whole point of a lookup. Enumerating a
+	/// JsonElement's properties yields a struct enumerator, so taking the first match without a
+	/// loop would mean materialising the matches into a collection - an allocation on a path that
+	/// runs once per member per object in a data file.
+	/// </remarks>
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1751:Loops with at most one iteration should be refactored", Justification = "A first-match lookup terminates on the first iteration by design; see the remarks.")]
 	private static bool TryGetMemberProperty(JsonElement element, string memberName, out JsonElement value)
 	{
 		if (element.TryGetProperty(memberName, out value))
@@ -207,13 +213,11 @@ public static class SchemaDataValidator
 			return true;
 		}
 
-		foreach (JsonProperty property in element.EnumerateObject())
+		foreach (JsonProperty property in element.EnumerateObject()
+			.Where(candidate => string.Equals(candidate.Name, memberName, StringComparison.OrdinalIgnoreCase)))
 		{
-			if (string.Equals(property.Name, memberName, StringComparison.OrdinalIgnoreCase))
-			{
-				value = property.Value;
-				return true;
-			}
+			value = property.Value;
+			return true;
 		}
 
 		return false;
