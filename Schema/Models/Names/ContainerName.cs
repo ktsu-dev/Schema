@@ -8,7 +8,7 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a container name as a strong string type.
 /// </summary>
-public sealed record class ContainerName : SemanticString<ContainerName>, ISchemaTypeName
+public sealed record class ContainerName : SemanticString<ContainerName>, ISchemaName
 {
 	/// <summary>
 	/// The container name for an ordered sequence, mapped to a list by a code generator.

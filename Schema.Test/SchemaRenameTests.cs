@@ -203,7 +203,7 @@ public class SchemaRenameTests
 		status.TryAddValue("Inactive".As<EnumValueName>());
 
 		Assert.IsTrue(status.TryRenameValue("Active".As<EnumValueName>(), "Enabled".As<EnumValueName>()));
-		Assert.AreEqual("Enabled", status.Values.First().ToString(), "The renamed value keeps its position.");
+		Assert.AreEqual("Enabled", status.Values[0].ToString(), "The renamed value keeps its position.");
 
 		Assert.IsFalse(status.TryRenameValue("Enabled".As<EnumValueName>(), "Inactive".As<EnumValueName>()), "Collides.");
 		Assert.IsFalse(status.TryRenameValue("Enabled".As<EnumValueName>(), string.Empty.As<EnumValueName>()), "Empty.");

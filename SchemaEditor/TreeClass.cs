@@ -66,7 +66,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 
 	private void ShowMemberTree(ImGuiWidgets.Tree parent, SchemaClass schemaClass)
 	{
-		IReadOnlyCollection<SchemaMember> children = schemaClass.Members;
+		SchemaChildSet<SchemaMember, MemberName> children = schemaClass.Members;
 
 		ImGui.PushID(schemaClass.Name);
 		ButtonTree<SchemaMember>.ShowTree(schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()

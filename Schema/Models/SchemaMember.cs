@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 using ktsu.Semantics.Strings;
@@ -10,7 +11,7 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a member of a schema class.
 /// </summary>
-public class SchemaMember : SchemaClassChild<MemberName>
+public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember
 {
 	/// <summary>
 	/// Gets the type of the schema member.
@@ -22,6 +23,12 @@ public class SchemaMember : SchemaClassChild<MemberName>
 	/// </remarks>
 	[JsonInclude]
 	public BaseType Type { get; private set; } = new None();
+
+	/// <remarks>
+	/// Explicit because the contract exposes the type as <see cref="ISchemaType"/> while the model
+	/// exposes the concrete <see cref="BaseType"/>; both are the same object.
+	/// </remarks>
+	ISchemaType ISchemaMember.Type => Type;
 
 	/// <summary>
 	/// Reads the description written by versions that stored it under "memberDescription".
@@ -58,23 +65,18 @@ public class SchemaMember : SchemaClassChild<MemberName>
 		Type.AssociateWith(this);
 	}
 
+	/// <remarks>
+	/// Explicit because the contract takes the type as <see cref="ISchemaType"/>. Every type the
+	/// library can store derives from <see cref="BaseType"/> — the polymorphic serializer knows no
+	/// other — so a type from outside that hierarchy is rejected rather than stored as something
+	/// nothing else can read.
+	/// </remarks>
+	void ISchemaMember.SetType(ISchemaType type) =>
+		SetType(type as BaseType ?? throw new ArgumentException($"The type must derive from {nameof(BaseType)}.", nameof(type)));
+
 	/// <summary>
 	/// Tries to remove the schema member from its parent class.
 	/// </summary>
 	/// <returns>True if the member was successfully removed; otherwise, false.</returns>
 	public override bool TryRemove() => ParentClass?.TryRemoveMember(this) ?? false;
-}
-
-/// <summary>
-/// Represents the root member of a schema.
-/// </summary>
-public class RootSchemaMember : SchemaMember
-{
-	/// <summary>
-	/// Throws a NotSupportedException as renaming is not supported on the root schema member.
-	/// </summary>
-	/// <param name="_">The new name (not used).</param>
-	/// <exception cref="NotSupportedException">Always thrown as renaming is not supported on the root schema member.</exception>
-	[Obsolete("Not supported on the root schema member", true)]
-	public new void Rename(MemberName _) => throw new NotSupportedException("Not supported on the root schema member");
 }
