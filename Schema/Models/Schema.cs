@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 
 /// <summary>
@@ -43,6 +44,20 @@ public partial class Schema
 	[JsonInclude]
 	[JsonPropertyName("formatVersion")]
 	public int FormatVersion { get; internal set; } = CurrentFormatVersion;
+
+	/// <summary>
+	/// Gets the directory the schema was loaded from, which relative paths in it resolve against.
+	/// </summary>
+	/// <remarks>
+	/// Empty for a schema built in memory or parsed from a string with no anchor supplied, in
+	/// which case its relative paths cannot be resolved - see <see cref="CanResolvePaths"/>.
+	///
+	/// Not serialized: a schema's own location is a property of where the file is, not of what is
+	/// in it. Writing it into the file would break the moment the file moved, which is precisely
+	/// what anchoring relative paths to the file is meant to survive.
+	/// </remarks>
+	[JsonIgnore]
+	public AbsoluteDirectoryPath SourceDirectory { get; internal set; } = new();
 
 	[JsonInclude]
 	[JsonPropertyName("classes")]

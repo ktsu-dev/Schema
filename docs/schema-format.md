@@ -197,9 +197,50 @@ containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` 
 This anchor is what makes a schema and its data movable together: checked out somewhere else, the
 relative paths still resolve.
 
-> Resolving these paths against the filesystem, and validating that a data source's file exists,
-> is tracked by [issue #120](https://github.com/ktsu-dev/Schema/issues/120). This section defines
-> what the paths mean; the resolution API lands with that work.
+The anchor is supplied by whoever read the file, so the serializer itself stays free of the
+filesystem:
+
+```csharp
+SchemaLoadResult result = SchemaSerializer.Load(json, schemaFilePath);
+// result.Schema.CanResolvePaths is now true
+dataSource.TryResolveFile(out AbsoluteFilePath dataFile);
+codeGenerator.TryResolveOutputPath(out AbsoluteDirectoryPath outputDirectory);
+```
+
+A schema built in memory, or parsed with the anchorless `Load(json)`, has no anchor. Resolution
+then fails rather than falling back to the process's working directory, which would silently
+resolve to somewhere unrelated. `Schema.Validate` likewise only reports a missing data file when
+the schema knows where it lives.
+
+## Data files
+
+A data source binds a data file to a class. The file's root is either:
+
+- **a single object** conforming to that class, or
+- **an array of objects**, each conforming to it.
+
+Both are validated by the same rules, by `SchemaDataValidator`:
+
+| Type | Expected JSON |
+| --- | --- |
+| `Int`, `Long` | a whole number |
+| `Float`, `Double` | a number |
+| `String` | a string |
+| `Bool` | `true` or `false` |
+| `DateTime`, `TimeSpan` | a string that parses as one |
+| `Vector2` / `Vector3` / `Vector4` | an array of 2 / 3 / 4 numbers |
+| `ColorRGB` / `ColorRGBA` | an array of 3 / 4 numbers |
+| `Enum` | a string that is one of the enum's values |
+| `Object` | an object conforming to the named class |
+| `Array` with `vector` | an array of the element type |
+| `Array` with `map` | an object whose values are the element type, each entry's key matching that entry's `key` member |
+
+The schema has no notion of an optional member, so **every member of a class is required**: a
+missing one is an error. A property the class has no member for is a warning rather than an error,
+since carrying extra data does not by itself contradict the schema.
+
+Member lookup accepts the casing the serializer would have written, so a data file may use either
+the member's declared name or its camel-cased form.
 
 ## Versioning
 

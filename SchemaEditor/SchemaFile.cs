@@ -57,7 +57,9 @@ internal static class SchemaFile
 				};
 			}
 
-			return SchemaSerializer.Load(File.ReadAllText(filePath));
+			// Passing the path anchors the schema's relative paths - a data source's file, a code
+			// generator's output directory - to the directory the schema file lives in.
+			return SchemaSerializer.Load(File.ReadAllText(filePath), filePath);
 		}
 		catch (IOException ex)
 		{

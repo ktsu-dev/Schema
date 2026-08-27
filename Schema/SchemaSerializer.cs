@@ -5,6 +5,7 @@ namespace ktsu.Schema.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ktsu.RoundTripStringJsonConverter;
+using ktsu.Semantics.Paths;
 
 /// <summary>
 /// Provides JSON serialization and deserialization for Schema objects.
@@ -35,7 +36,7 @@ public static class SchemaSerializer
 	/// Automatically calls Reassociate() on success.
 	/// </summary>
 	/// <remarks>
-	/// Reports only whether the load worked. Use <see cref="Load"/> when the caller needs to tell
+	/// Reports only whether the load worked. Use <see cref="Load(string)"/> when the caller needs to tell
 	/// a corrupt file from one written by a newer version of the library, which need different
 	/// things said to the user.
 	/// </remarks>
@@ -60,6 +61,24 @@ public static class SchemaSerializer
 	/// <see cref="SchemaLoadStatus.UnsupportedFutureVersion"/> rather than being read on a guess:
 	/// a newer writer may have changed the meaning of what is there, so a partial read would
 	/// silently drop or misinterpret data. See <c>docs/schema-format.md</c>.
+	/// </remarks>
+	/// <param name="json">The JSON to load.</param>
+	/// <returns>The outcome, including the schema when the load succeeded.</returns>
+	/// <param name="sourceFilePath">The path the JSON was read from, used to anchor relative paths.</param>
+	public static SchemaLoadResult Load(string json, AbsoluteFilePath sourceFilePath)
+	{
+		SchemaLoadResult result = Load(json);
+		result.Schema?.SetSourceFile(sourceFilePath);
+		return result;
+	}
+
+	/// <summary>
+	/// Loads a schema from JSON, migrating an older format version and reporting why a load
+	/// failed when it does.
+	/// </summary>
+	/// <remarks>
+	/// The schema has no anchor for its relative paths. Use
+	/// <see cref="Load(string, AbsoluteFilePath)"/> when the file's location is known.
 	/// </remarks>
 	/// <param name="json">The JSON to load.</param>
 	/// <returns>The outcome, including the schema when the load succeeded.</returns>

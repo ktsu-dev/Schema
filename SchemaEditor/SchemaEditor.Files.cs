@@ -216,6 +216,9 @@ public partial class SchemaEditor
 		}
 
 		UndoRedo.MarkAsSaved();
+
+		// Save As moves the file, and relative paths are anchored to wherever it now lives.
+		CurrentSchema.SetSourceFile(CurrentSchemaPath);
 		Options.RecordRecentFile(CurrentSchemaPath);
 		QueueSaveOptions();
 		return true;

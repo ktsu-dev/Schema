@@ -317,6 +317,50 @@ public partial class Schema
 					Element = dataSource,
 				});
 			}
+			else
+			{
+				ValidateDataSourceFileExists(issues, dataSource);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Reports a data source whose file is not there.
+	/// </summary>
+	/// <remarks>
+	/// Only possible once the schema knows its own location, since the path is relative to it.
+	/// A schema built in memory has no anchor, and its data sources are left unchecked rather
+	/// than resolved against whatever the working directory happens to be.
+	/// </remarks>
+	private void ValidateDataSourceFileExists(Collection<SchemaValidationIssue> issues, DataSource dataSource)
+	{
+		if (!CanResolvePaths || !dataSource.TryResolveFile(out Semantics.Paths.AbsoluteFilePath resolved))
+		{
+			return;
+		}
+
+		try
+		{
+			if (!File.Exists(resolved))
+			{
+				issues.Add(new()
+				{
+					Severity = SchemaValidationSeverity.Error,
+					Path = dataSource.Name,
+					Message = $"Data source file '{dataSource.File}' does not exist (resolved to '{resolved}').",
+					Element = dataSource,
+				});
+			}
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Warning,
+				Path = dataSource.Name,
+				Message = $"Data source file '{dataSource.File}' could not be checked: {ex.Message}",
+				Element = dataSource,
+			});
 		}
 	}
 
