@@ -367,7 +367,12 @@ jobs:
             '/d:sonar.host.url=https://sonarcloud.io'
             '/d:sonar.projectBaseDir=${{ github.workspace }}'
             '/d:sonar.cs.vscoveragexml.reportsPaths=coverage/**/coverage.xml'
-            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs'
+            # SchemaEditor is excluded from COVERAGE only - it is still analysed for bugs, smells
+            # and security. It is an ImGui application: its code is immediate-mode draw calls that
+            # need a live UI context to execute, so line coverage there cannot be earned without a
+            # UI test harness, tracked separately. Measuring it would only ever report the absence
+            # of a harness. The library, which is what consumers depend on, stays fully measured.
+            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/**/*.cs'
             '/d:sonar.cs.vstest.reportsPaths=coverage/**/*.trx'
             '/d:sonar.exclusions=**/NativeExports.cs'
           )
