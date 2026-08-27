@@ -39,6 +39,17 @@ public class SchemaValidationIssue
 	public string Message { get; init; } = string.Empty;
 
 	/// <summary>
+	/// Gets the schema element the issue was reported against, when a single element owns it.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Path"/> identifies the element for a human reader, but parsing it back into a
+	/// lookup is lossy - a name can contain a dot, and a duplicate-name issue names no single
+	/// element. This reference lets a tool navigate straight to the offending element instead.
+	/// It is null for issues that are not about one element, such as a duplicate name.
+	/// </remarks>
+	public ISchemaElement? Element { get; init; }
+
+	/// <summary>
 	/// Returns a string representation of the issue.
 	/// </summary>
 	/// <returns>The severity, path, and message of the issue.</returns>

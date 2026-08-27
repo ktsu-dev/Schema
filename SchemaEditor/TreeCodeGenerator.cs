@@ -26,7 +26,10 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 			{
 				Collapsible = true,
 				GetText = (x) => x.Name,
+				GetTooltip = (x) => x.Description,
+				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
+				OnItemClick = schemaEditor.EditCodeGenerator,
 				OnTreeEnd = (t) =>
 				{
 					using (t.Child)
@@ -36,10 +39,17 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 				},
 				OnItemContextMenu = (x) =>
 				{
-					if (ImGui.Selectable($"Delete {x.Name}"))
+					SchemaCodeGenerator captured = x;
+
+					if (ImGui.Selectable($"Rename {captured.Name}"))
 					{
-						SchemaCodeGenerator captured = x;
-						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						schemaEditor.PromptRename("code generator", captured.Name,
+							newName => schema.TryRenameCodeGenerator(captured, newName.As<CodeGeneratorName>()));
+					}
+
+					if (ImGui.Selectable($"Delete {captured.Name}"))
+					{
+						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Code Generator '{captured.Name}'",
 							() => captured.TryRemove(),
 							() => schema.RestoreCodeGenerator(captured),
@@ -66,7 +76,7 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 					}
 
 					SchemaCodeGenerator? addedCodeGenerator = null;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Code Generator '{codeGeneratorName}'",
 						() =>
 						{

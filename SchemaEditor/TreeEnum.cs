@@ -27,7 +27,10 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			{
 				Collapsible = true,
 				GetText = (x) => $"{x.Name} ({x.Values.Count})",
+				GetTooltip = (x) => x.Description,
+				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
+				OnItemClick = schemaEditor.EditEnum,
 				OnTreeEnd = (t) =>
 				{
 					using (t.Child)
@@ -38,10 +41,17 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 				OnItemEnd = ShowEnumValueTree,
 				OnItemContextMenu = (x) =>
 				{
-					if (ImGui.Selectable($"Delete {x.Name}"))
+					SchemaEnum captured = x;
+
+					if (ImGui.Selectable($"Rename {captured.Name}"))
 					{
-						SchemaEnum captured = x;
-						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						schemaEditor.PromptRename("enum", captured.Name,
+							newName => schema.TryRenameEnum(captured, newName.As<EnumName>()));
+					}
+
+					if (ImGui.Selectable($"Delete {captured.Name}"))
+					{
+						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Enum '{captured.Name}'",
 							() => captured.TryRemove(),
 							() => schema.RestoreEnum(captured),
@@ -61,10 +71,17 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			GetId = (x) => x,
 			OnItemContextMenu = (x) =>
 			{
-				if (ImGui.Selectable($"Delete {x}"))
+				EnumValueName captured = x;
+
+				if (ImGui.Selectable($"Rename {captured}"))
 				{
-					EnumValueName captured = x;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.PromptRename("enum value", captured,
+						newName => schemaEnum.TryRenameValue(captured, newName.As<EnumValueName>()));
+				}
+
+				if (ImGui.Selectable($"Delete {captured}"))
+				{
+					schemaEditor.Execute(new DelegateCommand(
 						$"Delete Enum Value '{captured}'",
 						() => schemaEnum.TryRemoveValue(captured),
 						() => schemaEnum.TryAddValue(captured),
@@ -97,7 +114,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 					}
 
 					SchemaEnum? addedEnum = null;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Enum '{enumName}'",
 						() =>
 						{
@@ -132,7 +149,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 						return;
 					}
 
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Enum Value '{valueName}'",
 						() => schemaEnum.TryAddValue(valueName),
 						() => schemaEnum.TryRemoveValue(valueName),

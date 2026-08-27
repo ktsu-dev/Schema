@@ -10,12 +10,16 @@ using ktsu.Semantics.Strings;
 /// Represents a child of a schema with a specific name type.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaChild<TName> where TName : SemanticString<TName>, ISchemaChildName, new()
+public abstract class SchemaChild<TName> : ISchemaElement where TName : SemanticString<TName>, ISchemaChildName, new()
 {
 	/// <summary>
 	/// Gets the name of the schema child.
 	/// </summary>
 	public TName Name { get; set; } = new();
+
+	/// <inheritdoc />
+	[JsonIgnore]
+	public string ElementName => Name;
 
 	/// <summary>
 	/// Gets or sets the description of the schema child.

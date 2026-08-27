@@ -211,6 +211,43 @@ public class SchemaRenameTests
 	}
 
 	[TestMethod]
+	public void TestRenamingBackUndoesTheWholeCascade()
+	{
+		// This is what the editor's undo entry does: it renames back. If the cascade were not
+		// symmetric, undoing a rename would leave references pointing at the new name.
+		Schema schema = CreateReferencingSchema();
+		SchemaClass item = schema.GetClass("Item".As<ClassName>())!;
+		SchemaClass user = schema.GetClass("User".As<ClassName>())!;
+
+		Assert.IsTrue(schema.TryRenameClass(item, "Product".As<ClassName>()));
+		Assert.IsTrue(schema.TryRenameClass(item, "Item".As<ClassName>()));
+
+		Assert.AreEqual("Item", item.Name.ToString());
+		Assert.AreEqual("Item", ((SchemaTypes.Object)user.GetMember("Favourite".As<MemberName>())!.Type).ClassName.ToString());
+
+		SchemaTypes.Array items = (SchemaTypes.Array)user.GetMember("Items".As<MemberName>())!.Type;
+		Assert.AreEqual("Item", ((SchemaTypes.Object)items.ElementType).ClassName.ToString());
+		Assert.AreEqual("Item", schema.GetDataSource("Items".As<DataSourceName>())!.ClassName.ToString());
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+	}
+
+	[TestMethod]
+	public void TestRenamingAMemberBackRestoresTheArrayKey()
+	{
+		Schema schema = CreateReferencingSchema();
+		SchemaClass item = schema.GetClass("Item".As<ClassName>())!;
+		SchemaMember id = item.GetMember("Id".As<MemberName>())!;
+
+		Assert.IsTrue(item.TryRenameMember(id, "Identifier".As<MemberName>()));
+		Assert.IsTrue(item.TryRenameMember(id, "Id".As<MemberName>()));
+
+		SchemaClass user = schema.GetClass("User".As<ClassName>())!;
+		SchemaTypes.Array items = (SchemaTypes.Array)user.GetMember("Items".As<MemberName>())!.Type;
+		Assert.AreEqual("Id", items.Key.ToString());
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+	}
+
+	[TestMethod]
 	public void TestRenamedSchemaSurvivesARoundTrip()
 	{
 		Schema schema = CreateReferencingSchema();

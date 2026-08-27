@@ -29,6 +29,8 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			{
 				Collapsible = true,
 				GetText = (x) => $"{x.Name} ({x.Members.Count})",
+				GetTooltip = (x) => x.Description,
+				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
 				OnTreeEnd = (t) =>
 				{
@@ -41,10 +43,17 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 				OnItemEnd = ShowMemberTree,
 				OnItemContextMenu = (x) =>
 				{
-					if (ImGui.Selectable($"Delete {x.Name}"))
+					SchemaClass captured = x;
+
+					if (ImGui.Selectable($"Rename {captured.Name}"))
 					{
-						SchemaClass captured = x;
-						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						schemaEditor.PromptRename("class", captured.Name,
+							newName => schema.TryRenameClass(captured, newName.As<ClassName>()));
+					}
+
+					if (ImGui.Selectable($"Delete {captured.Name}"))
+					{
+						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Class '{captured.Name}'",
 							() => captured.TryRemove(),
 							() => schema.RestoreClass(captured),
@@ -63,8 +72,12 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 		ButtonTree<SchemaMember>.ShowTree(schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()
 		{
 			GetText = (x) => x.Name,
-			GetTooltip = (x) => x.Type.DisplayName,
+			GetTooltip = (x) => string.IsNullOrEmpty(x.Description)
+				? x.Type.DisplayName
+				: $"{x.Type.DisplayName}\n\n{x.Description}",
+			GetIssue = schemaEditor.GetIssueFor,
 			GetId = (x) => x.Name,
+			OnItemClick = (x) => schemaEditor.EditClass(schemaClass),
 			OnTreeEnd = (t) =>
 			{
 				using (t.Child)
@@ -74,10 +87,17 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			},
 			OnItemContextMenu = (x) =>
 			{
-				if (ImGui.Selectable($"Delete {x.Name}"))
+				SchemaMember captured = x;
+
+				if (ImGui.Selectable($"Rename {captured.Name}"))
 				{
-					SchemaMember captured = x;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.PromptRename("member", captured.Name,
+						newName => schemaClass.TryRenameMember(captured, newName.As<MemberName>()));
+				}
+
+				if (ImGui.Selectable($"Delete {captured.Name}"))
+				{
+					schemaEditor.Execute(new DelegateCommand(
 						$"Delete Member '{captured.Name}'",
 						() => captured.TryRemove(),
 						() => schemaClass.RestoreMember(captured),
@@ -104,7 +124,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 					}
 
 					SchemaClass? addedClass = null;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Class '{className}'",
 						() =>
 						{
@@ -142,7 +162,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 					}
 
 					SchemaMember? addedMember = null;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Member '{memberName}'",
 						() =>
 						{

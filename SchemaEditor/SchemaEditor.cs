@@ -6,11 +6,9 @@ namespace ktsu.SchemaEditor;
 
 using System;
 using System.Diagnostics;
-using System.Numerics;
 
 using Hexa.NET.ImGui;
 
-using ktsu.Extensions;
 using ktsu.ImGui.App;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
@@ -18,20 +16,19 @@ using ktsu.IntervalAction;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
-using ktsu.Semantics.Strings;
 using ktsu.UndoRedo;
 using ktsu.UndoRedo.Contracts;
 using ktsu.UndoRedo.Core.Services;
 
-using SchemaTypes = Schema.Models.Types;
-
-public class SchemaEditor
+public partial class SchemaEditor
 {
 	public static SchemaEditor Instance { get; } = new();
 	internal Schema? CurrentSchema { get; set; }
 	internal AbsoluteFilePath CurrentSchemaPath { get; set; } = new();
 	internal SchemaClass? CurrentClass { get; set; }
 	internal DataSource? CurrentDataSource { get; set; }
+	internal SchemaEnum? CurrentEnum { get; set; }
+	internal SchemaCodeGenerator? CurrentCodeGenerator { get; set; }
 	internal AppData Options { get; }
 	internal static float FieldWidth => ImGui.GetIO().DisplaySize.X * 0.15f;
 	private bool OptionsDirty { get; set; }
@@ -51,15 +48,12 @@ public class SchemaEditor
 
 	private static void Main(string[] _)
 	{
-		string title = nameof(SchemaEditor);
-		if (Instance.CurrentSchema is not null && !string.IsNullOrEmpty(Instance.CurrentSchemaPath))
-		{
-			title += $" - {Path.GetFileName(Instance.CurrentSchemaPath)}";
-		}
-
+		// ImGuiAppConfig.Title is init-only and ImGuiApp reads it once, when it creates the
+		// window, so this is the only chance to set it. The open document and its unsaved state
+		// are shown in the menu bar instead - see ShowDocumentStatus.
 		ImGuiApp.Start(new()
 		{
-			Title = title,
+			Title = nameof(SchemaEditor),
 			OnStart = OnStart,
 			OnUpdate = Instance.OnTick,
 			OnRender = Instance.OnRender,
@@ -87,6 +81,7 @@ public class SchemaEditor
 		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
 		MainTabs.AddTab("Editor", ShowEditorPanel);
 		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
+		MainTabs.AddTab("Diagnostics", ShowDiagnosticsPanel);
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
@@ -112,6 +107,7 @@ public class SchemaEditor
 			CurrentSchemaPath = Options.CurrentSchemaPath;
 			CurrentClass = null;
 			CurrentClass = CurrentSchema.GetClass(Options.CurrentClassName);
+			RequestValidation();
 		}
 
 		// restore divider states
@@ -148,7 +144,40 @@ public class SchemaEditor
 
 	private void QueueSaveOptions() => OptionsDirty = true;
 
-	private void OnTick(float dt) => ProcessKeyboardShortcuts();
+	/// <summary>
+	/// Runs an undoable command and notes that the schema changed.
+	/// </summary>
+	/// <remarks>
+	/// Every mutation the editor makes goes through here rather than calling
+	/// <see cref="IUndoRedoService.Execute"/> directly, so that undo coverage and revalidation
+	/// cannot be forgotten for a new edit: the two things that must happen on every change happen
+	/// in one place.
+	/// </remarks>
+	/// <param name="command">The command to execute.</param>
+	internal void Execute(ICommand command)
+	{
+		UndoRedo.Execute(command);
+		RequestValidation();
+		QueueSaveOptions();
+	}
+
+	private void Undo()
+	{
+		UndoRedo.Undo();
+		RequestValidation();
+	}
+
+	private void Redo()
+	{
+		UndoRedo.Redo();
+		RequestValidation();
+	}
+
+	private void OnTick(float dt)
+	{
+		ProcessKeyboardShortcuts();
+		UpdateValidation(dt);
+	}
 
 	private void ProcessKeyboardShortcuts()
 	{
@@ -165,16 +194,20 @@ public class SchemaEditor
 		{
 			if (shift)
 			{
-				UndoRedo.Redo();
+				Redo();
 			}
 			else
 			{
-				UndoRedo.Undo();
+				Undo();
 			}
 		}
 		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.Y, false))
 		{
-			UndoRedo.Redo();
+			Redo();
+		}
+		else if (ctrl && shift && ImGui.IsKeyPressed(ImGuiKey.S, false))
+		{
+			SaveAs();
 		}
 		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
 		{
@@ -203,73 +236,107 @@ public class SchemaEditor
 
 	private void ShowLeftPanel(float dt) => TreeSchema.Show();
 
-	// The right zone hosts the Editor / Class Graph tab bar.
+	// The right zone hosts the Editor / Class Graph / Diagnostics tab bar.
 	private void ShowRightPanel(float dt) => MainTabs.Draw();
 
 	private void ShowEditorPanel()
 	{
 		ShowSchemaConfig();
+
 		if (CurrentClass is not null)
 		{
-			ShowMembers();
+			ShowClassProperties();
 		}
 		else if (CurrentDataSource is not null)
 		{
 			ShowDataSourceProperties();
 		}
-	}
-
-	private void Reset()
-	{
-		CurrentSchema = null;
-		CurrentSchemaPath = new();
-		CurrentClass = null;
+		else if (CurrentEnum is not null)
+		{
+			ShowEnumProperties();
+		}
+		else if (CurrentCodeGenerator is not null)
+		{
+			ShowCodeGeneratorProperties();
+		}
 	}
 
 	private void OnMenu()
 	{
-		if (ImGui.BeginMenu("File"))
+		ShowFileMenu();
+		ShowEditMenu();
+		ShowDocumentStatus();
+	}
+
+	private void ShowFileMenu()
+	{
+		if (!ImGui.BeginMenu("File"))
 		{
-			if (ImGui.MenuItem("New", "Ctrl+N"))
-			{
-				New();
-			}
-
-			if (ImGui.MenuItem("Open", "Ctrl+O"))
-			{
-				Open();
-			}
-
-			if (ImGui.MenuItem("Save", "Ctrl+S"))
-			{
-				Save();
-			}
-
-			ImGui.Separator();
-
-			string schemaFilePath = CurrentSchemaPath;
-			if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
-			{
-				OpenExternally(schemaFilePath);
-			}
-
-			ImGui.EndMenu();
+			return;
 		}
 
-		if (ImGui.BeginMenu("Edit"))
+		if (ImGui.MenuItem("New", "Ctrl+N"))
 		{
-			if (ImGui.MenuItem("Undo", "Ctrl+Z", false, UndoRedo.CanUndo))
-			{
-				UndoRedo.Undo();
-			}
-
-			if (ImGui.MenuItem("Redo", "Ctrl+Y", false, UndoRedo.CanRedo))
-			{
-				UndoRedo.Redo();
-			}
-
-			ImGui.EndMenu();
+			New();
 		}
+
+		if (ImGui.MenuItem("Open", "Ctrl+O"))
+		{
+			Open();
+		}
+
+		ShowRecentFilesMenu();
+
+		ImGui.Separator();
+
+		if (ImGui.MenuItem("Save", "Ctrl+S", false, CurrentSchema is not null))
+		{
+			Save();
+		}
+
+		// Always available while a schema is open: without it there is no way to save a copy
+		// somewhere else once the schema has a path.
+		if (ImGui.MenuItem("Save As...", "Ctrl+Shift+S", false, CurrentSchema is not null))
+		{
+			SaveAs();
+		}
+
+		ImGui.Separator();
+
+		string schemaFilePath = CurrentSchemaPath;
+		if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
+		{
+			OpenExternally(schemaFilePath);
+		}
+
+		ImGui.Separator();
+
+		if (ImGui.MenuItem("Exit"))
+		{
+			ExitWithUnsavedChangesGuard();
+		}
+
+		ImGui.EndMenu();
+	}
+
+	private void ShowEditMenu()
+	{
+		if (!ImGui.BeginMenu("Edit"))
+		{
+			return;
+		}
+
+		if (ImGui.MenuItem("Undo", "Ctrl+Z", false, UndoRedo.CanUndo))
+		{
+			Undo();
+		}
+
+		if (ImGui.MenuItem("Redo", "Ctrl+Y", false, UndoRedo.CanRedo))
+		{
+			Redo();
+		}
+
+		ImGui.EndMenu();
 	}
 
 	/// <summary>
@@ -300,61 +367,6 @@ public class SchemaEditor
 		}
 	}
 
-	private void New()
-	{
-		Reset();
-		UndoRedo.Clear();
-		CurrentSchema = new Schema();
-		QueueSaveOptions();
-	}
-
-	private void Open()
-	{
-		Popups.OpenBrowserFileOpen("Open Schema", (filePath) =>
-		{
-			Reset();
-			if (SchemaFile.TryLoad(filePath, out Schema? schema) && schema is not null)
-			{
-				UndoRedo.Clear();
-				CurrentSchema = schema;
-				CurrentSchemaPath = filePath;
-				CurrentClass = CurrentSchema?.FirstClass;
-				QueueSaveOptions();
-			}
-			else
-			{
-				Popups.OpenMessageOK("Error", "Failed to load schema.");
-			}
-		}, "*.schema.json");
-	}
-
-	private void Save()
-	{
-		if (string.IsNullOrEmpty(CurrentSchemaPath))
-		{
-			SaveAs();
-			return;
-		}
-
-		if (CurrentSchema is not null)
-		{
-			if (SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath))
-			{
-				UndoRedo.MarkAsSaved();
-			}
-		}
-	}
-
-	private void SaveAs()
-	{
-		Popups.OpenBrowserFileSave("Save Schema", (filePath) =>
-		{
-			CurrentSchemaPath = filePath;
-			Save();
-			QueueSaveOptions();
-		}, "*.schema.json");
-	}
-
 	internal static bool ToggleVisibility(string key)
 	{
 		Instance.QueueSaveOptions();
@@ -369,173 +381,37 @@ public class SchemaEditor
 
 	internal static bool IsVisible(string key) => !Instance.Options.HiddenItems.Contains(key);
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S3267:Loops should be simplified with \"LINQ\" expressions", Justification = "We want to separate out ImGui calls from enumerations")]
-	public void ShowMemberConfig(Schema schema, SchemaMember schemaMember)
-	{
-		Ensure.NotNull(schema);
-		Ensure.NotNull(schemaMember);
-
-		if (ImGui.Button($"{schemaMember.Type.DisplayName}##Type{schemaMember.Name}", new Vector2(FieldWidth, 0)))
-		{
-			Popups.OpenTypeList("Select Type", "Type", schema.GetAvailableTypes(), schemaMember.Type, schemaMember.SetType);
-		}
-
-		if (schemaMember.Type is SchemaTypes.Array array)
-		{
-			ImGui.SameLine();
-			ImGui.SetNextItemWidth(FieldWidth);
-			string container = array.Container;
-			ImGui.InputText($"##Container{schemaMember.Name}", ref container, 64);
-			array.Container = container.As<ContainerName>();
-
-			if (array.ElementType is SchemaTypes.Object obj && obj.Class is not null)
-			{
-				ImGui.SameLine();
-				ImGui.Button(array.Key, new Vector2(FieldWidth, 0));
-				if (ImGui.BeginPopupContextItem($"##{schemaMember.Name}Key", ImGuiPopupFlags.MouseButtonLeft))
-				{
-					if (ImGui.Selectable("<none>"))
-					{
-						array.Key = new();
-					}
-
-					foreach (SchemaMember? primitiveMember in obj.Class.Members.Where(m => m.Type.IsPrimitive).OrderBy(m => m.Name))
-					{
-						if (ImGui.Selectable(primitiveMember.Name))
-						{
-							array.Key = primitiveMember.Name;
-						}
-					}
-
-					ImGui.EndPopup();
-				}
-			}
-		}
-	}
-
-	public static void ShowMemberHeadings()
-	{
-		ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
-		ImGui.Button("Name", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Type", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Container", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Key", new Vector2(FieldWidth, 0));
-		ImGui.PopStyleColor();
-	}
-
-	private void ShowMembers()
-	{
-		if (CurrentClass is not null && ImGui.CollapsingHeader($"{CurrentClass.Name} Members", ImGuiTreeNodeFlags.DefaultOpen))
-		{
-			float frameHeight = ImGui.GetFrameHeight();
-			float spacing = ImGui.GetStyle().ItemSpacing.X;
-			ImGui.SetCursorPosX(ImGui.GetCursorPosX() + frameHeight + spacing);
-
-			ShowMemberHeadings();
-
-			foreach (SchemaMember? schemaMember in CurrentClass.Members.ToCollection())
-			{
-				string name = schemaMember.Name;
-				if (ImGui.Button($"X##deleteMember{name}", new Vector2(frameHeight, 0)))
-				{
-					SchemaMember captured = schemaMember;
-					SchemaClass parentClass = CurrentClass;
-					UndoRedo.Execute(new DelegateCommand(
-						$"Delete Member '{captured.Name}'",
-						() => captured.TryRemove(),
-						() => parentClass.RestoreMember(captured),
-						ChangeType.Delete));
-				}
-
-				ImGui.SameLine();
-				ImGui.SetNextItemWidth(FieldWidth);
-				ImGui.InputText($"##{name}", ref name, 64, ImGuiInputTextFlags.ReadOnly);
-				ImGui.SameLine();
-				if (CurrentSchema is not null)
-				{
-					ShowMemberConfig(CurrentSchema, schemaMember);
-				}
-			}
-
-			ImGui.NewLine();
-		}
-	}
-
 	private void ShowSchemaConfig()
 	{
-		if (CurrentSchema is not null)
+		if (CurrentSchema is null)
 		{
-			if (string.IsNullOrEmpty(CurrentSchemaPath))
-			{
-				using (Theme.FromColor(Palette.Semantic.Error))
-				{
-					ImGui.TextUnformatted("Schema has not been saved. Save it before configuring relative paths.");
-
-					if (ImGui.Button("Save Now"))
-					{
-						SaveAs();
-					}
-				}
-
-				return;
-			}
-
-			ImGui.TextUnformatted($"Schema Path: {CurrentSchemaPath}");
+			return;
 		}
-	}
 
-	private void ShowDataSourceProperties()
-	{
-		if (CurrentDataSource is not null && ImGui.CollapsingHeader($"{CurrentDataSource.Name} Properties", ImGuiTreeNodeFlags.DefaultOpen))
+		if (string.IsNullOrEmpty(CurrentSchemaPath))
 		{
-			ImGui.TextUnformatted("File Path:");
-			ImGui.SameLine();
-			ImGui.SetNextItemWidth(FieldWidth * 2);
-			string filePath = CurrentDataSource.File;
-			if (ImGui.InputText("##DataSourceFile", ref filePath, 256))
+			using (Theme.FromColor(Palette.Semantic.Error))
 			{
-				CurrentDataSource.File = filePath.As<RelativeFilePath>();
-			}
+				ImGui.TextUnformatted("Schema has not been saved. Save it before configuring relative paths.");
 
-			ImGui.TextUnformatted("Class:");
-			ImGui.SameLine();
-			if (CurrentSchema is not null)
-			{
-				if (ImGui.Button(string.IsNullOrEmpty(CurrentDataSource.ClassName)
-					? "<Select Class>"
-					: (string)CurrentDataSource.ClassName, new Vector2(FieldWidth, 0)))
+				if (ImGui.Button("Save Now"))
 				{
-					if (ImGui.BeginPopupContextItem("##DataSourceClassSelect", ImGuiPopupFlags.MouseButtonLeft))
-					{
-						if (ImGui.Selectable("<none>"))
-						{
-							CurrentDataSource.ClassName = new();
-						}
-
-						foreach (SchemaClass schemaClass in CurrentSchema.Classes)
-						{
-							if (ImGui.Selectable(schemaClass.Name))
-							{
-								CurrentDataSource.ClassName = schemaClass.Name;
-							}
-						}
-
-						ImGui.EndPopup();
-					}
+					SaveAs();
 				}
 			}
+
+			return;
 		}
+
+		ImGui.TextUnformatted($"Schema Path: {CurrentSchemaPath}");
 	}
 
 	internal void EditClass(ClassName name) => EditClass(CurrentSchema?.GetClass(name));
 
 	internal void EditClass(SchemaClass? schemaClass)
 	{
+		ClearSelection();
 		CurrentClass = schemaClass;
-		CurrentDataSource = null;
 		QueueSaveOptions();
 	}
 
@@ -543,8 +419,32 @@ public class SchemaEditor
 
 	internal void EditDataSource(DataSource? dataSource)
 	{
-		CurrentClass = null;
+		ClearSelection();
 		CurrentDataSource = dataSource;
 		QueueSaveOptions();
+	}
+
+	internal void EditEnum(SchemaEnum? schemaEnum)
+	{
+		ClearSelection();
+		CurrentEnum = schemaEnum;
+		QueueSaveOptions();
+	}
+
+	internal void EditCodeGenerator(CodeGeneratorName name) => EditCodeGenerator(CurrentSchema?.GetCodeGenerator(name));
+
+	internal void EditCodeGenerator(SchemaCodeGenerator? codeGenerator)
+	{
+		ClearSelection();
+		CurrentCodeGenerator = codeGenerator;
+		QueueSaveOptions();
+	}
+
+	private void ClearSelection()
+	{
+		CurrentClass = null;
+		CurrentDataSource = null;
+		CurrentEnum = null;
+		CurrentCodeGenerator = null;
 	}
 }

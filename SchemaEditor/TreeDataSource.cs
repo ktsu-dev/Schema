@@ -26,6 +26,8 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 			{
 				Collapsible = true,
 				GetText = (x) => x.Name,
+				GetTooltip = (x) => x.Description,
+				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
 				OnTreeEnd = (t) =>
 				{
@@ -37,10 +39,17 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 				OnItemClick = schemaEditor.EditDataSource,
 				OnItemContextMenu = (x) =>
 				{
-					if (ImGui.Selectable($"Delete {x.Name}"))
+					DataSource captured = x;
+
+					if (ImGui.Selectable($"Rename {captured.Name}"))
 					{
-						DataSource captured = x;
-						schemaEditor.UndoRedo.Execute(new DelegateCommand(
+						schemaEditor.PromptRename("data source", captured.Name,
+							newName => schema.TryRenameDataSource(captured, newName.As<DataSourceName>()));
+					}
+
+					if (ImGui.Selectable($"Delete {captured.Name}"))
+					{
+						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Data Source '{captured.Name}'",
 							() => captured.TryRemove(),
 							() => schema.RestoreDataSource(captured),
@@ -67,7 +76,7 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 					}
 
 					DataSource? addedDataSource = null;
-					schemaEditor.UndoRedo.Execute(new DelegateCommand(
+					schemaEditor.Execute(new DelegateCommand(
 						$"Add Data Source '{dataSourceName}'",
 						() =>
 						{

@@ -63,7 +63,7 @@ public partial class Schema
 	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
 	/// duplicate detection only catches multiple empty names by accident.
 	/// </summary>
-	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path)
+	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path, ISchemaElement? element)
 	{
 		if (string.IsNullOrEmpty(name))
 		{
@@ -72,6 +72,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"{kind} has an empty name.",
+				Element = element,
 			});
 		}
 	}
@@ -81,14 +82,14 @@ public partial class Schema
 		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
 			string classPath = PathSegment(schemaClass.Name);
-			ValidateNameNotEmpty(issues, schemaClass.Name, "Class", classPath);
+			ValidateNameNotEmpty(issues, schemaClass.Name, "Class", classPath, schemaClass);
 
 			ReportDuplicates(issues, schemaClass.Members.Select(m => $"{schemaClass.Name}.{m.Name}"), "member");
 
 			foreach (SchemaMember member in schemaClass.Members)
 			{
 				string memberPath = $"{classPath}.{PathSegment(member.Name)}";
-				ValidateNameNotEmpty(issues, member.Name, "Member", memberPath);
+				ValidateNameNotEmpty(issues, member.Name, "Member", memberPath, member);
 
 				if (member.Type is None)
 				{
@@ -98,10 +99,11 @@ public partial class Schema
 						Severity = SchemaValidationSeverity.Warning,
 						Path = memberPath,
 						Message = "Member does not have a type set.",
+						Element = member,
 					});
 				}
 
-				ValidateType(issues, member.Type, memberPath);
+				ValidateType(issues, member.Type, memberPath, member);
 			}
 		}
 	}
@@ -111,31 +113,31 @@ public partial class Schema
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
 		{
 			string enumPath = PathSegment(schemaEnum.Name);
-			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath);
+			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath, schemaEnum);
 
 			ReportDuplicates(issues, schemaEnum.Values.Select(v => $"{schemaEnum.Name}.{v}"), "enum value");
 
 			foreach (Names.EnumValueName value in schemaEnum.Values)
 			{
-				ValidateNameNotEmpty(issues, value, "Enum value", $"{enumPath}.{PathSegment(value)}");
+				ValidateNameNotEmpty(issues, value, "Enum value", $"{enumPath}.{PathSegment(value)}", schemaEnum);
 			}
 		}
 	}
 
-	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path)
+	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element)
 	{
 		switch (type)
 		{
 			case Enum enumType:
-				ValidateEnumReference(issues, enumType, path);
+				ValidateEnumReference(issues, enumType, path, element);
 				break;
 
 			case Object objectType:
-				ValidateClassReference(issues, objectType.ClassName, path);
+				ValidateClassReference(issues, objectType.ClassName, path, element);
 				break;
 
 			case Array arrayType:
-				ValidateArray(issues, arrayType, path);
+				ValidateArray(issues, arrayType, path, element);
 				break;
 
 			default:
@@ -143,7 +145,7 @@ public partial class Schema
 		}
 	}
 
-	private void ValidateEnumReference(Collection<SchemaValidationIssue> issues, Enum enumType, string path)
+	private void ValidateEnumReference(Collection<SchemaValidationIssue> issues, Enum enumType, string path, ISchemaElement? element)
 	{
 		if (string.IsNullOrEmpty(enumType.EnumName))
 		{
@@ -152,6 +154,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = "Enum type does not specify an enum name.",
+				Element = element,
 			});
 		}
 		else if (!TryGetEnum(enumType.EnumName, out _))
@@ -161,11 +164,12 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Enum type references unknown enum '{enumType.EnumName}'.",
+				Element = element,
 			});
 		}
 	}
 
-	private void ValidateClassReference(Collection<SchemaValidationIssue> issues, Names.ClassName className, string path)
+	private void ValidateClassReference(Collection<SchemaValidationIssue> issues, Names.ClassName className, string path, ISchemaElement? element)
 	{
 		if (string.IsNullOrEmpty(className))
 		{
@@ -174,6 +178,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = "Object type does not specify a class name.",
+				Element = element,
 			});
 		}
 		else if (!TryGetClass(className, out _))
@@ -183,14 +188,15 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Object type references unknown class '{className}'.",
+				Element = element,
 			});
 		}
 	}
 
-	private void ValidateArray(Collection<SchemaValidationIssue> issues, Array arrayType, string path)
+	private void ValidateArray(Collection<SchemaValidationIssue> issues, Array arrayType, string path, ISchemaElement? element)
 	{
-		ValidateType(issues, arrayType.ElementType, path);
-		ValidateArrayContainer(issues, arrayType, path);
+		ValidateType(issues, arrayType.ElementType, path, element);
+		ValidateArrayContainer(issues, arrayType, path, element);
 
 		if (string.IsNullOrEmpty(arrayType.Key))
 		{
@@ -204,6 +210,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Array specifies key '{arrayType.Key}' but its element type is not an object.",
+				Element = element,
 			});
 			return;
 		}
@@ -221,6 +228,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Array key '{arrayType.Key}' is not a member of class '{elementClass.Name}'.",
+				Element = element,
 			});
 		}
 		else if (!keyMember.Type.IsPrimitive)
@@ -230,11 +238,12 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Array key '{arrayType.Key}' on class '{elementClass.Name}' must be a primitive type but is '{keyMember.Type.DisplayName}'.",
+				Element = element,
 			});
 		}
 	}
 
-	private static void ValidateArrayContainer(Collection<SchemaValidationIssue> issues, Array arrayType, string path)
+	private static void ValidateArrayContainer(Collection<SchemaValidationIssue> issues, Array arrayType, string path, ISchemaElement? element)
 	{
 		if (string.IsNullOrEmpty(arrayType.Container))
 		{
@@ -244,6 +253,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Warning,
 				Path = path,
 				Message = "Array does not specify a container.",
+				Element = element,
 			});
 			return;
 		}
@@ -255,6 +265,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Warning,
 				Path = path,
 				Message = $"Array specifies container '{arrayType.Container}', which is not one of the containers this library understands ({string.Join(", ", Array.KnownContainers)}).",
+				Element = element,
 			});
 			return;
 		}
@@ -266,6 +277,7 @@ public partial class Schema
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
 				Message = $"Array uses the '{Array.MapContainer}' container but does not specify a key to map by.",
+				Element = element,
 			});
 		}
 	}
@@ -281,6 +293,7 @@ public partial class Schema
 					Severity = SchemaValidationSeverity.Warning,
 					Path = dataSource.Name,
 					Message = "Data source does not specify a class.",
+					Element = dataSource,
 				});
 			}
 			else if (!TryGetClass(dataSource.ClassName, out _))
@@ -290,6 +303,7 @@ public partial class Schema
 					Severity = SchemaValidationSeverity.Error,
 					Path = dataSource.Name,
 					Message = $"Data source references unknown class '{dataSource.ClassName}'.",
+					Element = dataSource,
 				});
 			}
 
@@ -300,6 +314,7 @@ public partial class Schema
 					Severity = SchemaValidationSeverity.Warning,
 					Path = dataSource.Name,
 					Message = "Data source does not specify a file.",
+					Element = dataSource,
 				});
 			}
 		}
@@ -316,6 +331,7 @@ public partial class Schema
 					Severity = SchemaValidationSeverity.Warning,
 					Path = codeGenerator.Name,
 					Message = "Code generator does not specify an output path.",
+					Element = codeGenerator,
 				});
 			}
 		}
