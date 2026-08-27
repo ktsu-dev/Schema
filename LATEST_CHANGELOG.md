@@ -1,19 +1,15 @@
-## v1.8.0 (minor)
+## v1.9.0 (minor)
 
-Changes since v1.7.0:
+Changes since v1.8.0:
 
-- Mirror equality's hook shape in GetHashCode ([@Claude](https://github.com/Claude))
-- Make Open Externally cross-platform and extend validation coverage ([@Claude](https://github.com/Claude))
-- Fix build blocker, type equality, and vector/color modelling ([@Claude](https://github.com/Claude))
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: store icon.png in LFS as .gitattributes declares ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
-- Fix build errors from ktsu.Sdk 2.26/2.27 analyzers ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
-- Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
-- Remove stale files ([@matt-edmondson](https://github.com/matt-edmondson))
+- Clear the two analyzer findings the CLI move introduced ([@Claude](https://github.com/Claude))
+- Move the CLI's commands into the library and test them ([@Claude](https://github.com/Claude))
+- Filter explicitly in SchemaDataValidator's property loops ([@Claude](https://github.com/Claude))
+- Rewrite the roadmap against what is actually true ([@Claude](https://github.com/Claude))
+- Code generation: a generator architecture and a C# generator ([@Claude](https://github.com/Claude))
+- Data sources: resolve their paths, and validate the data they bind ([@Claude](https://github.com/Claude))
+- Add a .schema.json format version and document the format ([@Claude](https://github.com/Claude))
+- Scope Sonar coverage measurement to the library ([@Claude](https://github.com/Claude))
+- Make the editor able to edit: rename, reorder, describe, diagnose ([@Claude](https://github.com/Claude))
+- Add model operations for rename, reorder and descriptions ([@Claude](https://github.com/Claude))
 
