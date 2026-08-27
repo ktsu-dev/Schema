@@ -13,13 +13,13 @@ public class Array : BaseType
 	/// <summary>
 	/// The container name for an ordered sequence, mapped to a list by a code generator.
 	/// </summary>
-	public const string VectorContainer = "vector";
+	public const string VectorContainer = ContainerName.VectorName;
 
 	/// <summary>
 	/// The container name for a lookup keyed by <see cref="Key"/>, mapped to a dictionary by a
 	/// code generator.
 	/// </summary>
-	public const string MapContainer = "map";
+	public const string MapContainer = ContainerName.MapName;
 
 	/// <summary>
 	/// Gets the container names the library itself produces and understands.
@@ -66,6 +66,17 @@ public class Array : BaseType
 		}
 
 		return keyMember is not null;
+	}
+
+	/// <inheritdoc />
+	/// <remarks>
+	/// Passes the association down to the element type, so an object or nested array inside this
+	/// one can still find its way back to the schema.
+	/// </remarks>
+	public override void AssociateWith(SchemaMember schemaMember)
+	{
+		base.AssociateWith(schemaMember);
+		ElementType.AssociateWith(schemaMember);
 	}
 
 	/// <inheritdoc />

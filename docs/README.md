@@ -68,11 +68,12 @@ if (SchemaSerializer.TryDeserialize(File.ReadAllText("user.schema.json"), out Sc
 ## Documentation
 
 -   **[Getting Started](getting-started.md)** - Setup and basic usage
+-   **[Schema File Format](schema-format.md)** - The `.schema.json` reference, versioning and compatibility policy
 -   **[API Reference](api/README.md)** - Detailed API documentation
 -   **[Features](features/README.md)** - In-depth feature guides
 -   **[Examples](examples/README.md)** - Code examples and tutorials
 -   **[Development](development/README.md)** - Contributing and development setup
--   **[Roadmap](ROADMAP.md)** - Current state and planned work
+-   **[Roadmap](ROADMAP.md)** - Current state and remaining work
 
 ## Dependencies
 

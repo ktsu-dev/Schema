@@ -308,8 +308,10 @@ public class SchemaClassTests
 		SchemaMember? member = schemaClass.AddMember("Name".As<MemberName>());
 		Assert.IsNotNull(member);
 
-		member.MemberDescription = "The user's name";
-		Assert.AreEqual("The user's name", member.MemberDescription);
+		// A member carries the single Description it inherits from SchemaChild; the separate
+		// MemberDescription field it used to have as well is gone (issue #113).
+		member.Description = "The user's name".As<SchemaChildDescription>();
+		Assert.AreEqual("The user's name", member.Description.ToString());
 	}
 
 	[TestMethod]

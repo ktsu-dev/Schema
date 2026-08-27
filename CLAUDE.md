@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Schema is a C# library for defining and managing data structure schemas. It consists of three projects:
+Schema is a C# library for defining and managing data structure schemas. It consists of four projects:
 
 - **Schema** - Core library providing schema definition types (classes, enums, members, types)
 - **Schema.Test** - MSTest unit tests for the core library
 - **SchemaEditor** - ImGui-based visual editor application for creating and editing `.schema.json` files
+- **SchemaTool** - Command line entry point for validating schemas and running their code generators
 
 ## Build Commands
 
@@ -17,6 +18,7 @@ dotnet build              # Build entire solution
 dotnet test               # Run all tests
 dotnet test --filter "FullyQualifiedName~TestName"  # Run specific test
 dotnet run --project SchemaEditor  # Launch the visual editor
+dotnet run --project SchemaTool -- generate my.schema.json  # Run a schema's code generators
 ```
 
 ## Architecture

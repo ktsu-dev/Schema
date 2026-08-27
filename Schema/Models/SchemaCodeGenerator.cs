@@ -16,6 +16,35 @@ public class SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 	public RelativeDirectoryPath OutputPath { get; set; } = new();
 
 	/// <summary>
+	/// Gets or sets the target language, naming which generator handles this configuration.
+	/// </summary>
+	/// <remarks>
+	/// Matched case-insensitively against <see cref="Generation.ISchemaCodeGenerator.Language"/>.
+	/// Empty means unconfigured, which <see cref="Schema.Validate"/> reports.
+	/// </remarks>
+	public LanguageName Language { get; set; } = new();
+
+	/// <summary>
+	/// Gets or sets the namespace generated code is emitted into.
+	/// </summary>
+	/// <remarks>
+	/// Optional. A generator that has no namespace emits into the global one, which is legal but
+	/// rarely what is wanted, so <see cref="Schema.Validate"/> reports it as a warning.
+	/// </remarks>
+	public CodeNamespace Namespace { get; set; } = new();
+
+	/// <summary>
+	/// Resolves <see cref="OutputPath"/> against the directory the schema was loaded from.
+	/// </summary>
+	/// <param name="resolved">The absolute output directory, when one could be produced.</param>
+	/// <returns>True if the path was resolved; false if the schema has no anchor or no output path is set.</returns>
+	public bool TryResolveOutputPath(out AbsoluteDirectoryPath resolved)
+	{
+		resolved = new();
+		return ParentSchema?.TryResolvePath(OutputPath, out resolved) ?? false;
+	}
+
+	/// <summary>
 	/// Tries to remove this code generator from its parent schema.
 	/// </summary>
 	/// <returns>True if the code generator was removed; otherwise, false.</returns>

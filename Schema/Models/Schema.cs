@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 
 /// <summary>
@@ -16,6 +17,48 @@ using ktsu.Semantics.Strings;
 /// </summary>
 public partial class Schema
 {
+	/// <summary>
+	/// The format version this build of the library writes.
+	/// </summary>
+	/// <remarks>
+	/// Version 1 is the first versioned format. A file with no version field predates versioning
+	/// and is treated as version <see cref="PreVersioningFormatVersion"/>; see
+	/// <c>docs/schema-format.md</c> for the migration path and the compatibility policy.
+	/// </remarks>
+	public const int CurrentFormatVersion = 1;
+
+	/// <summary>
+	/// The version attributed to a file written before the format carried a version field.
+	/// </summary>
+	public const int PreVersioningFormatVersion = 0;
+
+	/// <summary>
+	/// Gets the format version of this schema.
+	/// </summary>
+	/// <remarks>
+	/// Declared first so it is the first property in the serialized file, where a reader looking
+	/// for it does not have to scan the whole document. Defaults to
+	/// <see cref="CurrentFormatVersion"/> for a schema built in memory; a schema loaded from a
+	/// file carries the version that file declared until it is migrated.
+	/// </remarks>
+	[JsonInclude]
+	[JsonPropertyName("formatVersion")]
+	public int FormatVersion { get; internal set; } = CurrentFormatVersion;
+
+	/// <summary>
+	/// Gets the directory the schema was loaded from, which relative paths in it resolve against.
+	/// </summary>
+	/// <remarks>
+	/// Empty for a schema built in memory or parsed from a string with no anchor supplied, in
+	/// which case its relative paths cannot be resolved - see <see cref="CanResolvePaths"/>.
+	///
+	/// Not serialized: a schema's own location is a property of where the file is, not of what is
+	/// in it. Writing it into the file would break the moment the file moved, which is precisely
+	/// what anchoring relative paths to the file is meant to survive.
+	/// </remarks>
+	[JsonIgnore]
+	public AbsoluteDirectoryPath SourceDirectory { get; internal set; } = new();
+
 	[JsonInclude]
 	[JsonPropertyName("classes")]
 	internal Collection<SchemaClass> ClassesInternal { get; set; } = [];
@@ -392,6 +435,7 @@ public partial class Schema
 					BaseType? schemaType = GetOrCreateSchemaType(property.PropertyType);
 					if (schemaType is not null)
 					{
+						ApplySchemaKey(schemaType, property);
 						member.SetType(schemaType);
 					}
 				}
@@ -407,6 +451,7 @@ public partial class Schema
 					BaseType? schemaType = GetOrCreateSchemaType(field.FieldType);
 					if (schemaType is not null)
 					{
+						ApplySchemaKey(schemaType, field);
 						member.SetType(schemaType);
 					}
 				}
@@ -422,40 +467,12 @@ public partial class Schema
 
 		type = Nullable.GetUnderlyingType(type) ?? type;
 
-		// Handle basic types
-		if (type == typeof(string))
+		if (DirectTypeMappings.TryGetValue(type, out Func<BaseType>? create))
 		{
-			return new String();
+			return create();
 		}
-		else if (type == typeof(int) || type == typeof(short) || type == typeof(byte))
-		{
-			return new Int();
-		}
-		else if (type == typeof(long))
-		{
-			return new Long();
-		}
-		else if (type == typeof(float))
-		{
-			return new Float();
-		}
-		else if (type == typeof(double) || type == typeof(decimal))
-		{
-			return new Double();
-		}
-		else if (type == typeof(bool))
-		{
-			return new Bool();
-		}
-		else if (type == typeof(System.DateTime))
-		{
-			return new DateTime();
-		}
-		else if (type == typeof(System.TimeSpan))
-		{
-			return new TimeSpan();
-		}
-		else if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
+
+		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
 		{
 			BaseType element = GetOrCreateSchemaType(elementType) ?? new None();
 			return new Array() { ElementType = element, Container = container };
@@ -486,6 +503,53 @@ public partial class Schema
 
 		return new None();
 	}
+
+	/// <summary>
+	/// Restores an array's key member from the attribute a generator wrote it into.
+	/// </summary>
+	/// <remarks>
+	/// The CLR type of a keyed map carries the key's type but not which member it came from, so
+	/// this is the only place that information survives a trip through generated code.
+	/// </remarks>
+	private static void ApplySchemaKey(BaseType schemaType, MemberInfo member)
+	{
+		if (schemaType is Array arrayType &&
+			member.GetCustomAttribute<Runtime.SchemaKeyAttribute>() is Runtime.SchemaKeyAttribute key)
+		{
+			arrayType.Key = key.KeyMemberName.As<MemberName>();
+		}
+	}
+
+	/// <summary>
+	/// The CLR types that map straight onto a schema type, with no further inspection.
+	/// </summary>
+	/// <remarks>
+	/// A table rather than a chain of comparisons: it reads as the mapping it is, and it is the
+	/// exact inverse of what a code generator emits, so the two can be checked against each other.
+	/// The vector types are <see cref="System.Numerics"/> ones and the colours are the types this
+	/// library provides, because the base class library has none - without them, reimporting
+	/// generated code would turn a Vector3 member into an object referencing a class called
+	/// "Vector3" and the generate-then-reimport round trip would not hold.
+	/// </remarks>
+	private static readonly Dictionary<Type, Func<BaseType>> DirectTypeMappings = new()
+	{
+		[typeof(string)] = () => new String(),
+		[typeof(int)] = () => new Int(),
+		[typeof(short)] = () => new Int(),
+		[typeof(byte)] = () => new Int(),
+		[typeof(long)] = () => new Long(),
+		[typeof(float)] = () => new Float(),
+		[typeof(double)] = () => new Double(),
+		[typeof(decimal)] = () => new Double(),
+		[typeof(bool)] = () => new Bool(),
+		[typeof(System.DateTime)] = () => new DateTime(),
+		[typeof(System.TimeSpan)] = () => new TimeSpan(),
+		[typeof(System.Numerics.Vector2)] = () => new Vector2(),
+		[typeof(System.Numerics.Vector3)] = () => new Vector3(),
+		[typeof(System.Numerics.Vector4)] = () => new Vector4(),
+		[typeof(Runtime.ColorRgb)] = () => new ColorRGB(),
+		[typeof(Runtime.ColorRgba)] = () => new ColorRGBA(),
+	};
 
 	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
 	{

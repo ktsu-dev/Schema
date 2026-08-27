@@ -65,6 +65,57 @@ public class SchemaValidationTests
 	}
 
 	[TestMethod]
+	public void TestIssuesCarryTheElementTheyWereReportedAgainst()
+	{
+		Schema schema = CreateValidSchema();
+		schema.GetEnum("Status".As<EnumName>())?.TryRemove();
+
+		SchemaValidationIssue issue = schema.Validate().First(i => i.Path == "User.Status");
+
+		// A tool can navigate straight to the offending member rather than parsing the path.
+		Assert.IsInstanceOfType<SchemaMember>(issue.Element);
+		SchemaMember member = (SchemaMember)issue.Element!;
+		Assert.AreEqual("Status", member.Name.ToString());
+		Assert.AreEqual("User", member.ParentClass?.Name.ToString());
+	}
+
+	[TestMethod]
+	public void TestDataSourceAndCodeGeneratorIssuesCarryTheirElement()
+	{
+		Schema schema = new();
+		schema.AddDataSource("Users".As<DataSourceName>());
+		schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+
+		Assert.IsTrue(issues.Where(i => i.Path == "Users").All(i => i.Element is DataSource));
+		Assert.IsTrue(issues.Where(i => i.Path == "CSharp").All(i => i.Element is SchemaCodeGenerator));
+	}
+
+	[TestMethod]
+	public void TestDuplicateNameIssuesCarryNoElement()
+	{
+		// A duplicate names no single element, so there is nothing to navigate to.
+		const string json = """
+		{
+		  "classes": [
+		    { "name": "User", "members": [] },
+		    { "name": "User", "members": [] }
+		  ],
+		  "enums": [],
+		  "dataSources": [],
+		  "codeGenerators": []
+		}
+		""";
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? schema));
+		Assert.IsNotNull(schema);
+
+		SchemaValidationIssue duplicate = schema.Validate().First(i => i.Message.Contains("Duplicate"));
+		Assert.IsNull(duplicate.Element);
+	}
+
+	[TestMethod]
 	public void TestEmptySchemaHasNoIssues()
 	{
 		Schema schema = new();

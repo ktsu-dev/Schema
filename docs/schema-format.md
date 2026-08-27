@@ -1,0 +1,373 @@
+# The `.schema.json` format
+
+This is the reference for the file `ktsu.Schema` reads and writes. It describes what the
+serializer actually emits, the version field and its migration path, and what may change in a
+future release.
+
+The format is JSON, written by `System.Text.Json` with camel-cased property names and indentation.
+Nulls are omitted. Round-tripping is the contract: loading a file and saving it again must not
+lose information.
+
+## Root
+
+```json
+{
+  "formatVersion": 1,
+  "classes": [],
+  "enums": [],
+  "codeGenerators": [],
+  "dataSources": []
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `formatVersion` | integer | The format version. Written first so a reader can find it without scanning the document. See [Versioning](#versioning). |
+| `classes` | array of [class](#class) | The classes the schema defines. |
+| `enums` | array of [enum](#enum) | The enumerations the schema defines. |
+| `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
+| `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
+
+All four collections are always written, empty or not.
+
+Every named element also carries a `description`, a free-text string that is always written even
+when empty. It is the natural source for a doc comment in generated code.
+
+## Class
+
+```json
+{
+  "members": [ ... ],
+  "name": "User",
+  "description": "A person with an account"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `members` | array of [member](#member) | The class's members, **in declaration order**. |
+| `name` | string | The class name. Unique among classes. |
+| `description` | string | Free text. |
+
+Member order is meaningful: it is preserved through a round trip and is the order generated code
+will declare members in.
+
+## Member
+
+```json
+{
+  "type": { "TypeName": "String" },
+  "name": "Name",
+  "description": "Display name"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `type` | [type](#types) | The member's type. |
+| `name` | string | The member name. Unique within its class. |
+| `description` | string | Free text. |
+
+## Enum
+
+```json
+{
+  "values": [ "Admin", "Member" ],
+  "name": "Role",
+  "description": "What a user may do"
+}
+```
+
+`values` is an array of strings, in declaration order. Values are unique within the enum and may
+not be empty.
+
+## Data source
+
+```json
+{
+  "file": "data/items.json",
+  "className": "Item",
+  "name": "Items",
+  "description": ""
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `file` | string | A relative path to the data file. See [Path resolution](#path-resolution). |
+| `className` | string | The class the data conforms to. Must name a class in `classes`. |
+
+## Code generator
+
+```json
+{
+  "outputPath": "generated",
+  "language": "csharp",
+  "namespace": "My.Game",
+  "name": "CSharp",
+  "description": ""
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `outputPath` | string | A relative directory to write generated files into. See [Path resolution](#path-resolution). |
+| `language` | string | Which generator handles this configuration. Matched case-insensitively; `csharp` is the only one built in. |
+| `namespace` | string | The namespace generated code is emitted into. Optional; omitting it emits into the global namespace. |
+
+See [Code generation](#code-generation) for what a generator does with these.
+
+## Types
+
+A type is an object with a `TypeName` discriminator. `TypeName` is deliberately not camel-cased -
+it is the polymorphic discriminator, not a data property.
+
+### Types with no further properties
+
+`TypeName` alone fully describes these:
+
+| `TypeName` | Meaning |
+| --- | --- |
+| `None` | No type chosen yet. A valid intermediate editing state, not a generatable one. |
+| `Bool` | Boolean. |
+| `Int` | 32-bit signed integer. |
+| `Long` | 64-bit signed integer. |
+| `Float` | 32-bit floating point. |
+| `Double` | 64-bit floating point. |
+| `String` | Text. |
+| `DateTime` | A date and time. |
+| `TimeSpan` | A duration. |
+| `Vector2`, `Vector3`, `Vector4` | Fixed-shape numeric vectors. |
+| `ColorRGB`, `ColorRGBA` | Colors. |
+
+```json
+{ "TypeName": "ColorRGBA" }
+```
+
+The vector and color types are structured but built in: their shape is fixed and known to the
+library, so unlike `Object` they carry no class reference.
+
+### `Object` - a reference to a class in this schema
+
+```json
+{ "TypeName": "Object", "className": "Item" }
+```
+
+`className` must name a class in `classes`.
+
+### `Enum` - a reference to an enum in this schema
+
+```json
+{ "TypeName": "Enum", "enumName": "Role" }
+```
+
+`enumName` must name an enum in `enums`.
+
+### `Array` - a collection
+
+```json
+{
+  "TypeName": "Array",
+  "elementType": { "TypeName": "Object", "className": "Item" },
+  "container": "map",
+  "key": "Id"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `elementType` | [type](#types) | The element type. May itself be an array, so arrays nest. |
+| `container` | string | The container kind. See [Containers](#containers). |
+| `key` | string | For a keyed container, the member of the element class to key by. Empty when unkeyed. |
+
+## Containers
+
+`container` is an open vocabulary: a consumer may use its own container names, and validation
+reports an unrecognised one as a warning rather than an error. The library itself produces and
+understands two:
+
+| Container | Meaning | Typical mapping |
+| --- | --- | --- |
+| `vector` | An ordered sequence. | `List<T>` |
+| `map` | A lookup keyed by `key`. | `Dictionary<TKey, T>` |
+
+For `map`, `key` must name a member of the element class, and that member's type must be a
+primitive. That member's type is also the dictionary's key type.
+
+## Path resolution
+
+`file` on a data source and `outputPath` on a code generator are **relative to the directory
+containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` with a data source
+`file` of `data/items.json` refers to `/work/game/data/items.json`.
+
+This anchor is what makes a schema and its data movable together: checked out somewhere else, the
+relative paths still resolve.
+
+The anchor is supplied by whoever read the file, so the serializer itself stays free of the
+filesystem:
+
+```csharp
+SchemaLoadResult result = SchemaSerializer.Load(json, schemaFilePath);
+// result.Schema.CanResolvePaths is now true
+dataSource.TryResolveFile(out AbsoluteFilePath dataFile);
+codeGenerator.TryResolveOutputPath(out AbsoluteDirectoryPath outputDirectory);
+```
+
+A schema built in memory, or parsed with the anchorless `Load(json)`, has no anchor. Resolution
+then fails rather than falling back to the process's working directory, which would silently
+resolve to somewhere unrelated. `Schema.Validate` likewise only reports a missing data file when
+the schema knows where it lives.
+
+## Data files
+
+A data source binds a data file to a class. The file's root is either:
+
+- **a single object** conforming to that class, or
+- **an array of objects**, each conforming to it.
+
+Both are validated by the same rules, by `SchemaDataValidator`:
+
+| Type | Expected JSON |
+| --- | --- |
+| `Int`, `Long` | a whole number |
+| `Float`, `Double` | a number |
+| `String` | a string |
+| `Bool` | `true` or `false` |
+| `DateTime`, `TimeSpan` | a string that parses as one |
+| `Vector2` / `Vector3` / `Vector4` | an array of 2 / 3 / 4 numbers |
+| `ColorRGB` / `ColorRGBA` | an array of 3 / 4 numbers |
+| `Enum` | a string that is one of the enum's values |
+| `Object` | an object conforming to the named class |
+| `Array` with `vector` | an array of the element type |
+| `Array` with `map` | an object whose values are the element type, each entry's key matching that entry's `key` member |
+
+The schema has no notion of an optional member, so **every member of a class is required**: a
+missing one is an error. A property the class has no member for is a warning rather than an error,
+since carrying extra data does not by itself contradict the schema.
+
+Member lookup accepts the casing the serializer would have written, so a data file may use either
+the member's declared name or its camel-cased form.
+
+## Versioning
+
+`formatVersion` is an integer that increases when the shape of the file changes in a way a reader
+needs to know about.
+
+| Version | Introduced by | Notes |
+| --- | --- | --- |
+| *(absent)* | - | Any file written before versioning. Read as version 0 and migrated on load. |
+| `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
+
+### How a reader must behave
+
+- **A version it knows** - read it.
+- **An older version** - migrate it forward, then treat it as current. Migrations are cumulative:
+  a very old file is carried through each step in turn.
+- **No version field** - treat it as version 0 and migrate. Files written before versioning are
+  still readable and always will be.
+- **A newer version** - refuse it, and say so distinctly. `SchemaSerializer.Load` returns
+  `SchemaLoadStatus.UnsupportedFutureVersion` with a message naming both versions, rather than
+  reporting a parse failure. A newer writer may have changed the meaning of what is already
+  there, so reading it on a guess would silently drop or misinterpret data.
+
+```csharp
+SchemaLoadResult result = SchemaSerializer.Load(json);
+switch (result.Status)
+{
+    case SchemaLoadStatus.Success:
+        Use(result.Schema!);
+        break;
+    case SchemaLoadStatus.UnsupportedFutureVersion:
+        Report($"Written by a newer version: {result.Message}");
+        break;
+    case SchemaLoadStatus.InvalidJson:
+        Report($"Not a readable schema: {result.Message}");
+        break;
+}
+```
+
+`SchemaSerializer.TryDeserialize` remains for callers that only need to know whether the load
+worked.
+
+Saving always writes `formatVersion` at the current version, so opening and saving an old file
+upgrades it.
+
+## Code generation
+
+`SchemaGenerator` runs the generators a schema declares:
+
+```csharp
+SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, codeGenerator);
+```
+
+Generation is **refused for a schema with error-severity validation issues**. Emitting code from a
+schema whose references do not resolve would produce either code that does not compile, or code
+that compiles into something the schema does not describe - and the resulting error would point at
+generated code instead of at the schema mistake behind it. Warnings do not refuse: an incomplete
+schema is a legitimate work in progress.
+
+The built-in `csharp` generator emits one file per class and per enum, named `<Name>.g.cs`.
+Descriptions become XML doc comments, which is what descriptions are for.
+
+### C# type mapping
+
+| Schema type | C# |
+| --- | --- |
+| `Bool` | `bool` |
+| `Int` | `int` |
+| `Long` | `long` |
+| `Float` | `float` |
+| `Double` | `double` |
+| `String` | `string` |
+| `DateTime` | `System.DateTime` |
+| `TimeSpan` | `System.TimeSpan` |
+| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4` |
+| `ColorRGB` / `ColorRGBA` | `ktsu.Schema.Runtime.ColorRgb` / `ColorRgba` |
+| `Enum` | the generated enum |
+| `Object` | the generated class |
+| `Array` with `vector` | `List<T>` |
+| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
+
+The colours have no counterpart in the base class library, so the library provides the two types
+they map to. A generator inventing its own would break the round trip below.
+
+### The round trip
+
+This mapping is the exact inverse of the one `Schema.AddClass(Type)` uses to import CLR types, so
+generating C# from a schema and reimporting the compiled result reproduces the schema it started
+from. A test compiles the generated source and reimports it, so the two mappings cannot drift
+apart unnoticed.
+
+One thing needs help to survive that trip: a `Dictionary<TKey, T>` records the key's *type* but
+not which member it came from. Generated properties for keyed maps therefore carry
+`[ktsu.Schema.Runtime.SchemaKey("Id")]`, which the importer reads back.
+
+### Running a generator
+
+From the editor, select a code generator and press **Generate**.
+
+From the command line:
+
+```shell
+dotnet run --project SchemaTool -- generate path/to/game.schema.json
+dotnet run --project SchemaTool -- validate path/to/game.schema.json
+```
+
+`validate` exits non-zero when the schema has errors, so it can gate a build. Warnings do not fail
+it.
+
+## Compatibility policy
+
+What a release may do to this format:
+
+| Change | Allowed in |
+| --- | --- |
+| Adding an optional property that older readers can ignore | patch or minor |
+| Adding a new `TypeName` | minor - older readers will fail to read files that use it, so `formatVersion` increases with it |
+| Adding a container name to the known vocabulary | patch or minor - the vocabulary is open, so an unknown name is only a warning |
+| Renaming or removing a property, or changing the meaning of an existing one | major, with a migration step and a `formatVersion` increase |
+| Changing the discriminator property name (`TypeName`) | major |
+
+Every `formatVersion` increase ships with a migration step from the previous version, and this
+document gains a row in the [version table](#versioning). Files that predate versioning remain
+readable.

@@ -51,6 +51,35 @@ public class SchemaEnum : SchemaChild<EnumName>
 	public bool TryRemoveValue(EnumValueName enumValueName) => ValuesInternal.Remove(enumValueName);
 
 	/// <summary>
+	/// Renames a value, keeping its position in the enumeration.
+	/// </summary>
+	/// <remarks>
+	/// Nothing else in the schema references an enum value by name, so there is nothing to cascade.
+	/// </remarks>
+	/// <param name="oldValue">The value to rename.</param>
+	/// <param name="newValue">The new name.</param>
+	/// <returns>True if the value was renamed; false if it is not present, or the new name is empty or already used.</returns>
+	public bool TryRenameValue(EnumValueName oldValue, EnumValueName newValue)
+	{
+		Ensure.NotNull(oldValue);
+		Ensure.NotNull(newValue);
+
+		int index = ValuesInternal.IndexOf(oldValue);
+		if (index < 0 || string.IsNullOrEmpty(newValue))
+		{
+			return false;
+		}
+
+		if (oldValue != newValue && ValuesInternal.Any(v => v == newValue))
+		{
+			return false;
+		}
+
+		ValuesInternal[index] = newValue;
+		return true;
+	}
+
+	/// <summary>
 	/// Tries to remove this enumeration from its parent schema.
 	/// </summary>
 	/// <returns>True if the enumeration was removed; otherwise, false.</returns>

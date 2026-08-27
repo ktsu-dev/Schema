@@ -5,6 +5,7 @@ namespace ktsu.Schema.Models;
 using System.Text.Json.Serialization;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents a member of a schema class.
@@ -23,9 +24,29 @@ public class SchemaMember : SchemaClassChild<MemberName>
 	public BaseType Type { get; private set; } = new None();
 
 	/// <summary>
-	/// Gets or sets the member description text.
+	/// Reads the description written by versions that stored it under "memberDescription".
 	/// </summary>
-	public string MemberDescription { get; set; } = string.Empty;
+	/// <remarks>
+	/// A member inherited <see cref="SchemaChild{TName}.Description"/> and also carried its own
+	/// <c>MemberDescription</c>, of a different type, with nothing documenting which one meant
+	/// what. The two are now collapsed onto <see cref="SchemaChild{TName}.Description"/>. This
+	/// property exists only so an older file's value is migrated onto that field instead of being
+	/// dropped: the getter returns null, and the serializer ignores nulls when writing, so the
+	/// legacy property is read but never written again.
+	/// </remarks>
+	[JsonInclude]
+	[JsonPropertyName("memberDescription")]
+	internal string? LegacyMemberDescription
+	{
+		get => null;
+		set
+		{
+			if (!string.IsNullOrEmpty(value) && string.IsNullOrEmpty(Description))
+			{
+				Description = value.As<SchemaChildDescription>();
+			}
+		}
+	}
 
 	/// <summary>
 	/// Sets the type of the schema member and associates it with this member.

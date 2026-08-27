@@ -160,6 +160,82 @@ public class SchemaSerializerTests
 	}
 
 	[TestMethod]
+	public void TestDescriptionsRoundTripForEveryElementKind()
+	{
+		Schema original = new();
+		SchemaClass userClass = original.AddClass("User".As<ClassName>())!;
+		userClass.Description = "A person".As<SchemaChildDescription>();
+		SchemaMember nameMember = userClass.AddMember("Name".As<MemberName>())!;
+		nameMember.SetType(new SchemaTypes.String());
+		nameMember.Description = "Their display name".As<SchemaChildDescription>();
+
+		SchemaEnum roleEnum = original.AddEnum("Role".As<EnumName>())!;
+		roleEnum.Description = "What they may do".As<SchemaChildDescription>();
+
+		DataSource dataSource = original.AddDataSource("Users".As<DataSourceName>())!;
+		dataSource.Description = "Seed data".As<SchemaChildDescription>();
+
+		SchemaCodeGenerator generator = original.AddCodeGenerator("CSharp".As<CodeGeneratorName>())!;
+		generator.Description = "Emits POCOs".As<SchemaChildDescription>();
+
+		string json = SchemaSerializer.Serialize(original);
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? reloaded));
+		Assert.IsNotNull(reloaded);
+
+		SchemaClass reloadedClass = reloaded.GetClass("User".As<ClassName>())!;
+		Assert.AreEqual("A person", reloadedClass.Description.ToString());
+		Assert.AreEqual("Their display name", reloadedClass.GetMember("Name".As<MemberName>())!.Description.ToString());
+		Assert.AreEqual("What they may do", reloaded.GetEnum("Role".As<EnumName>())!.Description.ToString());
+		Assert.AreEqual("Seed data", reloaded.GetDataSource("Users".As<DataSourceName>())!.Description.ToString());
+		Assert.AreEqual("Emits POCOs", reloaded.GetCodeGenerator("CSharp".As<CodeGeneratorName>())!.Description.ToString());
+	}
+
+	[TestMethod]
+	public void TestLegacyMemberDescriptionMigratesOntoDescription()
+	{
+		// Files written before the two description fields were collapsed carry the member's text
+		// under "memberDescription". It must land on Description rather than being dropped.
+		const string json = """
+		{
+		  "classes": [
+		    {
+		      "name": "User",
+		      "description": "",
+		      "members": [
+		        { "name": "Name", "description": "", "memberDescription": "Their display name",
+		          "type": { "TypeName": "String" } }
+		      ]
+		    }
+		  ],
+		  "enums": [],
+		  "dataSources": [],
+		  "codeGenerators": []
+		}
+		""";
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? schema));
+		Assert.IsNotNull(schema);
+
+		SchemaMember member = schema.GetClass("User".As<ClassName>())!.GetMember("Name".As<MemberName>())!;
+		Assert.AreEqual("Their display name", member.Description.ToString());
+	}
+
+	[TestMethod]
+	public void TestMemberDescriptionIsNoLongerWritten()
+	{
+		Schema schema = new();
+		SchemaClass userClass = schema.AddClass("User".As<ClassName>())!;
+		SchemaMember member = userClass.AddMember("Name".As<MemberName>())!;
+		member.SetType(new SchemaTypes.String());
+		member.Description = "Their display name".As<SchemaChildDescription>();
+
+		string json = SchemaSerializer.Serialize(schema);
+
+		Assert.IsFalse(json.Contains("memberDescription", StringComparison.Ordinal), json);
+		Assert.IsTrue(json.Contains("Their display name", StringComparison.Ordinal), json);
+	}
+
+	[TestMethod]
 	public void TestDeserializeInvalidJson()
 	{
 		bool result = SchemaSerializer.TryDeserialize("not valid json", out Schema? schema);

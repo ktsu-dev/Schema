@@ -14,6 +14,7 @@ using ktsu.Schema.Models.Types;
 internal sealed class Popups
 {
 	[JsonIgnore] private MessageOK PopupMessageOK { get; init; } = new();
+	[JsonIgnore] private Prompt PopupPrompt { get; init; } = new();
 	[JsonIgnore] private InputString PopupInputString { get; init; } = new();
 	[JsonIgnore] private SearchableList<BaseType> PopupTypeList { get; init; } = new();
 	[JsonInclude] private FilesystemBrowser PopupFilesystemBrowser { get; init; } = new();
@@ -21,6 +22,15 @@ internal sealed class Popups
 
 	internal void OpenMessageOK(string title, string message) =>
 		Queue.Enqueue(() => PopupMessageOK.Open(title, message));
+
+	/// <summary>
+	/// Opens a prompt offering a choice between several actions, such as save / discard / cancel.
+	/// </summary>
+	/// <param name="title">The popup title.</param>
+	/// <param name="message">The question to put to the user.</param>
+	/// <param name="buttons">Button labels mapped to what each one does.</param>
+	internal void OpenPrompt(string title, string message, Dictionary<string, Action?> buttons) =>
+		Queue.Enqueue(() => PopupPrompt.Open(title, message, buttons));
 
 	internal void OpenInputString(string title, string message, string defaultValue, Action<string> onConfirm) =>
 		Queue.Enqueue(() => PopupInputString.Open(title, message, defaultValue, onConfirm));
@@ -47,6 +57,7 @@ internal sealed class Popups
 
 		PopupTypeList.ShowIfOpen();
 		PopupMessageOK.ShowIfOpen();
+		PopupPrompt.ShowIfOpen();
 		PopupInputString.ShowIfOpen();
 		PopupFilesystemBrowser.ShowIfOpen();
 	}

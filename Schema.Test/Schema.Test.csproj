@@ -11,6 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The code generation round-trip test compiles the generated C# and reimports the compiled
+         types, which is the only way to prove the generated source actually builds. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
       <VersionOverride>18.8.0</VersionOverride>
     </PackageReference>
