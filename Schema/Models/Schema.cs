@@ -5,6 +5,7 @@ namespace ktsu.Schema.Models;
 using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
@@ -15,7 +16,7 @@ using ktsu.Semantics.Strings;
 /// Provides schema definitions and management functionality.
 /// This class focuses solely on schema definition without serialization or filesystem concerns.
 /// </summary>
-public partial class Schema
+public partial class Schema : ISchema
 {
 	/// <summary>
 	/// The format version this build of the library writes.
@@ -98,6 +99,50 @@ public partial class Schema
 	/// </summary>
 	[JsonIgnore]
 	public IReadOnlyCollection<DataSource> DataSources => DataSourcesInternal;
+
+	/// <summary>
+	/// Gets the schema's classes as a name-indexed, order-preserving set.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<SchemaClass, ClassName> ClassSet => new(ClassesInternal);
+
+	/// <summary>
+	/// Gets the schema's enums as a name-indexed, order-preserving set.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<SchemaEnum, EnumName> EnumSet => new(EnumsInternal);
+
+	/// <remarks>
+	/// Explicit because the contract's element type is <see cref="ISchemaClass"/>; the covariance
+	/// of <see cref="ISchemaChildSet{TValue, TName}"/> makes it the same object.
+	/// </remarks>
+	ISchemaChildSet<ISchemaClass, ClassName> ISchema.Classes => ClassSet;
+
+	/// <remarks>
+	/// Explicit because the contract's element type is <see cref="ISchemaEnum"/>; the covariance
+	/// of <see cref="ISchemaChildSet{TValue, TName}"/> makes it the same object.
+	/// </remarks>
+	ISchemaChildSet<ISchemaEnum, EnumName> ISchema.Enums => EnumSet;
+
+	/// <inheritdoc />
+	ISchemaClass? ISchema.AddClass(ClassName name) => AddClass(name);
+
+	/// <inheritdoc />
+	ISchemaEnum? ISchema.AddEnum(EnumName name) => AddEnum(name);
+
+	/// <summary>
+	/// Removes the class with the specified name.
+	/// </summary>
+	/// <param name="name">The name of the class to remove.</param>
+	/// <returns>True if a class with that name was found and removed; otherwise, false.</returns>
+	public bool RemoveClass(ClassName name) => GetClass(name) is SchemaClass schemaClass && TryRemoveClass(schemaClass);
+
+	/// <summary>
+	/// Removes the enum with the specified name.
+	/// </summary>
+	/// <param name="name">The name of the enum to remove.</param>
+	/// <returns>True if an enum with that name was found and removed; otherwise, false.</returns>
+	public bool RemoveEnum(EnumName name) => GetEnum(name) is SchemaEnum schemaEnum && TryRemoveEnum(schemaEnum);
 
 	/// <summary>
 	/// Initializes a new instance of the Schema class.
@@ -240,16 +285,10 @@ public partial class Schema
 		Ensure.NotNull(name);
 		Ensure.NotNull(collection);
 
-		if (GetChild(name, collection) is null)
-		{
-			TChild child = new();
-			child.Rename(name);
-			child.AssociateWith(this);
-			collection.Add(child);
-			return child;
-		}
-
-		return null;
+		TChild child = new();
+		child.Rename(name);
+		child.AssociateWith(this);
+		return new SchemaChildSet<TChild, TName>(collection).Add(child) ? child : null;
 	}
 
 	/// <summary>
@@ -268,14 +307,8 @@ public partial class Schema
 		Ensure.NotNull(child);
 		Ensure.NotNull(collection);
 
-		if (GetChild(child.Name, collection) is not null)
-		{
-			return false;
-		}
-
 		child.AssociateWith(this);
-		collection.Add(child);
-		return true;
+		return new SchemaChildSet<TChild, TName>(collection).Add(child);
 	}
 
 	/// <summary>

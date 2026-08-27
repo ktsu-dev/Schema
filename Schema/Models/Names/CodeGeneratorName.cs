@@ -8,4 +8,4 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a code generator name as a strong string type.
 /// </summary>
-public sealed record class CodeGeneratorName : SemanticString<CodeGeneratorName>, ISchemaCodeGeneratorName { }
+public sealed record class CodeGeneratorName : SemanticString<CodeGeneratorName>, ISchemaRootName { }

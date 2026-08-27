@@ -8,4 +8,4 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a class name as a strong string type.
 /// </summary>
-public sealed record class ClassName : SemanticString<ClassName>, ISchemaClassName { }
+public sealed record class ClassName : SemanticString<ClassName>, ISchemaRootName { }

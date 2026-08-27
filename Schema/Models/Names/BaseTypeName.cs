@@ -8,4 +8,4 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a base type name as a strong string type.
 /// </summary>
-public sealed record class BaseTypeName : SemanticString<BaseTypeName>, ISchemaTypeName, ISchemaClassChildName { }
+public sealed record class BaseTypeName : SemanticString<BaseTypeName>, ISchemaName { }

@@ -3,191 +3,144 @@
 namespace ktsu.Schema.Models;
 
 using System.Collections;
-using System.Diagnostics;
+using System.Collections.ObjectModel;
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Semantics.Strings;
 
 /// <summary>
-/// Implementation of a set container for schema child elements with name-based uniqueness.
+/// An order-preserving, name-unique view over a collection of schema child elements.
 /// </summary>
-/// <typeparam name="T">The type of schema child elements, must implement ISchemaChild.</typeparam>
-/// <typeparam name="TName">The type of the name used for comparison.</typeparam>
-public class SchemaChildSet<T, TName> : ISchemaChildSet<T, TName>
+/// <remarks>
+/// <para>
+/// This is a view rather than a store: it wraps the collection the owning element serializes, so
+/// there is no second copy to diverge from it and no change to the on-disk format. It owns the
+/// name-uniqueness rule that would otherwise be re-implemented as an <c>Any(x =&gt; x.Name == name)</c>
+/// check at each call site.
+/// </para>
+/// <para>
+/// Order is the order elements were added, and is preserved through serialization. A name-keyed
+/// hash set would not preserve it: <see cref="HashSet{T}"/> makes no ordering guarantee, and reuses
+/// freed slots after a removal, so a remove-then-add — what undoing a deletion does — could reorder
+/// a class's members.
+/// </para>
+/// <para>
+/// Uniqueness is enforced on the way in, not on the way through. Deserialization writes to the
+/// underlying collection directly, so a hand-edited file containing duplicate names still loads
+/// with both elements present and is reported by <see cref="Schema.Validate"/>. Silently dropping
+/// one at load would turn a diagnosable mistake into data loss.
+/// </para>
+/// </remarks>
+/// <typeparam name="T">The type of schema child elements.</typeparam>
+/// <typeparam name="TName">The type of the name used for uniqueness and lookup.</typeparam>
+public sealed class SchemaChildSet<T, TName> : ISchemaChildSet<T, TName>, IReadOnlyList<T>
 	where T : class, ISchemaChild<TName>
 	where TName : SemanticString<TName>, ISchemaChildName, new()
 {
-	private readonly HashSet<T> innerSet;
-	private readonly SchemaChildNameComparer<T, TName> nameComparer;
+	private readonly Collection<T> items;
 
 	/// <summary>
-	/// Initializes a new instance of the SchemaChildSet class.
+	/// Initializes a new instance of the <see cref="SchemaChildSet{T, TName}"/> class over the specified collection.
 	/// </summary>
-	public SchemaChildSet()
+	/// <param name="items">The collection to present. The set reads and writes it in place; it does not copy.</param>
+	public SchemaChildSet(Collection<T> items)
 	{
-		nameComparer = new SchemaChildNameComparer<T, TName>();
-		innerSet = new HashSet<T>(nameComparer);
+		Ensure.NotNull(items);
+		this.items = items;
 	}
+
+	/// <inheritdoc/>
+	public int Count => items.Count;
 
 	/// <summary>
-	/// Initializes a new instance of the SchemaChildSet class with the specified capacity.
+	/// Gets the element at the specified position in declaration order.
 	/// </summary>
-	/// <param name="capacity">The initial capacity of the set.</param>
-	public SchemaChildSet(int capacity)
-	{
-		nameComparer = new SchemaChildNameComparer<T, TName>();
-		innerSet = new HashSet<T>(capacity, nameComparer);
-	}
+	/// <param name="index">The zero-based position.</param>
+	/// <returns>The element at that position.</returns>
+	public T this[int index] => items[index];
+
+	/// <inheritdoc/>
+	public T? GetByName(TName name) => items.FirstOrDefault(item => item.Name == name);
+
+	/// <inheritdoc/>
+	public bool ContainsByName(TName name) => GetByName(name) is not null;
 
 	/// <summary>
-	/// Initializes a new instance of the SchemaChildSet class with the specified collection.
+	/// Tries to get an element by its name.
 	/// </summary>
-	/// <param name="collection">The collection to initialize the set with.</param>
-	public SchemaChildSet(IEnumerable<T> collection)
-	{
-		nameComparer = new SchemaChildNameComparer<T, TName>();
-		innerSet = new HashSet<T>(collection, nameComparer);
-	}
-
-	/// <inheritdoc/>
-	public IEqualityComparer<TName> NameComparer => EqualityComparer<TName>.Default;
-
-	/// <inheritdoc/>
-	public int Count => innerSet.Count;
-
-	/// <inheritdoc/>
-	public bool IsReadOnly => false;
-
-	/// <inheritdoc/>
-	public bool Add(T item)
-	{
-		Ensure.NotNull(item, nameof(item));
-		return innerSet.Add(item);
-	}
-
-	/// <inheritdoc/>
-	void ICollection<T>.Add(T item) => Add(item);
-
-	/// <inheritdoc/>
-	public void Clear() => innerSet.Clear();
-
-	/// <inheritdoc/>
-	public bool Contains(T item)
-	{
-		Ensure.NotNull(item, nameof(item));
-		return innerSet.Contains(item);
-	}
-
-	/// <inheritdoc/>
-	public void CopyTo(T[] array, int arrayIndex) => innerSet.CopyTo(array, arrayIndex);
-
-	/// <inheritdoc/>
-	public void ExceptWith(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		innerSet.ExceptWith(other);
-	}
-
-	/// <inheritdoc/>
-	public IEnumerator<T> GetEnumerator() => innerSet.GetEnumerator();
-
-	/// <inheritdoc/>
-	public void IntersectWith(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		innerSet.IntersectWith(other);
-	}
-
-	/// <inheritdoc/>
-	public bool IsProperSubsetOf(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.IsProperSubsetOf(other);
-	}
-
-	/// <inheritdoc/>
-	public bool IsProperSupersetOf(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.IsProperSupersetOf(other);
-	}
-
-	/// <inheritdoc/>
-	public bool IsSubsetOf(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.IsSubsetOf(other);
-	}
-
-	/// <inheritdoc/>
-	public bool IsSupersetOf(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.IsSupersetOf(other);
-	}
-
-	/// <inheritdoc/>
-	public bool Overlaps(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.Overlaps(other);
-	}
-
-	/// <inheritdoc/>
-	public bool Remove(T item)
-	{
-		Ensure.NotNull(item, nameof(item));
-		return innerSet.Remove(item);
-	}
-
-	/// <inheritdoc/>
-	public bool SetEquals(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		return innerSet.SetEquals(other);
-	}
-
-	/// <inheritdoc/>
-	public void SymmetricExceptWith(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		innerSet.SymmetricExceptWith(other);
-	}
-
-	/// <inheritdoc/>
-	public void UnionWith(IEnumerable<T> other)
-	{
-		Ensure.NotNull(other, nameof(other));
-		innerSet.UnionWith(other);
-	}
-
-	/// <inheritdoc/>
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-	/// <inheritdoc/>
+	/// <param name="name">The name of the element to find.</param>
+	/// <param name="element">The found element, if any.</param>
+	/// <returns><see langword="true"/> if an element with that name was found; otherwise, <see langword="false"/>.</returns>
 	public bool TryGetByName(TName name, out T? element)
 	{
-		Ensure.NotNull(name, nameof(name));
-		element = innerSet.FirstOrDefault(item => NameComparer.Equals(item.Name, name));
+		element = GetByName(name);
 		return element is not null;
 	}
 
-	/// <inheritdoc/>
-	public bool ContainsByName(TName name)
+	/// <summary>
+	/// Adds an element, unless its name is already taken.
+	/// </summary>
+	/// <param name="element">The element to add.</param>
+	/// <returns><see langword="true"/> if the element was added; <see langword="false"/> if an element with the same name is already present.</returns>
+	public bool Add(T element)
 	{
-		Ensure.NotNull(name, nameof(name));
-		return innerSet.Any(item => NameComparer.Equals(item.Name, name));
+		Ensure.NotNull(element);
+
+		if (ContainsByName(element.Name))
+		{
+			return false;
+		}
+
+		items.Add(element);
+		return true;
+	}
+
+	/// <summary>
+	/// Removes the specified element.
+	/// </summary>
+	/// <param name="element">The element to remove.</param>
+	/// <returns><see langword="true"/> if the element was found and removed; otherwise, <see langword="false"/>.</returns>
+	public bool Remove(T element) => items.Remove(element);
+
+	/// <summary>
+	/// Removes the element with the specified name.
+	/// </summary>
+	/// <param name="name">The name of the element to remove.</param>
+	/// <returns><see langword="true"/> if an element with that name was found and removed; otherwise, <see langword="false"/>.</returns>
+	public bool RemoveByName(TName name) => GetByName(name) is T element && items.Remove(element);
+
+	/// <summary>
+	/// Gets the position of an element in declaration order.
+	/// </summary>
+	/// <param name="element">The element to locate.</param>
+	/// <returns>The element's index, or -1 if it is not in the set.</returns>
+	public int IndexOf(T element) => items.IndexOf(element);
+
+	/// <summary>
+	/// Moves an element to a new position in declaration order.
+	/// </summary>
+	/// <param name="element">The element to move.</param>
+	/// <param name="newIndex">The zero-based position to move it to.</param>
+	/// <returns><see langword="true"/> if the element was moved; <see langword="false"/> if it is not in the set or the index is out of range.</returns>
+	public bool Move(T element, int newIndex)
+	{
+		int currentIndex = IndexOf(element);
+		if (currentIndex < 0 || newIndex < 0 || newIndex >= items.Count)
+		{
+			return false;
+		}
+
+		if (newIndex != currentIndex)
+		{
+			items.RemoveAt(currentIndex);
+			items.Insert(newIndex, element);
+		}
+
+		return true;
 	}
 
 	/// <inheritdoc/>
-	public bool RemoveByName(TName name)
-	{
-		Ensure.NotNull(name, nameof(name));
-		if (TryGetByName(name, out T? element))
-		{
-			Debug.Assert(element is not null);
-			return innerSet.Remove(element);
-		}
-		return false;
-	}
+	public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

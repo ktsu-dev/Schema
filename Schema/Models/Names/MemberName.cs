@@ -8,4 +8,4 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a member name as a strong string type.
 /// </summary>
-public sealed record class MemberName : SemanticString<MemberName>, ISchemaMemberName { }
+public sealed record class MemberName : SemanticString<MemberName>, ISchemaClassChildName { }

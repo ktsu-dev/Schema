@@ -260,7 +260,7 @@ public class SchemaSerializerTests
 		// Verify parent references were re-established
 		SchemaClass? deserializedClass = deserialized.Classes.First();
 		Assert.AreEqual(deserialized, deserializedClass.ParentSchema);
-		SchemaMember deserializedMember = deserializedClass.Members.First();
+		SchemaMember deserializedMember = deserializedClass.Members[0];
 		Assert.AreEqual(deserializedClass, deserializedMember.ParentClass);
 	}
 }

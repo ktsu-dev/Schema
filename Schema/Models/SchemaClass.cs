@@ -4,12 +4,13 @@ namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents a class within a schema.
 /// </summary>
-public class SchemaClass : SchemaChild<ClassName>
+public class SchemaClass : SchemaChild<ClassName>, ISchemaClass
 {
 	/// <summary>
 	/// Gets the internal collection of members.
@@ -19,10 +20,31 @@ public class SchemaClass : SchemaChild<ClassName>
 	internal Collection<SchemaMember> MembersInternal { get; set; } = [];
 
 	/// <summary>
-	/// Gets the members of the schema class.
+	/// Gets the members of the schema class, in declaration order.
 	/// </summary>
+	/// <remarks>
+	/// A fresh view each time rather than a cached one: deserialization replaces
+	/// <see cref="MembersInternal"/> wholesale, and a cached view would go on reading the
+	/// collection that replaced it. The view holds one reference and no state of its own.
+	/// </remarks>
 	[JsonIgnore]
-	public IReadOnlyCollection<SchemaMember> Members => MembersInternal;
+	public SchemaChildSet<SchemaMember, MemberName> Members => new(MembersInternal);
+
+	/// <remarks>
+	/// Explicit because the contract's element type is <see cref="ISchemaMember"/>; the covariance
+	/// of <see cref="ISchemaChildSet{TValue, TName}"/> makes it the same object.
+	/// </remarks>
+	ISchemaChildSet<ISchemaMember, MemberName> ISchemaClass.Members => Members;
+
+	/// <inheritdoc />
+	ISchemaMember? ISchemaClass.AddMember(MemberName name) => AddMember(name);
+
+	/// <summary>
+	/// Removes the member with the specified name.
+	/// </summary>
+	/// <param name="name">The name of the member to remove.</param>
+	/// <returns>True if a member with that name was found and removed; otherwise, false.</returns>
+	public bool RemoveMember(MemberName name) => Members.RemoveByName(name);
 
 	/// <summary>
 	/// Gets a summary of the schema class.
@@ -45,16 +67,10 @@ public class SchemaClass : SchemaChild<ClassName>
 	{
 		Ensure.NotNull(name);
 
-		if (MembersInternal.Any(m => m.Name == name))
-		{
-			return null;
-		}
-
 		SchemaMember member = new();
 		member.Rename(name);
 		member.AssociateWith(this);
-		MembersInternal.Add(member);
-		return member;
+		return Members.Add(member) ? member : null;
 	}
 
 	/// <summary>
@@ -62,7 +78,7 @@ public class SchemaClass : SchemaChild<ClassName>
 	/// </summary>
 	/// <param name="member">The member to remove.</param>
 	/// <returns>True if the member was removed; otherwise, false.</returns>
-	internal bool TryRemoveMember(SchemaMember member) => MembersInternal.Remove(member);
+	internal bool TryRemoveMember(SchemaMember member) => Members.Remove(member);
 
 	/// <summary>
 	/// Restores a previously removed member back into the class.
@@ -74,14 +90,8 @@ public class SchemaClass : SchemaChild<ClassName>
 	{
 		Ensure.NotNull(member);
 
-		if (MembersInternal.Any(m => m.Name == member.Name))
-		{
-			return false;
-		}
-
 		member.AssociateWith(this);
-		MembersInternal.Add(member);
-		return true;
+		return Members.Add(member);
 	}
 
 	/// <summary>
@@ -90,25 +100,21 @@ public class SchemaClass : SchemaChild<ClassName>
 	/// <param name="name">The name of the member to find.</param>
 	/// <param name="member">The found member, if any.</param>
 	/// <returns>True if the member was found; otherwise, false.</returns>
-	public bool TryGetMember(MemberName name, out SchemaMember? member)
-	{
-		member = MembersInternal.FirstOrDefault(m => m.Name == name);
-		return member is not null;
-	}
+	public bool TryGetMember(MemberName name, out SchemaMember? member) => Members.TryGetByName(name, out member);
 
 	/// <summary>
 	/// Gets a member by name.
 	/// </summary>
 	/// <param name="name">The name of the member.</param>
 	/// <returns>The member if found, null otherwise.</returns>
-	public SchemaMember? GetMember(MemberName name) => MembersInternal.FirstOrDefault(m => m.Name == name);
+	public SchemaMember? GetMember(MemberName name) => Members.GetByName(name);
 
 	/// <summary>
 	/// Gets the position of a member in the class's declaration order.
 	/// </summary>
 	/// <param name="member">The member to locate.</param>
 	/// <returns>The member's index, or -1 if it does not belong to this class.</returns>
-	public int IndexOfMember(SchemaMember member) => MembersInternal.IndexOf(member);
+	public int IndexOfMember(SchemaMember member) => Members.IndexOf(member);
 
 	/// <summary>
 	/// Renames a member, repointing any array key that named it.
@@ -126,12 +132,12 @@ public class SchemaClass : SchemaChild<ClassName>
 		Ensure.NotNull(member);
 		Ensure.NotNull(newName);
 
-		if (!MembersInternal.Contains(member) || string.IsNullOrEmpty(newName))
+		if (Members.IndexOf(member) < 0 || string.IsNullOrEmpty(newName))
 		{
 			return false;
 		}
 
-		if (member.Name != newName && MembersInternal.Any(m => m.Name == newName))
+		if (member.Name != newName && Members.ContainsByName(newName))
 		{
 			return false;
 		}
@@ -156,19 +162,6 @@ public class SchemaClass : SchemaChild<ClassName>
 	{
 		Ensure.NotNull(member);
 
-		int currentIndex = MembersInternal.IndexOf(member);
-		if (currentIndex < 0 || newIndex < 0 || newIndex >= MembersInternal.Count)
-		{
-			return false;
-		}
-
-		if (newIndex == currentIndex)
-		{
-			return true;
-		}
-
-		MembersInternal.RemoveAt(currentIndex);
-		MembersInternal.Insert(newIndex, member);
-		return true;
+		return Members.Move(member, newIndex);
 	}
 }

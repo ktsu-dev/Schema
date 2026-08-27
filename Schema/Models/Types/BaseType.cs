@@ -3,6 +3,9 @@
 namespace ktsu.Schema.Models.Types;
 
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
+using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Represents the base type for all schema types.
@@ -28,13 +31,30 @@ using System.Text.Json.Serialization;
 [JsonDerivedType(typeof(ColorRGBA), nameof(ColorRGBA))]
 [JsonDerivedType(typeof(Object), nameof(Object))]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "TypeName")]
-public abstract class BaseType : IEquatable<BaseType?>
+public abstract class BaseType : IEquatable<BaseType?>, ISchemaType
 {
 	/// <summary>
 	/// Gets or sets the parent member of the schema type.
 	/// </summary>
 	[JsonIgnore]
 	public SchemaMember? ParentMember { get; private set; }
+
+	/// <summary>
+	/// Gets the name identifying which type this is.
+	/// </summary>
+	/// <remarks>
+	/// Derived from the CLR type name, which is exactly what the <c>[JsonDerivedType]</c>
+	/// discriminators above are declared as, so this always matches the <c>TypeName</c> written
+	/// to the file. A test asserts that correspondence.
+	/// </remarks>
+	[JsonIgnore]
+	public BaseTypeName TypeName => GetType().Name.As<BaseTypeName>();
+
+	/// <remarks>
+	/// Explicit because the contract exposes the parent as <see cref="ISchemaMember"/> while the
+	/// model exposes the concrete <see cref="SchemaMember"/>; both are the same object.
+	/// </remarks>
+	ISchemaMember? ISchemaType.ParentMember => ParentMember;
 
 	/// <summary>
 	/// Associates this type with a schema member.

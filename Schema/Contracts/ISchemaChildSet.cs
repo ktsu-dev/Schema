@@ -2,41 +2,44 @@
 
 namespace ktsu.Schema.Contracts;
 
-using ktsu.Schema.Contracts.Names;
-
 /// <summary>
-/// Defines a set container for schema child elements with name-based uniqueness.
+/// Defines a name-indexed, order-preserving view over a set of schema child elements.
 /// </summary>
-/// <typeparam name="TValue">The type of schema child elements, must implement ISchemaChild.</typeparam>
-/// <typeparam name="TName">The type of the name used for comparison.</typeparam>
-public interface ISchemaChildSet<TValue, TName> : ISet<TValue>
-	where TValue : class, ISchemaChild<TName>
-	where TName : ISchemaChildName
+/// <remarks>
+/// <para>
+/// <typeparamref name="TValue"/> is covariant so that a set of concrete elements can be consumed
+/// through the contracts: a <c>SchemaChildSet&lt;SchemaClass, ClassName&gt;</c> is an
+/// <c>ISchemaChildSet&lt;ISchemaClass, ClassName&gt;</c>. That rules out the mutating members of
+/// <see cref="ISet{T}"/> — <c>Add</c> would put <typeparamref name="TValue"/> in an input position
+/// and make the interface invariant — so mutation lives on the owning element instead, where it can
+/// also establish parent association. For the same reason the lookup returns its result rather than
+/// using an <see langword="out"/> parameter, which C# treats as an invariant position.
+/// </para>
+/// <para>
+/// <typeparamref name="TName"/> is invariant, so implementations and consumers name the same
+/// concrete name type. Name types are values rather than entities: abstracting a semantic string
+/// behind a further interface buys nothing and is what makes the variance unworkable.
+/// </para>
+/// <para>
+/// Enumeration order is the order elements were added, and is preserved through serialization.
+/// </para>
+/// </remarks>
+/// <typeparam name="TValue">The type of the schema child elements.</typeparam>
+/// <typeparam name="TName">The type of the name used to look elements up.</typeparam>
+public interface ISchemaChildSet<out TValue, in TName> : IReadOnlyCollection<TValue>
+	where TValue : class
 {
 	/// <summary>
-	/// Gets the comparer used for name-based uniqueness comparison.
-	/// </summary>
-	public IEqualityComparer<TName> NameComparer { get; }
-
-	/// <summary>
-	/// Tries to get an element by its name.
+	/// Gets the element with the specified name.
 	/// </summary>
 	/// <param name="name">The name of the element to find.</param>
-	/// <param name="element">The found element, if any.</param>
-	/// <returns>True if an element with the specified name was found, false otherwise.</returns>
-	public bool TryGetByName(TName name, out TValue? element);
+	/// <returns>The element with that name, or <see langword="null"/> if the set contains no such element.</returns>
+	public TValue? GetByName(TName name);
 
 	/// <summary>
 	/// Determines whether the set contains an element with the specified name.
 	/// </summary>
 	/// <param name="name">The name to check for.</param>
-	/// <returns>True if an element with the specified name exists in the set, false otherwise.</returns>
+	/// <returns><see langword="true"/> if an element with that name exists in the set; otherwise, <see langword="false"/>.</returns>
 	public bool ContainsByName(TName name);
-
-	/// <summary>
-	/// Removes an element by its name.
-	/// </summary>
-	/// <param name="name">The name of the element to remove.</param>
-	/// <returns>True if an element with the specified name was found and removed, false otherwise.</returns>
-	public bool RemoveByName(TName name);
 }

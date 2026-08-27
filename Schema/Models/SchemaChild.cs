@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
 using ktsu.Semantics.Strings;
 
@@ -10,7 +11,7 @@ using ktsu.Semantics.Strings;
 /// Represents a child of a schema with a specific name type.
 /// </summary>
 /// <typeparam name="TName">The type of the name.</typeparam>
-public abstract class SchemaChild<TName> : ISchemaElement where TName : SemanticString<TName>, ISchemaChildName, new()
+public abstract class SchemaChild<TName> : ISchemaElement, ISchemaChild<TName> where TName : SemanticString<TName>, ISchemaChildName, new()
 {
 	/// <summary>
 	/// Gets the name of the schema child.
@@ -31,6 +32,12 @@ public abstract class SchemaChild<TName> : ISchemaElement where TName : Semantic
 	/// </summary>
 	[JsonIgnore]
 	public Schema? ParentSchema { get; private set; }
+
+	/// <remarks>
+	/// Explicit because the contract exposes the parent as <see cref="ISchema"/> while the model
+	/// exposes the concrete <see cref="Schema"/>; both are the same object.
+	/// </remarks>
+	ISchema? ISchemaChild<TName>.ParentSchema => ParentSchema;
 
 	/// <summary>
 	/// Returns the name of the schema child as a string.

@@ -28,23 +28,43 @@ dotnet run --project SchemaTool -- generate my.schema.json  # Run a schema's cod
 The type system uses polymorphic JSON serialization with `System.Text.Json`:
 
 ```
-SchemaChild<TName> (base for top-level elements)
+SchemaChild<TName> (base for named elements)
 ├── SchemaClass : SchemaChild<ClassName>
 ├── SchemaEnum : SchemaChild<EnumName>
 ├── DataSource : SchemaChild<DataSourceName>
-└── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
+├── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
+└── SchemaClassChild<TName> : SchemaChild<TName>
+    └── SchemaMember : SchemaClassChild<MemberName>
 
-SchemaMemberChild<TName> (base for member-level elements)
-└── SchemaTypes.BaseType : SchemaMemberChild<BaseTypeName>
-    ├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
-    ├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
-    └── Complex: Array, Object, Enum, None
+BaseType (types, in ktsu.Schema.Models.Types)
+├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
+├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
+└── Complex: Array, Object, Enum, None
 ```
+
+A type is not a named child of the schema: it has no name or description of its own and exists only
+as the type of the member holding it. `BaseType.TypeName` reports which type it is, and is the same
+value written as the file's `TypeName` discriminator.
+
+### Contracts
+
+`ktsu.Schema.Contracts` is the abstraction seam the models implement: `Schema : ISchema`,
+`SchemaClass : ISchemaClass`, `SchemaMember : ISchemaMember`, `SchemaEnum : ISchemaEnum`,
+`BaseType : ISchemaType`. Inject `ISchema` where a consumer only defines and reads schema elements.
+
+Entities are abstracted; values are not. Name types (`ClassName`, `MemberName`, …) and
+`SchemaChildDescription` appear in the contracts as themselves — a semantic string is already an
+abstraction over `string`, and wrapping it again would make `ISchemaChildSet<out TValue, TName>`
+unusable, since a covariant element type cannot coexist with a varying name type.
+
+Collections on the contracts are read-only views (`ISchemaChildSet`). Mutation lives on the owning
+element (`ISchema.AddClass`, `ISchemaClass.AddMember`), which is what enforces name uniqueness and
+establishes parent association.
 
 ### Semantic String Types
 
 The library uses `ktsu.Semantics.Strings` for type-safe identifiers. Convert strings using `.As<T>()`:
-- `ClassName`, `MemberName`, `EnumName`, `EnumValueName`, `BaseTypeName`, `ContainerName`
+- `ClassName`, `MemberName`, `EnumName`, `EnumValueName`, `BaseTypeName`, `ContainerName`, `DataSourceName`, `CodeGeneratorName`
 
 Example: `"User".As<ClassName>()`
 
@@ -54,7 +74,9 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 
 ### Key Files
 
+- `Schema/Contracts/` - The `ISchema` abstraction seam implemented by the models
 - `Schema/Models/Schema.cs` - Root container with CRUD operations for classes/enums
+- `Schema/Models/SchemaChildSet.cs` - Order-preserving, name-unique view owning the uniqueness rule
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`

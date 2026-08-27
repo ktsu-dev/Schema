@@ -8,4 +8,4 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents an enum name as a strong string type.
 /// </summary>
-public sealed record class EnumName : SemanticString<EnumName>, ISchemaEnumName { }
+public sealed record class EnumName : SemanticString<EnumName>, ISchemaRootName { }

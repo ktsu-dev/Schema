@@ -4,13 +4,14 @@ namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using ktsu.Schema.Contracts;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
 /// Represents an enumeration in a schema.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "It's representing a custom enumeration")]
-public class SchemaEnum : SchemaChild<EnumName>
+public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 {
 	/// <summary>
 	/// Gets the internal collection of enumeration values.
@@ -23,20 +24,20 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// Gets the read-only collection of enumeration values.
 	/// </summary>
 	[JsonIgnore]
-	public IReadOnlyCollection<EnumValueName> Values => ValuesInternal;
+	public IReadOnlyList<EnumValueName> Values => ValuesInternal;
 
 	/// <summary>
 	/// Tries to add a new value to the enumeration.
 	/// </summary>
-	/// <param name="enumValueName">The value to add.</param>
+	/// <param name="name">The value to add.</param>
 	/// <returns>True if the value was added; otherwise, false.</returns>
-	/// <exception cref="ArgumentException">Thrown when <paramref name="enumValueName"/> is null or empty.</exception>
-	public bool TryAddValue(EnumValueName enumValueName)
+	/// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is null or empty.</exception>
+	public bool TryAddValue(EnumValueName name)
 	{
-		Ensure.NotNullOrEmpty(enumValueName, nameof(enumValueName));
-		if (!ValuesInternal.Any(v => v == enumValueName))
+		Ensure.NotNullOrEmpty(name, nameof(name));
+		if (!ValuesInternal.Any(v => v == name))
 		{
-			ValuesInternal.Add(enumValueName);
+			ValuesInternal.Add(name);
 			return true;
 		}
 
@@ -46,9 +47,9 @@ public class SchemaEnum : SchemaChild<EnumName>
 	/// <summary>
 	/// Tries to remove a value from the enumeration.
 	/// </summary>
-	/// <param name="enumValueName">The value to remove.</param>
+	/// <param name="name">The value to remove.</param>
 	/// <returns>True if the value was removed; otherwise, false.</returns>
-	public bool TryRemoveValue(EnumValueName enumValueName) => ValuesInternal.Remove(enumValueName);
+	public bool TryRemoveValue(EnumValueName name) => ValuesInternal.Remove(name);
 
 	/// <summary>
 	/// Renames a value, keeping its position in the enumeration.
