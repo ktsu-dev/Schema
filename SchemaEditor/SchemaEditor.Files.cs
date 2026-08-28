@@ -42,11 +42,9 @@ public partial class SchemaEditor
 	/// of the application menu bar.
 	/// </summary>
 	/// <remarks>
-	/// This is where the window title would normally carry the document name and a dirty marker.
-	/// <c>ImGuiAppConfig.Title</c> is init-only and ImGuiApp reads it once when it creates the
-	/// window, and the window itself is internal to that package, so the title cannot be changed
-	/// after startup from here. The menu bar is always visible, so the same information lives
-	/// there instead.
+	/// The window title carries the same information (see <see cref="UpdateWindowTitle"/>). This is
+	/// kept as well as, not instead of: a maximised window's title bar is easy to overlook, and on a
+	/// tiling window manager it may not be drawn at all.
 	/// </remarks>
 	private void ShowDocumentStatus()
 	{
@@ -101,7 +99,11 @@ public partial class SchemaEditor
 	/// unsaved changes.
 	/// </summary>
 	/// <param name="proceed">What to do once it is safe to discard the document.</param>
-	private void WithUnsavedChangesGuard(Action proceed)
+	/// <param name="onCancel">
+	/// Run if the user backs out. Only the close path needs this, to release the latch that stops a
+	/// second prompt stacking on the first; New and Open simply do nothing.
+	/// </param>
+	private void WithUnsavedChangesGuard(Action proceed, Action? onCancel = null)
 	{
 		if (!HasUnsavedChanges)
 		{
@@ -116,7 +118,7 @@ public partial class SchemaEditor
 			{
 				["Save"] = () => SaveThen(proceed),
 				["Discard"] = proceed,
-				["Cancel"] = null,
+				["Cancel"] = onCancel,
 			});
 	}
 
@@ -224,17 +226,83 @@ public partial class SchemaEditor
 		return true;
 	}
 
+	/// <summary>Set once the user has agreed to exit, so the confirmed exit is not vetoed again.</summary>
+	private bool exitConfirmed;
+
+	/// <summary>Set by <see cref="ShouldClose"/> so the prompt is raised from the render loop.</summary>
+	private bool closeRequested;
+
+	/// <summary>Set while the close prompt is on screen, so a second close cannot stack another.</summary>
+	private bool closePromptShowing;
+
 	/// <summary>
-	/// Quits, asking about unsaved changes first.
+	/// Consulted by ImGuiApp before the window closes; returning false keeps the application running.
 	/// </summary>
 	/// <remarks>
-	/// ImGuiApp exposes no cancellable close hook, so clicking the window's own close button
-	/// cannot be intercepted from here. This menu item is the route out that can ask first.
+	/// <para>
+	/// The prompt cannot be drawn from here - this returns before the next frame is rendered - so a
+	/// close with unsaved work only records the request and refuses. <see cref="ProcessCloseRequest"/>
+	/// raises the prompt on the next frame, and <see cref="ConfirmExit"/> closes for real.
+	/// </para>
+	/// <para>
+	/// This also fires for <see cref="ImGuiApp.Stop"/>, which is how the confirmed exit closes, so
+	/// without <see cref="exitConfirmed"/> the application would veto its own agreed exit forever:
+	/// discarding does not clear the unsaved flag, so the condition that refused the first close is
+	/// still true when the user has said to close anyway.
+	/// </para>
 	/// </remarks>
-	private void ExitWithUnsavedChangesGuard() =>
-		WithUnsavedChangesGuard(() =>
+	/// <returns>True to let the close proceed; false to cancel it.</returns>
+	internal bool ShouldClose()
+	{
+		if (exitConfirmed || !HasUnsavedChanges)
 		{
 			SaveOptionsInternal();
-			ImGuiApp.Stop();
-		});
+			return true;
+		}
+
+		closeRequested = true;
+		return false;
+	}
+
+	/// <summary>
+	/// Raises the unsaved-changes prompt for a close that <see cref="ShouldClose"/> refused.
+	/// </summary>
+	private void ProcessCloseRequest()
+	{
+		if (!closeRequested || closePromptShowing)
+		{
+			return;
+		}
+
+		closeRequested = false;
+		closePromptShowing = true;
+		WithUnsavedChangesGuard(ConfirmExit, () => closePromptShowing = false);
+	}
+
+	/// <summary>
+	/// Closes for real, once there is nothing left to ask about.
+	/// </summary>
+	private void ConfirmExit()
+	{
+		exitConfirmed = true;
+		SaveOptionsInternal();
+		ImGuiApp.Stop();
+	}
+
+	/// <summary>
+	/// Quits from the File menu, asking about unsaved changes first.
+	/// </summary>
+	private void ExitWithUnsavedChangesGuard() => WithUnsavedChangesGuard(ConfirmExit);
+
+	/// <summary>
+	/// Keeps the window title showing the open document and whether it has unsaved changes.
+	/// </summary>
+	/// <remarks>
+	/// Called every frame. <c>SetWindowTitle</c> skips the write when the title is unchanged, so
+	/// this costs a string comparison per frame rather than a window call.
+	/// </remarks>
+	private void UpdateWindowTitle() =>
+		ImGuiApp.SetWindowTitle(CurrentSchema is null
+			? nameof(SchemaEditor)
+			: $"{DocumentName}{(HasUnsavedChanges ? "*" : string.Empty)} - {nameof(SchemaEditor)}");
 }
