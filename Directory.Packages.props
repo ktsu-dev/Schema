@@ -23,7 +23,7 @@
     <PackageVersion Include="ktsu.ImGuiNodeEditor" Version="3.15.0" />
     <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.16.45" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.400" />
     <PackageVersion Include="Polyfill" Version="11.2.0" />
