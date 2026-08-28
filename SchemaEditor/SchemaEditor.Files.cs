@@ -301,8 +301,15 @@ public partial class SchemaEditor
 	/// Called every frame. <c>SetWindowTitle</c> skips the write when the title is unchanged, so
 	/// this costs a string comparison per frame rather than a window call.
 	/// </remarks>
-	private void UpdateWindowTitle() =>
-		ImGuiApp.SetWindowTitle(CurrentSchema is null
-			? nameof(SchemaEditor)
-			: $"{DocumentName}{(HasUnsavedChanges ? "*" : string.Empty)} - {nameof(SchemaEditor)}");
+	private void UpdateWindowTitle()
+	{
+		if (CurrentSchema is null)
+		{
+			ImGuiApp.SetWindowTitle(nameof(SchemaEditor));
+			return;
+		}
+
+		string unsavedMarker = HasUnsavedChanges ? "*" : string.Empty;
+		ImGuiApp.SetWindowTitle($"{DocumentName}{unsavedMarker} - {nameof(SchemaEditor)}");
+	}
 }
