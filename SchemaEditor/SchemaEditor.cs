@@ -9,7 +9,6 @@ using System.Diagnostics;
 
 using Hexa.NET.ImGui;
 
-using ktsu.ImGui.App;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.IntervalAction;
@@ -46,21 +45,6 @@ public partial class SchemaEditor
 
 	// Tab content delegates are parameterless, so the current frame's delta is stashed here for them.
 	private float currentDeltaTime;
-
-	private static void Main(string[] _)
-	{
-		// ImGuiAppConfig.Title is init-only and ImGuiApp reads it once, when it creates the
-		// window, so this is the only chance to set it. The open document and its unsaved state
-		// are shown in the menu bar instead - see ShowDocumentStatus.
-		ImGuiApp.Start(new()
-		{
-			Title = nameof(SchemaEditor),
-			OnStart = OnStart,
-			OnUpdate = Instance.OnTick,
-			OnRender = Instance.OnRender,
-			OnAppMenu = Instance.OnMenu
-		});
-	}
 
 	public SchemaEditor()
 	{
@@ -119,7 +103,7 @@ public partial class SchemaEditor
 		}
 	}
 
-	private static void OnStart()
+	internal static void OnStart()
 	{
 		// Set up initial window state if needed
 		// Note: Window state handling may need to be implemented differently
@@ -175,10 +159,12 @@ public partial class SchemaEditor
 		RequestValidation();
 	}
 
-	private void OnTick(float dt)
+	internal void OnTick(float dt)
 	{
 		ProcessKeyboardShortcuts();
 		UpdateValidation(dt);
+		UpdateWindowTitle();
+		ProcessCloseRequest();
 	}
 
 	private void ProcessKeyboardShortcuts()
@@ -225,7 +211,7 @@ public partial class SchemaEditor
 		}
 	}
 
-	private void OnRender(float dt)
+	internal void OnRender(float dt)
 	{
 		// Stashed for the parameterless tab content delegates (the Class Graph needs the frame delta).
 		currentDeltaTime = dt;
@@ -263,7 +249,7 @@ public partial class SchemaEditor
 		}
 	}
 
-	private void OnMenu()
+	internal void OnMenu()
 	{
 		ShowFileMenu();
 		ShowEditMenu();

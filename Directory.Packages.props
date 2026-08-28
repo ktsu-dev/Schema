@@ -17,7 +17,7 @@
     <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.47" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="3.2.0" />
     <PackageVersion Include="ktsu.Semantics.Paths" Version="3.2.0" />
-    <PackageVersion Include="ktsu.ImGui.App" Version="3.15.0" />
+    <PackageVersion Include="ktsu.ImGui.App" Version="3.16.0" />
     <PackageVersion Include="ktsu.ImGui.Popups" Version="3.15.0" />
     <PackageVersion Include="ktsu.ImGui.Widgets" Version="3.15.0" />
     <PackageVersion Include="ktsu.ImGuiNodeEditor" Version="3.15.0" />
