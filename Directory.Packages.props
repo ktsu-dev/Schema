@@ -20,6 +20,7 @@
     <PackageVersion Include="ktsu.ImGui.App" Version="3.16.6" />
     <PackageVersion Include="ktsu.ImGui.App.Testing" Version="3.16.6" />
     <PackageVersion Include="ktsu.ImGui.Popups" Version="3.16.6" />
+    <PackageVersion Include="ktsu.ImGui.Probes" Version="3.16.6" />
     <PackageVersion Include="ktsu.ImGui.Widgets" Version="3.16.6" />
     <PackageVersion Include="ktsu.ImGuiNodeEditor" Version="3.16.6" />
     <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />

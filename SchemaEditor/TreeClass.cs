@@ -6,6 +6,7 @@ using System.Diagnostics;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
@@ -45,18 +46,28 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 				{
 					SchemaClass captured = x;
 
-					if (ImGui.Selectable($"Rename {captured.Name}"))
+					bool renameChosen = ImGui.Selectable($"Rename {captured.Name}");
+					ImGuiProbes.MarkItem($"Rename{captured.Name}");
+					if (renameChosen)
 					{
 						schemaEditor.PromptRename("class", captured.Name,
 							newName => schema.TryRenameClass(captured, newName.As<ClassName>()));
 					}
 
-					if (ImGui.Selectable($"Delete {captured.Name}"))
+					bool deleteChosen = ImGui.Selectable($"Delete {captured.Name}");
+					ImGuiProbes.MarkItem($"Delete{captured.Name}");
+					if (deleteChosen)
 					{
+						// Restored where it was rather than appended; see DeleteMember in the panel.
+						int index = schema.ClassSet.IndexOf(captured);
 						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Class '{captured.Name}'",
 							() => captured.TryRemove(),
-							() => schema.RestoreClass(captured),
+							() =>
+							{
+								schema.RestoreClass(captured);
+								schema.ClassSet.Move(captured, index);
+							},
 							ChangeType.Delete));
 					}
 				},
@@ -69,6 +80,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 		SchemaChildSet<SchemaMember, MemberName> children = schemaClass.Members;
 
 		ImGui.PushID(schemaClass.Name);
+		ImGuiProbes.PushScope(schemaClass.Name);
 		ButtonTree<SchemaMember>.ShowTree(schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()
 		{
 			GetText = (x) => x.Name,
@@ -89,22 +101,33 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			{
 				SchemaMember captured = x;
 
-				if (ImGui.Selectable($"Rename {captured.Name}"))
+				bool renameChosen = ImGui.Selectable($"Rename {captured.Name}");
+				ImGuiProbes.MarkItem($"Rename{captured.Name}");
+				if (renameChosen)
 				{
 					schemaEditor.PromptRename("member", captured.Name,
 						newName => schemaClass.TryRenameMember(captured, newName.As<MemberName>()));
 				}
 
-				if (ImGui.Selectable($"Delete {captured.Name}"))
+				bool deleteChosen = ImGui.Selectable($"Delete {captured.Name}");
+				ImGuiProbes.MarkItem($"Delete{captured.Name}");
+				if (deleteChosen)
 				{
+					// Restored where it was rather than appended; see DeleteMember in the panel.
+					int index = schemaClass.IndexOfMember(captured);
 					schemaEditor.Execute(new DelegateCommand(
 						$"Delete Member '{captured.Name}'",
 						() => captured.TryRemove(),
-						() => schemaClass.RestoreMember(captured),
+						() =>
+						{
+							schemaClass.RestoreMember(captured);
+							schemaClass.TryMoveMember(captured, index);
+						},
 						ChangeType.Delete));
 				}
 			},
 		}, parent);
+		ImGuiProbes.PopScope();
 		ImGui.PopID();
 	}
 
@@ -112,7 +135,9 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 	{
 		using (Button.Alignment.Left())
 		{
-			if (ImGui.Button("+ New Class"))
+			bool clicked = ImGui.Button("+ New Class");
+			ImGuiProbes.MarkItem("NewClass");
+			if (clicked)
 			{
 				Popups.OpenInputString("Input", "New Class Name", string.Empty, (newName) =>
 				{
@@ -150,7 +175,9 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 	{
 		using (Button.Alignment.Left())
 		{
-			if (ImGui.Button("+ New Member"))
+			bool clicked = ImGui.Button("+ New Member");
+			ImGuiProbes.MarkItem("NewMember");
+			if (clicked)
 			{
 				Popups.OpenInputString("Input", "New Member Name", string.Empty, (newName) =>
 				{

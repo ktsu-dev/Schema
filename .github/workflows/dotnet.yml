@@ -364,16 +364,13 @@ jobs:
             '/d:sonar.host.url=https://sonarcloud.io'
             '/d:sonar.projectBaseDir=${{ github.workspace }}'
             '/d:sonar.cs.vscoveragexml.reportsPaths=coverage/**/coverage.xml'
-            # The editor's panel and tree files are excluded from COVERAGE only - they are still
-            # analysed for bugs, smells and security. They are pure immediate-mode draw code:
-            # a Show() method that reads a value, draws a widget and acts on what the widget
-            # reports, with nothing to assert that is not a pixel. SchemaEditor.Test now drives the
-            # rest of the editor headlessly, so the rest is measured; this list is what that
-            # harness does not yet reach, not the whole application.
-            # SchemaEditor/Program.cs is the one file here excluded because it cannot be executed
-            # rather than because nobody has yet: it holds only Main, which opens a window and does
-            # not return. What the host is configured with lives in EditorHost.cs, which is tested.
-            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/Program.cs,SchemaEditor/ButtonTree.cs,SchemaEditor/ClassGraphView.cs,SchemaEditor/CodeGeneratorPanel.cs,SchemaEditor/SchemaEditor.Panels.cs,SchemaEditor/Tree*.cs'
+            # Nothing in the editor is excluded from coverage any more except its entry point.
+            # SchemaEditor.Test drives the panels, the trees and the class graph headlessly, so the
+            # draw code that used to be unmeasurable now runs in the suite. SchemaEditor/Program.cs
+            # stays out because it cannot be executed rather than because nobody has yet: it holds
+            # only Main, which opens a window and does not return. What the host is configured with
+            # lives in EditorHost.cs, which is tested.
+            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/Program.cs'
             '/d:sonar.cs.vstest.reportsPaths=coverage/**/*.trx'
             '/d:sonar.exclusions=**/NativeExports.cs'
           )

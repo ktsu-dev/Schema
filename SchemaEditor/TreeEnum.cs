@@ -4,6 +4,7 @@ namespace ktsu.SchemaEditor;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
@@ -43,18 +44,28 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 				{
 					SchemaEnum captured = x;
 
-					if (ImGui.Selectable($"Rename {captured.Name}"))
+					bool renameChosen = ImGui.Selectable($"Rename {captured.Name}");
+					ImGuiProbes.MarkItem($"Rename{captured.Name}");
+					if (renameChosen)
 					{
 						schemaEditor.PromptRename("enum", captured.Name,
 							newName => schema.TryRenameEnum(captured, newName.As<EnumName>()));
 					}
 
-					if (ImGui.Selectable($"Delete {captured.Name}"))
+					bool deleteChosen = ImGui.Selectable($"Delete {captured.Name}");
+					ImGuiProbes.MarkItem($"Delete{captured.Name}");
+					if (deleteChosen)
 					{
+						// Restored where it was rather than appended; see DeleteMember in the panel.
+						int index = schema.EnumSet.IndexOf(captured);
 						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Enum '{captured.Name}'",
 							() => captured.TryRemove(),
-							() => schema.RestoreEnum(captured),
+							() =>
+							{
+								schema.RestoreEnum(captured);
+								schema.EnumSet.Move(captured, index);
+							},
 							ChangeType.Delete));
 					}
 				},
@@ -102,7 +113,9 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 	{
 		using (Button.Alignment.Left())
 		{
-			if (ImGui.Button("+ New Enum"))
+			bool clicked = ImGui.Button("+ New Enum");
+			ImGuiProbes.MarkItem("NewEnum");
+			if (clicked)
 			{
 				Popups.OpenInputString("Input", "New Enum Name", string.Empty, (newName) =>
 				{
@@ -138,7 +151,9 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 	{
 		using (Button.Alignment.Left())
 		{
-			if (ImGui.Button($"+ New Value##addEnumValue{schemaEnum.Name}"))
+			bool clicked = ImGui.Button($"+ New Value##addEnumValue{schemaEnum.Name}");
+			ImGuiProbes.MarkItem("NewValue");
+			if (clicked)
 			{
 				Popups.OpenInputString("Input", "New Enum Value", string.Empty, (newValue) =>
 				{

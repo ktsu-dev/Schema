@@ -7,6 +7,7 @@ using System;
 using Hexa.NET.ImGui;
 
 using ktsu.Extensions;
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.Schema.Models;
@@ -117,6 +118,13 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 						: Palette.Semantic.Warning))
 				{
 					ImGui.Button($"{buttonText}##Btn{itemId}", new(SchemaEditor.FieldWidth, 0));
+
+					// Every tree row in the editor is drawn here, so marking it here is what lets a
+					// test address any of them - a class, a member, an enum value, a data source -
+					// by name rather than by pixel position. Marking costs nothing when no probe is
+					// installed, which is every run that is not a test.
+					ImGuiProbes.MarkItem($"Btn{itemId}");
+
 					if (ImGui.IsItemClicked())
 					{
 						if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))

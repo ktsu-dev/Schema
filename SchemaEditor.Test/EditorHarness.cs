@@ -84,6 +84,50 @@ internal sealed class EditorHarness : IDisposable
 		}
 	}
 
+	/// <summary>
+	/// Waits for a marked item to be drawn, then clicks it.
+	/// </summary>
+	/// <remarks>
+	/// The frames between the item first appearing and the click are not padding. A modal sizes
+	/// itself from its contents on the frame it appears and is centred on the next, so the
+	/// rectangle recorded for a control on its first frame is not where that control ends up;
+	/// clicking there hits the background instead.
+	/// </remarks>
+	/// <param name="item">A marked name, or the trailing part of one.</param>
+	internal void Click(string item)
+	{
+		StepUntil(() => App.Probe.Matches(item).Count > 0, $"'{item}' appearing");
+		App.Step(3);
+		App.Click(item);
+		App.Step(2);
+	}
+
+	/// <summary>
+	/// Right-clicks a marked item, which is how the tree opens an item's context menu.
+	/// </summary>
+	/// <param name="item">A marked name, or the trailing part of one.</param>
+	internal void RightClick(string item)
+	{
+		StepUntil(() => App.Probe.Matches(item).Count > 0, $"'{item}' appearing");
+		App.Step(3);
+
+		Rectangle rect = App.Probe.Rect(item) ?? throw new AssertFailedException($"'{item}' was not recorded.");
+		App.Mouse.Click((rect.MinX + rect.MaxX) * 0.5f, (rect.MinY + rect.MaxY) * 0.5f, 1);
+		App.Step(3);
+	}
+
+	/// <summary>
+	/// Types a value into a marked text field, replacing whatever it holds.
+	/// </summary>
+	/// <param name="field">A marked name, or the trailing part of one.</param>
+	/// <param name="text">The text to leave in the field.</param>
+	internal void TypeInto(string field, string text)
+	{
+		Click(field);
+		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.A, ctrl: true);
+		App.Keyboard.Type(text);
+	}
+
 	public void Dispose()
 	{
 		if (disposed)
