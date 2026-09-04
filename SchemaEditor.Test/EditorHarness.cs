@@ -55,13 +55,25 @@ internal sealed class EditorHarness : IDisposable
 	/// Starts an editor with empty settings and advances the frames it needs to be drawing.
 	/// </summary>
 	/// <returns>The running harness. Dispose it to release the ImGui context.</returns>
-	internal static EditorHarness Start()
+	internal static EditorHarness Start() => Start(new HarnessOptions());
+
+	/// <summary>
+	/// Starts an editor at a chosen display size.
+	/// </summary>
+	/// <remarks>
+	/// Size matters to more than layout: the editor derives its field and column widths from the
+	/// display width, so a narrow window is what puts a long label past the width its column
+	/// gives it.
+	/// </remarks>
+	/// <param name="options">Determinism settings, including the display size.</param>
+	/// <returns>The running harness. Dispose it to release the ImGui context.</returns>
+	internal static EditorHarness Start(HarnessOptions options)
 	{
 		// Must precede the constructor: it is the constructor that loads the settings.
 		ktsu.AppDataStorage.AppData.ConfigureForTesting(() => new MockFileSystem());
 
 		SchemaEditor editor = new();
-		ImGuiAppHarness app = ImGuiAppHarness.Start(EditorHost.CreateConfig(editor), new HarnessOptions());
+		ImGuiAppHarness app = ImGuiAppHarness.Start(EditorHost.CreateConfig(editor), options);
 
 		// The first frame builds the font atlas and lays the panels out; nothing is measurable
 		// before it has run.

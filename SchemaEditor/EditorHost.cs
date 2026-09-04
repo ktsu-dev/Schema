@@ -36,7 +36,7 @@ internal static class EditorHost
 			// The startup title only; SchemaEditor keeps it current from there, showing the open
 			// document and whether it has unsaved changes.
 			Title = nameof(SchemaEditor),
-			OnStart = SchemaEditor.OnStart,
+			OnStart = editor.OnStart,
 			OnUpdate = editor.OnTick,
 			OnRender = editor.OnRender,
 			OnAppMenu = editor.OnMenu,

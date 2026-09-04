@@ -26,6 +26,15 @@ internal sealed class AppData : AppData<AppData>
 	public Popups Popups { get; set; } = new();
 
 	/// <summary>
+	/// Gets or sets the name of the ktsu.ThemeProvider theme to apply, or empty for the default.
+	/// </summary>
+	/// <remarks>
+	/// Stored by name rather than as colours so a theme that is revised upstream is picked up
+	/// rather than frozen at whatever it looked like when the setting was written.
+	/// </remarks>
+	public string ThemeName { get; set; } = string.Empty;
+
+	/// <summary>
 	/// Gets or sets the most recently opened schema files, newest first.
 	/// </summary>
 	/// <remarks>

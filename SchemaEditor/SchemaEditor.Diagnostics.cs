@@ -9,7 +9,6 @@ using System.Linq;
 
 using Hexa.NET.ImGui;
 
-using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 
 /// <summary>
@@ -81,7 +80,7 @@ public partial class SchemaEditor
 		int warnings = WarningCount;
 
 		ImGui.Separator();
-		using (Theme.FromColor(errors > 0 ? Palette.Semantic.Error : Palette.Semantic.Warning))
+		using (EditorTheme.Severity(errors > 0 ? SchemaValidationSeverity.Error : SchemaValidationSeverity.Warning))
 		{
 			ImGui.TextUnformatted(FormatSummary(errors, warnings));
 		}
@@ -122,7 +121,7 @@ public partial class SchemaEditor
 	{
 		bool isError = issue.Severity == SchemaValidationSeverity.Error;
 
-		using (Theme.FromColor(isError ? Palette.Semantic.Error : Palette.Semantic.Warning))
+		using (EditorTheme.Severity(issue.Severity))
 		{
 			ImGui.TextUnformatted(isError ? "Error" : "Warning");
 		}

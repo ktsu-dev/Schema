@@ -9,7 +9,6 @@ using System.Diagnostics;
 
 using Hexa.NET.ImGui;
 
-using ktsu.ImGui.Styler;
 using ktsu.ImGui.Widgets;
 using ktsu.IntervalAction;
 using ktsu.Schema.Models;
@@ -103,11 +102,22 @@ public partial class SchemaEditor
 		}
 	}
 
-	internal static void OnStart()
+	/// <summary>
+	/// Applies the saved theme once ImGui exists to receive it.
+	/// </summary>
+	/// <remarks>
+	/// A theme has to be applied here rather than in the constructor: it writes ImGui's style
+	/// colours, and there is no ImGui context until the application has started.
+	/// </remarks>
+	internal void OnStart() => EditorTheme.Apply(Options.ThemeName);
+
+	/// <summary>
+	/// Notes a theme the user chose, so it is there again next time.
+	/// </summary>
+	private void RecordThemeChoice()
 	{
-		// Set up initial window state if needed
-		// Note: Window state handling may need to be implemented differently
-		// with the current version of ImGuiApp
+		Options.ThemeName = EditorTheme.CurrentName;
+		QueueSaveOptions();
 	}
 
 	private void DividerResized(ImGuiWidgets.DividerContainer container)
@@ -215,10 +225,18 @@ public partial class SchemaEditor
 	{
 		// Stashed for the parameterless tab content delegates (the Class Graph needs the frame delta).
 		currentDeltaTime = dt;
-		using (Theme.FromColor(Palette.Semantic.Primary))
+
+		// No theme colour is pushed around the whole application. Theme.FromColor is a scoped
+		// colour for one widget - it is what marks an element that has an error or a warning - and
+		// wrapping every frame in the primary colour tinted the entire interface with it, leaving
+		// an ordinary button indistinguishable from an emphasised one. The application-wide look
+		// belongs to the ktsu.ThemeProvider theme applied in OnStart.
+		DividerContainerCols.Tick(dt);
+		Popups.Update();
+
+		if (EditorTheme.ShowBrowser())
 		{
-			DividerContainerCols.Tick(dt);
-			Popups.Update();
+			RecordThemeChoice();
 		}
 	}
 
@@ -253,6 +271,12 @@ public partial class SchemaEditor
 	{
 		ShowFileMenu();
 		ShowEditMenu();
+
+		if (EditorTheme.ShowMenu())
+		{
+			RecordThemeChoice();
+		}
+
 		ShowDocumentStatus();
 	}
 
@@ -378,7 +402,7 @@ public partial class SchemaEditor
 
 		if (string.IsNullOrEmpty(CurrentSchemaPath))
 		{
-			using (Theme.FromColor(Palette.Semantic.Error))
+			using (EditorTheme.Error())
 			{
 				ImGui.TextUnformatted("Schema has not been saved. Save it before configuring relative paths.");
 

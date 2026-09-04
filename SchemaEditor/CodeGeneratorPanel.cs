@@ -6,7 +6,6 @@ using System.Numerics;
 
 using Hexa.NET.ImGui;
 
-using ktsu.ImGui.Styler;
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
@@ -129,7 +128,7 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 	{
 		if (!schema.CanResolvePaths)
 		{
-			using (Theme.FromColor(Palette.Semantic.Warning))
+			using (EditorTheme.Warning())
 			{
 				ImGui.TextUnformatted("Save the schema before generating: output paths are relative to it.");
 			}

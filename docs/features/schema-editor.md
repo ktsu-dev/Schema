@@ -62,6 +62,17 @@ The layout is split into two resizable panels. Panel sizes are persisted across 
 - **Save** - Saves the current schema (prompts for location if unsaved)
 - **Open Externally** - Opens the schema file's directory in the system file explorer
 
+### Theme Menu
+
+Opens a browser of the themes ktsu.ThemeProvider registers - Catppuccin, Dracula, Everforest,
+Gruvbox, Kanagawa, Monokai, Nord, One Dark, Tokyo Night, VSCode and others, in dark and light
+variants. The editor starts on VSCode Dark, and the choice is remembered by name so a theme revised
+upstream is picked up rather than frozen at whatever it looked like when the setting was written.
+
+Colour carries meaning elsewhere in the editor, so the theme deliberately does not: an element with
+a validation error or warning is tinted, and everything else takes the theme's own colours. Marking
+every widget would leave nothing for the marking to stand out against.
+
 ### Left Panel - Schema Tree
 
 The left panel shows four collapsible tree sections:
@@ -117,6 +128,8 @@ The editor automatically persists:
 - Last selected class
 - Panel divider positions
 - Tree node expand/collapse state
+- Recently opened files
+- The selected theme
 
 These settings are stored via `ktsu.AppDataStorage` and restored on next launch.
 
