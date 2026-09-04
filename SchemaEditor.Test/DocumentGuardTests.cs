@@ -32,7 +32,8 @@ public sealed class DocumentGuardTests
 		harness = EditorHarness.Start();
 
 		// A real directory, not the in-memory one: SchemaFile saves through System.IO directly.
-		scratchDirectory = Path.Combine(Path.GetTempPath(), $"schema-editor-tests-{Guid.NewGuid():N}");
+		string scratchDirectoryName = $"schema-editor-tests-{Guid.NewGuid():N}";
+		scratchDirectory = Path.Combine(Path.GetTempPath(), Path.GetFileName(scratchDirectoryName));
 		Directory.CreateDirectory(scratchDirectory);
 	}
 
@@ -51,8 +52,18 @@ public sealed class DocumentGuardTests
 		}
 	}
 
+	/// <summary>
+	/// A path inside this test's scratch directory.
+	/// </summary>
+	/// <remarks>
+	/// The name is reduced to its leaf first. <see cref="Path.Combine(string, string)"/> discards
+	/// everything before a rooted segment, so combining an unreduced name would put the file
+	/// somewhere other than the scratch directory - and so outside what <see cref="StopEditor"/>
+	/// deletes.
+	/// </remarks>
+	/// <param name="name">The file name, which must be a leaf.</param>
 	private AbsoluteFilePath ScratchFile(string name) =>
-		Path.Combine(scratchDirectory, name).As<AbsoluteFilePath>();
+		Path.Combine(scratchDirectory, Path.GetFileName(name)).As<AbsoluteFilePath>();
 
 	/// <summary>
 	/// Opens a document and makes an edit through the undo service, which is what
@@ -197,7 +208,7 @@ public sealed class DocumentGuardTests
 		// A path whose parent is an existing file rather than a directory cannot be created.
 		AbsoluteFilePath blocker = ScratchFile("blocker");
 		File.WriteAllText(blocker, "not a directory");
-		harness.Editor.CurrentSchemaPath = Path.Combine(blocker, "nested.schema.json").As<AbsoluteFilePath>();
+		harness.Editor.CurrentSchemaPath = Path.Combine(blocker.ToString(), "nested.schema.json").As<AbsoluteFilePath>();
 
 		bool proceeded = false;
 		harness.Editor.SaveThen(() => proceeded = true);
