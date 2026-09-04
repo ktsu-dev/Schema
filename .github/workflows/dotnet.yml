@@ -364,12 +364,13 @@ jobs:
             '/d:sonar.host.url=https://sonarcloud.io'
             '/d:sonar.projectBaseDir=${{ github.workspace }}'
             '/d:sonar.cs.vscoveragexml.reportsPaths=coverage/**/coverage.xml'
-            # SchemaEditor is excluded from COVERAGE only - it is still analysed for bugs, smells
-            # and security. It is an ImGui application: its code is immediate-mode draw calls that
-            # need a live UI context to execute, so line coverage there cannot be earned without a
-            # UI test harness, tracked separately. Measuring it would only ever report the absence
-            # of a harness. The library, which is what consumers depend on, stays fully measured.
-            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/**/*.cs'
+            # The editor's panel and tree files are excluded from COVERAGE only - they are still
+            # analysed for bugs, smells and security. They are pure immediate-mode draw code:
+            # a Show() method that reads a value, draws a widget and acts on what the widget
+            # reports, with nothing to assert that is not a pixel. SchemaEditor.Test now drives the
+            # rest of the editor headlessly, so the rest is measured; this list is what that
+            # harness does not yet reach, not the whole application.
+            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/ButtonTree.cs,SchemaEditor/ClassGraphView.cs,SchemaEditor/CodeGeneratorPanel.cs,SchemaEditor/SchemaEditor.Panels.cs,SchemaEditor/Tree*.cs'
             '/d:sonar.cs.vstest.reportsPaths=coverage/**/*.trx'
             '/d:sonar.exclusions=**/NativeExports.cs'
           )

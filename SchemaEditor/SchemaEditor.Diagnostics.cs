@@ -25,7 +25,7 @@ public partial class SchemaEditor
 	/// frame budget on a schema that has not changed. Debouncing also means a burst of edits -
 	/// deleting a class, then its data source - validates once rather than once per edit.
 	/// </remarks>
-	private const float ValidationDebounceSeconds = 0.35f;
+	internal const float ValidationDebounceSeconds = 0.35f;
 
 	private bool validationPending;
 	private float timeSinceValidationRequested;
@@ -48,7 +48,7 @@ public partial class SchemaEditor
 		timeSinceValidationRequested = 0f;
 	}
 
-	private void UpdateValidation(float dt)
+	internal void UpdateValidation(float dt)
 	{
 		if (!validationPending)
 		{
@@ -149,7 +149,7 @@ public partial class SchemaEditor
 	/// unambiguously split when a name contains a dot. A member selects its owning class, because
 	/// that is the panel its row is drawn in.
 	/// </remarks>
-	private void NavigateTo(SchemaValidationIssue issue)
+	internal void NavigateTo(SchemaValidationIssue issue)
 	{
 		switch (issue.Element)
 		{

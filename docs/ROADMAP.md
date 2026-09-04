@@ -38,6 +38,9 @@ time. For what the library actually does, the tests in
   recent-files list.
 - **CLI** — `SchemaTool` validates a schema or runs its code generators, exiting non-zero on
   errors so it can gate a build.
+- **Editor tests** — `SchemaEditor.Test` drives the editor headlessly through
+  `ktsu.ImGui.App.Testing`, which rasterizes in software and injects input straight into ImGui, so
+  the editor's real draw code runs on a continuous integration runner with no window or display.
 - **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL, NuGet
   publishing and winget manifest updates; Dependabot with auto-merge.
 
@@ -49,10 +52,8 @@ substantial items:
 | Issue | Work | Why it is not done |
 | --- | --- | --- |
 | [#110](https://github.com/ktsu-dev/Schema/issues/110) | Implement or delete the unused `Schema.Contracts` API | Needs a decision from the project owner; deleting is a breaking change |
-| [#116](https://github.com/ktsu-dev/Schema/issues/116) | Editor window title and close prompt | Blocked by `ktsu.ImGui.App`: `Title` is init-only and there is no cancellable close hook |
 | [#126](https://github.com/ktsu-dev/Schema/issues/126) | Generated data editors | Builds on the generator architecture |
 | [#127](https://github.com/ktsu-dev/Schema/issues/127) | Generated data migrations | Needs a schema diff, which does not exist yet |
-| [#128](https://github.com/ktsu-dev/Schema/issues/128) | A test harness for the editor | The editor has never had tests; its code needs a live ImGui context to run |
 
 ## Phase status
 
@@ -66,16 +67,17 @@ build blocker that made the repository unbuildable on a current SDK
 ([#123](https://github.com/ktsu-dev/Schema/issues/123)) is fixed, and the test suite now runs
 against every published target framework rather than just the newest.
 
-### Phase 2 — Editor completeness — **done except two window behaviours**
+### Phase 2 — Editor completeness — **done**
 
 Renaming, descriptions, the code generator panel, member reordering, validation surfacing, undo
 coverage, Save As, dirty tracking and recent files have landed. Cross-platform "Open Externally"
 is fixed.
 
-Outstanding: the window title cannot reflect the open document and the window's close button
-cannot prompt to save, because `ktsu.ImGui.App` exposes neither a settable title nor a cancellable
-close hook. The document name, dirty marker and a guarded Exit item live in the menu bar instead.
-Both would be small upstream changes to that package.
+The window title and the close prompt ([#116](https://github.com/ktsu-dev/Schema/issues/116)) were
+blocked on `ktsu.ImGui.App` exposing neither a settable title nor a cancellable close hook; both
+landed upstream, and the editor now keeps its title current and refuses a close that would discard
+unsaved work. The document name and dirty marker are still drawn in the menu bar as well, because a
+maximised title bar is easy to overlook and a tiling window manager may not draw one at all.
 
 ### Phase 3 — Code generation — **done, less the deferred targets**
 
@@ -98,16 +100,25 @@ The `.schema.json` format is documented and versioned with a stated compatibilit
 
 Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
 
+### Phase 6 — Test coverage — **the editor is now testable**
+
+Not one of the original phases; added when the editor grew large enough to need one.
+
+`SchemaEditor.Test` ([#128](https://github.com/ktsu-dev/Schema/issues/128)) drives the editor
+headlessly and covers the recent-files list, the commit-once text field, the unsaved-changes guard
+and the save-then-continue sequence, and validation debouncing and click-to-navigate. The
+SonarCloud coverage exclusion has narrowed from the whole application to the panel and tree files,
+which are still pure draw code.
+
 ## What to do next
 
 | Order | Work item | Effort | Rationale |
 | ----- | --- | --- | --- |
 | 1 | Decide [#110](https://github.com/ktsu-dev/Schema/issues/110): implement or delete `Schema.Contracts` | S | A decision, not a build. It is public API on a published package that nothing implements, and `docs/examples/dependency-injection.md` documents it as though it works |
-| 2 | [#128](https://github.com/ktsu-dev/Schema/issues/128): a test harness for the editor | M | The editor is now the largest untested surface, and it grew a lot recently |
-| 3 | [#126](https://github.com/ktsu-dev/Schema/issues/126): generated data editors | L | The first thing the data source binding was for |
-| 4 | Upstream the two `ktsu.ImGui.App` changes, then finish [#116](https://github.com/ktsu-dev/Schema/issues/116) | S | Small change in another repository, then a small change here |
-| 5 | [#127](https://github.com/ktsu-dev/Schema/issues/127): generated migrations | L | Needs a schema diff first; the largest remaining design problem |
-| 6 | Editor packaging and the v2.0 milestone | M | Ship it |
+| 2 | [#126](https://github.com/ktsu-dev/Schema/issues/126): generated data editors | L | The first thing the data source binding was for |
+| 3 | Extend `SchemaEditor.Test` to the panel and tree files | M | The harness exists; those files are what it does not reach yet, and they are the ones still excluded from coverage |
+| 4 | [#127](https://github.com/ktsu-dev/Schema/issues/127): generated migrations | L | Needs a schema diff first; the largest remaining design problem |
+| 5 | Editor packaging and the v2.0 milestone | M | Ship it |
 
 ## Decisions
 

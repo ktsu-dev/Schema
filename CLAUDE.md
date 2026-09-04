@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Schema is a C# library for defining and managing data structure schemas. It consists of four projects:
+Schema is a C# library for defining and managing data structure schemas. It consists of five projects:
 
 - **Schema** - Core library providing schema definition types (classes, enums, members, types)
 - **Schema.Test** - MSTest unit tests for the core library
 - **SchemaEditor** - ImGui-based visual editor application for creating and editing `.schema.json` files
+- **SchemaEditor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
 - **SchemaTool** - Command line entry point for validating schemas and running their code generators
 
 ## Build Commands
@@ -80,6 +81,9 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
+- `SchemaEditor/Program.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
+- `SchemaEditor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
+- `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test
 
 ## Dependencies
 
