@@ -38,24 +38,19 @@ internal static class EditorTheme
 	/// Applies a theme by name, falling back when the name resolves to nothing.
 	/// </summary>
 	/// <remarks>
-	/// The default is resolved against the registry rather than hard-wired, so a theme leaving
-	/// ktsu.ThemeProvider degrades to another dark one. A registry with no themes at all leaves
-	/// ImGui's own styling in place, which is a readable neutral rather than something to fail on.
+	/// Both names are looked up rather than trusted, because the saved one was written by an
+	/// earlier build and the theme may since have been renamed or dropped. Neither resolving
+	/// leaves ImGui's own styling in place, which is a readable neutral rather than something to
+	/// fail on.
 	/// </remarks>
 	/// <param name="themeName">The theme to apply, or empty for the default.</param>
 	internal static void Apply(string themeName) =>
-		Theme.CurrentThemeName = Resolve(themeName) ?? Resolve(DefaultThemeName) ?? FirstDarkThemeName();
+		Theme.CurrentThemeName = Resolve(themeName) ?? Resolve(DefaultThemeName);
 
 	private static string? Resolve(string themeName) =>
 		!string.IsNullOrEmpty(themeName) && ThemeRegistry.FindTheme(themeName) is ThemeRegistry.ThemeInfo found
 			? found.Name
 			: null;
-
-	private static string? FirstDarkThemeName()
-	{
-		IReadOnlyList<ThemeRegistry.ThemeInfo> dark = ThemeRegistry.DarkThemes;
-		return dark.Count > 0 ? dark[0].Name : null;
-	}
 
 	/// <summary>
 	/// Scopes the colour that marks an element carrying a validation issue.
@@ -89,4 +84,9 @@ internal static class EditorTheme
 	/// Draws the theme browser if it is open. Returns true when the user picked a different theme.
 	/// </summary>
 	internal static bool ShowBrowser() => Theme.RenderThemeSelector();
+
+	/// <summary>
+	/// Opens the theme browser. The menu does this for the user; a test does it directly.
+	/// </summary>
+	internal static void OpenBrowser() => Theme.ShowThemeSelector();
 }
