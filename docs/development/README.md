@@ -43,11 +43,13 @@ dotnet run --project SchemaEditor
 
 | Directory       | Purpose                        |
 | --------------- | ------------------------------ |
-| `Schema/`       | Core schema definition library |
-| `Schema.Test/`  | MSTest unit tests              |
-| `SchemaEditor/` | ImGui-based visual editor      |
-| `docs/`         | Markdown documentation         |
-| `scripts/`      | Build automation (PSBuild)     |
+| `Schema/`             | Core schema definition library      |
+| `Schema.Test/`        | MSTest unit tests for the library   |
+| `SchemaEditor/`       | ImGui-based visual editor           |
+| `SchemaEditor.Test/`  | Headless UI tests for the editor    |
+| `SchemaTool/`         | Command line validator and generator |
+| `docs/`               | Markdown documentation              |
+| `scripts/`            | Build automation (PSBuild)          |
 
 Within the core library:
 
@@ -58,7 +60,43 @@ Within the core library:
 
 ## Testing
 
-Tests live in `Schema.Test` and use MSTest with the Microsoft.Testing.Platform runner. Run them with `dotnet test`. All new features should include tests; the existing suites (`SchemaTests`, `SchemaClassTests`, `SchemaEnumTests`, `TypeSystemTests`, `SchemaSerializerTests`, `AddClassFromTypeTests`) show the conventions in use.
+Both suites use MSTest with the Microsoft.Testing.Platform runner, and `dotnet test` runs them
+together. All new features should include tests.
+
+### The library — `Schema.Test`
+
+Plain unit tests over the core library, run against every framework it publishes. The existing
+suites (`SchemaTests`, `SchemaClassTests`, `SchemaEnumTests`, `TypeSystemTests`,
+`SchemaSerializerTests`, `AddClassFromTypeTests`) show the conventions in use.
+
+### The editor — `SchemaEditor.Test`
+
+The editor's code is immediate-mode draw calls, so none of it executes without a live ImGui
+context. `ktsu.ImGui.App.Testing` supplies one with no window, no display and no GPU: it rasterizes
+in software and injects input straight into ImGui's event queue, so these tests run unchanged on a
+headless continuous integration runner and disturb nothing on a desktop.
+
+Two fixtures wrap it:
+
+-   **`EditorHarness`** starts a real editor from `EditorHost.CreateConfig`, the same configuration
+    the application itself starts with, so a callback renamed or dropped there breaks the tests
+    rather than leaving them passing against a host that no longer exists. It redirects
+    `AppDataStorage` to an in-memory file system first, so a test never reads or writes the
+    settings of whoever is running it.
+-   **`WidgetHarness`** draws one widget and nothing else, for widget-level behaviour such as
+    `EditField`.
+
+Frames are advanced by the test, never by wall-clock time — `Step(n)` for a fixed number and
+`StepUntil(condition, budget)` for a wait — so a loaded runner is slower rather than flakier.
+Widgets are addressed by name through `App.Probe` and `App.Click(name)` where the widget library
+records them, and by measured rectangle otherwise. Where a regression is only visible on screen,
+`App.Capture()` gives the rendered pixels: `TwoRowsSharingALabelDoNotShareABuffer` compares one
+row's pixels before and during an edit of its sibling, which is the only place the shared-buffer
+bug it guards against is observable at all.
+
+Note that a modal sizes itself on the frame it appears and is centred on the next, so a button's
+rectangle is not final until a few frames after it is first recorded. Step past that before
+clicking.
 
 ## Code Style
 

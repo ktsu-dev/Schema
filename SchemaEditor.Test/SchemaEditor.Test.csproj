@@ -1,0 +1,37 @@
+<Project>
+  <Sdk Name="MSTest.Sdk" />
+  <Import Project="Sdk.props" Sdk="ktsu.Sdk" />
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaEditor\SchemaEditor.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The headless harness: it drives ImGuiApp frames through a software rasterizer, so the
+         editor's draw code runs with no window, no display and no GPU. -->
+    <PackageReference Include="ktsu.ImGui.App.Testing" />
+    <!-- A mock file system for AppDataStorage, so a test never reads or writes the settings of
+         whoever is running it. -->
+    <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
+      <VersionOverride>18.8.0</VersionOverride>
+    </PackageReference>
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="ktsu.Sdk" />
+
+  <!-- SchemaEditor is a net10.0-only application, so this suite is too. Placed after the explicit
+       Sdk.targets import so the project, not the SDK, has the last word - the same reason
+       Schema.Test states its frameworks there. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks></TargetFrameworks>
+  </PropertyGroup>
+</Project>

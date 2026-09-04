@@ -103,7 +103,7 @@ public partial class SchemaEditor
 	/// Run if the user backs out. Only the close path needs this, to release the latch that stops a
 	/// second prompt stacking on the first; New and Open simply do nothing.
 	/// </param>
-	private void WithUnsavedChangesGuard(Action proceed, Action? onCancel = null)
+	internal void WithUnsavedChangesGuard(Action proceed, Action? onCancel = null)
 	{
 		if (!HasUnsavedChanges)
 		{
@@ -122,7 +122,7 @@ public partial class SchemaEditor
 			});
 	}
 
-	private void New() => WithUnsavedChangesGuard(NewInternal);
+	internal void New() => WithUnsavedChangesGuard(NewInternal);
 
 	private void NewInternal()
 	{
@@ -137,7 +137,7 @@ public partial class SchemaEditor
 	private void OpenInternal() =>
 		Popups.OpenBrowserFileOpen("Open Schema", LoadFrom, "*.schema.json");
 
-	private void LoadFrom(AbsoluteFilePath filePath)
+	internal void LoadFrom(AbsoluteFilePath filePath)
 	{
 		SchemaLoadResult result = SchemaFile.Load(filePath);
 
@@ -185,7 +185,7 @@ public partial class SchemaEditor
 	/// appeared has to wait for that answer rather than running immediately.
 	/// </remarks>
 	/// <param name="continuation">What to do after a successful save, if anything.</param>
-	private void SaveThen(Action? continuation)
+	internal void SaveThen(Action? continuation)
 	{
 		if (string.IsNullOrEmpty(CurrentSchemaPath))
 		{
@@ -267,7 +267,7 @@ public partial class SchemaEditor
 	/// <summary>
 	/// Raises the unsaved-changes prompt for a close that <see cref="ShouldClose"/> refused.
 	/// </summary>
-	private void ProcessCloseRequest()
+	internal void ProcessCloseRequest()
 	{
 		if (!closeRequested || closePromptShowing)
 		{
