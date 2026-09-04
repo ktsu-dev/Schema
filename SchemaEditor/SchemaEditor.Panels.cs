@@ -9,6 +9,7 @@ using System.Numerics;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
@@ -275,10 +276,17 @@ public partial class SchemaEditor
 	{
 		ImGui.PushID($"member{member.Name}");
 
+		// A probe scope alongside the ImGui id stack: PushID keeps two rows' widgets apart for
+		// ImGui, and this keeps their recorded names apart for a test, which would otherwise see
+		// one ambiguous "Delete" however many members the class has.
+		ImGuiProbes.PushScope($"member{member.Name}");
+
 		ShowMemberReorderButtons(schemaClass, member, index, memberCount);
 
 		ImGui.SameLine();
-		if (ImGui.Button("X", new Vector2(frameHeight, 0)))
+		bool deleteClicked = ImGui.Button("X", new Vector2(frameHeight, 0));
+		ImGuiProbes.MarkItem("Delete");
+		if (deleteClicked)
 		{
 			DeleteMember(schemaClass, member);
 		}
@@ -315,6 +323,7 @@ public partial class SchemaEditor
 			ImGui.Unindent();
 		}
 
+		ImGuiProbes.PopScope();
 		ImGui.PopID();
 	}
 
@@ -329,7 +338,9 @@ public partial class SchemaEditor
 	private void ShowMemberReorderButtons(SchemaClass schemaClass, SchemaMember member, int index, int memberCount)
 	{
 		ImGui.BeginDisabled(index == 0);
-		if (ImGui.ArrowButton("##MoveUp", ImGuiDir.Up))
+		bool moveUp = ImGui.ArrowButton("##MoveUp", ImGuiDir.Up);
+		ImGuiProbes.MarkItem("MoveUp");
+		if (moveUp)
 		{
 			MoveMember(schemaClass, member, index - 1);
 		}
@@ -338,7 +349,9 @@ public partial class SchemaEditor
 
 		ImGui.SameLine();
 		ImGui.BeginDisabled(index == memberCount - 1);
-		if (ImGui.ArrowButton("##MoveDown", ImGuiDir.Down))
+		bool moveDown = ImGui.ArrowButton("##MoveDown", ImGuiDir.Down);
+		ImGuiProbes.MarkItem("MoveDown");
+		if (moveDown)
 		{
 			MoveMember(schemaClass, member, index + 1);
 		}
@@ -393,12 +406,29 @@ public partial class SchemaEditor
 		}
 	}
 
-	private void DeleteMember(SchemaClass schemaClass, SchemaMember member) =>
+	/// <summary>
+	/// Removes a member, remembering where it was so an undo puts it back there.
+	/// </summary>
+	/// <remarks>
+	/// <c>RestoreMember</c> appends, and member order is part of the schema's meaning rather than
+	/// a display concern - it is the declaration order generated code uses, and it round-trips
+	/// through the file. So restoring alone turns an undo into an edit of its own: delete a member
+	/// from the middle of a class, undo, and the class comes back reordered.
+	/// </remarks>
+	private void DeleteMember(SchemaClass schemaClass, SchemaMember member)
+	{
+		int index = schemaClass.IndexOfMember(member);
+
 		Execute(new DelegateCommand(
 			$"Delete Member '{member.Name}'",
 			() => member.TryRemove(),
-			() => schemaClass.RestoreMember(member),
+			() =>
+			{
+				schemaClass.RestoreMember(member);
+				schemaClass.TryMoveMember(member, index);
+			},
 			ChangeType.Delete));
+	}
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S3267:Loops should be simplified with \"LINQ\" expressions", Justification = "We want to separate out ImGui calls from enumerations")]
 	public void ShowMemberConfig(Schema schema, SchemaMember schemaMember)

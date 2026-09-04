@@ -86,10 +86,17 @@ Two fixtures wrap it:
 -   **`WidgetHarness`** draws one widget and nothing else, for widget-level behaviour such as
     `EditField`.
 
+Widgets are addressed by name. The editor marks its own items through `ktsu.ImGui.Probes` — a
+dependency-free package whose whole purpose is that an application, a widget library and a dialog
+library can each mark items without depending on one another. Marking costs nothing when no probe
+is installed, which is every run that is not a test. The marks are deliberately few and central:
+one in `ButtonTree` covers every row of every tree, and a probe scope per member row keeps two
+rows' controls apart the same way `PushID` does for ImGui itself. A test then clicks
+`App.Click("BtnUser")` or `App.Click("memberAge/Delete")` and never states a coordinate.
+
 Frames are advanced by the test, never by wall-clock time — `Step(n)` for a fixed number and
 `StepUntil(condition, budget)` for a wait — so a loaded runner is slower rather than flakier.
-Widgets are addressed by name through `App.Probe` and `App.Click(name)` where the widget library
-records them, and by measured rectangle otherwise. Where a regression is only visible on screen,
+Where a regression is only visible on screen,
 `App.Capture()` gives the rendered pixels: `TwoRowsSharingALabelDoNotShareABuffer` compares one
 row's pixels before and during an edit of its sibling, which is the only place the shared-buffer
 bug it guards against is observable at all.

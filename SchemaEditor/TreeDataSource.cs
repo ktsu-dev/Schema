@@ -4,6 +4,7 @@ namespace ktsu.SchemaEditor;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
@@ -41,13 +42,17 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 				{
 					DataSource captured = x;
 
-					if (ImGui.Selectable($"Rename {captured.Name}"))
+					bool renameChosen = ImGui.Selectable($"Rename {captured.Name}");
+					ImGuiProbes.MarkItem($"Rename{captured.Name}");
+					if (renameChosen)
 					{
 						schemaEditor.PromptRename("data source", captured.Name,
 							newName => schema.TryRenameDataSource(captured, newName.As<DataSourceName>()));
 					}
 
-					if (ImGui.Selectable($"Delete {captured.Name}"))
+					bool deleteChosen = ImGui.Selectable($"Delete {captured.Name}");
+					ImGuiProbes.MarkItem($"Delete{captured.Name}");
+					if (deleteChosen)
 					{
 						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Data Source '{captured.Name}'",
@@ -64,7 +69,9 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 	{
 		using (Button.Alignment.Left())
 		{
-			if (ImGui.Button("+ New Data Source"))
+			bool clicked = ImGui.Button("+ New Data Source");
+			ImGuiProbes.MarkItem("NewDataSource");
+			if (clicked)
 			{
 				Popups.OpenInputString("Input", "New Data Source Name", string.Empty, (newName) =>
 				{
