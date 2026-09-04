@@ -24,7 +24,7 @@ using ktsu.UndoRedo;
 public sealed class DocumentGuardTests
 {
 	private EditorHarness harness = null!;
-	private string scratchDirectory = null!;
+	private AbsoluteDirectoryPath scratchDirectory = null!;
 
 	[TestInitialize]
 	public void StartEditor()
@@ -32,8 +32,7 @@ public sealed class DocumentGuardTests
 		harness = EditorHarness.Start();
 
 		// A real directory, not the in-memory one: SchemaFile saves through System.IO directly.
-		string scratchDirectoryName = $"schema-editor-tests-{Guid.NewGuid():N}";
-		scratchDirectory = Path.Combine(Path.GetTempPath(), Path.GetFileName(scratchDirectoryName));
+		scratchDirectory = Path.GetTempPath().As<AbsoluteDirectoryPath>() / $"schema-editor-tests-{Guid.NewGuid():N}".As<DirectoryName>();
 		Directory.CreateDirectory(scratchDirectory);
 	}
 
@@ -56,14 +55,14 @@ public sealed class DocumentGuardTests
 	/// A path inside this test's scratch directory.
 	/// </summary>
 	/// <remarks>
-	/// The name is reduced to its leaf first. <see cref="Path.Combine(string, string)"/> discards
-	/// everything before a rooted segment, so combining an unreduced name would put the file
-	/// somewhere other than the scratch directory - and so outside what <see cref="StopEditor"/>
-	/// deletes.
+	/// Composed with the '/' operator from ktsu.Semantics.Paths rather than
+	/// <c>Path.Combine</c>, which silently discards everything before a rooted segment - so a
+	/// name that was not a leaf would put the file somewhere other than the scratch directory,
+	/// and so outside what <see cref="StopEditor"/> deletes. A <see cref="FileName"/> cannot be
+	/// rooted, which is what makes the composition safe rather than merely intended to be.
 	/// </remarks>
-	/// <param name="name">The file name, which must be a leaf.</param>
-	private AbsoluteFilePath ScratchFile(string name) =>
-		Path.Combine(scratchDirectory, Path.GetFileName(name)).As<AbsoluteFilePath>();
+	/// <param name="name">The file name.</param>
+	private AbsoluteFilePath ScratchFile(string name) => scratchDirectory / name.As<FileName>();
 
 	/// <summary>
 	/// Opens a document and makes an edit through the undo service, which is what
@@ -206,9 +205,11 @@ public sealed class DocumentGuardTests
 		harness.Editor.CurrentSchema = new Schema();
 
 		// A path whose parent is an existing file rather than a directory cannot be created.
-		AbsoluteFilePath blocker = ScratchFile("blocker");
+		const string blockerName = "blocker";
+		AbsoluteFilePath blocker = ScratchFile(blockerName);
 		File.WriteAllText(blocker, "not a directory");
-		harness.Editor.CurrentSchemaPath = Path.Combine(blocker.ToString(), "nested.schema.json").As<AbsoluteFilePath>();
+		harness.Editor.CurrentSchemaPath =
+			scratchDirectory / blockerName.As<DirectoryName>() / "nested.schema.json".As<FileName>();
 
 		bool proceeded = false;
 		harness.Editor.SaveThen(() => proceeded = true);
