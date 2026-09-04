@@ -1,3 +1,7 @@
+## v1.12.0
+
+No significant changes detected since v1.12.0.
+
 ## v1.12.0 (minor)
 
 Changes since v1.11.0:
