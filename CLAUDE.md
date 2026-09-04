@@ -81,7 +81,8 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
-- `SchemaEditor/Program.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
+- `SchemaEditor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
+- `SchemaEditor/Program.cs` - The entry point, and the only file excluded from coverage measurement
 - `SchemaEditor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
 - `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test
 

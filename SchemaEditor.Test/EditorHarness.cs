@@ -20,7 +20,7 @@ using ktsu.ImGui.App.Testing;
 /// continuous integration runner.
 /// </para>
 /// <para>
-/// The configuration comes from <see cref="Program.CreateConfig"/>, the same one the application
+/// The configuration comes from <see cref="EditorHost.CreateConfig"/>, the same one the application
 /// starts with, so a callback renamed or dropped there breaks these tests instead of leaving them
 /// passing against a host that no longer exists.
 /// </para>
@@ -61,7 +61,7 @@ internal sealed class EditorHarness : IDisposable
 		ktsu.AppDataStorage.AppData.ConfigureForTesting(() => new MockFileSystem());
 
 		SchemaEditor editor = new();
-		ImGuiAppHarness app = ImGuiAppHarness.Start(Program.CreateConfig(editor), new HarnessOptions());
+		ImGuiAppHarness app = ImGuiAppHarness.Start(EditorHost.CreateConfig(editor), new HarnessOptions());
 
 		// The first frame builds the font atlas and lays the panels out; nothing is measurable
 		// before it has run.

@@ -78,7 +78,7 @@ headless continuous integration runner and disturb nothing on a desktop.
 
 Two fixtures wrap it:
 
--   **`EditorHarness`** starts a real editor from `Program.CreateConfig`, the same configuration
+-   **`EditorHarness`** starts a real editor from `EditorHost.CreateConfig`, the same configuration
     the application itself starts with, so a callback renamed or dropped there breaks the tests
     rather than leaving them passing against a host that no longer exists. It redirects
     `AppDataStorage` to an in-memory file system first, so a test never reads or writes the

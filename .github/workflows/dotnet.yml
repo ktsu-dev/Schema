@@ -370,7 +370,10 @@ jobs:
             # reports, with nothing to assert that is not a pixel. SchemaEditor.Test now drives the
             # rest of the editor headlessly, so the rest is measured; this list is what that
             # harness does not yet reach, not the whole application.
-            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/ButtonTree.cs,SchemaEditor/ClassGraphView.cs,SchemaEditor/CodeGeneratorPanel.cs,SchemaEditor/SchemaEditor.Panels.cs,SchemaEditor/Tree*.cs'
+            # SchemaEditor/Program.cs is the one file here excluded because it cannot be executed
+            # rather than because nobody has yet: it holds only Main, which opens a window and does
+            # not return. What the host is configured with lives in EditorHost.cs, which is tested.
+            '/d:sonar.coverage.exclusions=**/*Test*.cs,**/*.Tests.cs,**/*.Tests/**/*,**/obj/**/*,**/*.dll,**/NativeExports.cs,SchemaEditor/Program.cs,SchemaEditor/ButtonTree.cs,SchemaEditor/ClassGraphView.cs,SchemaEditor/CodeGeneratorPanel.cs,SchemaEditor/SchemaEditor.Panels.cs,SchemaEditor/Tree*.cs'
             '/d:sonar.cs.vstest.reportsPaths=coverage/**/*.trx'
             '/d:sonar.exclusions=**/NativeExports.cs'
           )
