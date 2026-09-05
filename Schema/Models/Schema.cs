@@ -112,6 +112,18 @@ public partial class Schema : ISchema
 	[JsonIgnore]
 	public SchemaChildSet<SchemaEnum, EnumName> EnumSet => new(EnumsInternal);
 
+	/// <summary>
+	/// Gets the schema's data sources as a name-indexed, order-preserving set.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<DataSource, DataSourceName> DataSourceSet => new(DataSourcesInternal);
+
+	/// <summary>
+	/// Gets the schema's code generators as a name-indexed, order-preserving set.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<SchemaCodeGenerator, CodeGeneratorName> CodeGeneratorSet => new(CodeGeneratorsInternal);
+
 	/// <remarks>
 	/// Explicit because the contract's element type is <see cref="ISchemaClass"/>; the covariance
 	/// of <see cref="ISchemaChildSet{TValue, TName}"/> makes it the same object.

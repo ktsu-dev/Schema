@@ -54,10 +54,16 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 					ImGuiProbes.MarkItem($"Delete{captured.Name}");
 					if (deleteChosen)
 					{
+						// Restored where it was rather than appended; see DeleteMember in the panel.
+						int index = schema.DataSourceSet.IndexOf(captured);
 						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Data Source '{captured.Name}'",
 							() => captured.TryRemove(),
-							() => schema.RestoreDataSource(captured),
+							() =>
+							{
+								schema.RestoreDataSource(captured);
+								schema.DataSourceSet.Move(captured, index);
+							},
 							ChangeType.Delete));
 					}
 				},
