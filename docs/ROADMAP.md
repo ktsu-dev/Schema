@@ -51,7 +51,6 @@ substantial items:
 
 | Issue | Work | Why it is not done |
 | --- | --- | --- |
-| [#110](https://github.com/ktsu-dev/Schema/issues/110) | Implement or delete the unused `Schema.Contracts` API | Needs a decision from the project owner; deleting is a breaking change |
 | [#126](https://github.com/ktsu-dev/Schema/issues/126) | Generated data editors | Builds on the generator architecture |
 | [#127](https://github.com/ktsu-dev/Schema/issues/127) | Generated data migrations | Needs a schema diff, which does not exist yet |
 
@@ -118,10 +117,9 @@ worth testing, not of whether it can be.
 
 | Order | Work item | Effort | Rationale |
 | ----- | --- | --- | --- |
-| 1 | Decide [#110](https://github.com/ktsu-dev/Schema/issues/110): implement or delete `Schema.Contracts` | S | A decision, not a build. It is public API on a published package that nothing implements, and `docs/examples/dependency-injection.md` documents it as though it works |
-| 2 | [#126](https://github.com/ktsu-dev/Schema/issues/126): generated data editors | L | The first thing the data source binding was for |
-| 3 | [#127](https://github.com/ktsu-dev/Schema/issues/127): generated migrations | L | Needs a schema diff first; the largest remaining design problem |
-| 4 | Editor packaging and the v2.0 milestone | M | Ship it |
+| 1 | [#126](https://github.com/ktsu-dev/Schema/issues/126): generated data editors | L | The first thing the data source binding was for |
+| 2 | [#127](https://github.com/ktsu-dev/Schema/issues/127): generated migrations | L | Needs a schema diff first; the largest remaining design problem |
+| 3 | Editor packaging and the v2.0 milestone | M | Ship it |
 
 ## Decisions
 
@@ -138,10 +136,11 @@ Made while implementing, and open to revision:
 
 8. **A deleted element is restored where it was.** Undoing a delete puts the element back at the
    index it was removed from rather than at the end, because order is part of the schema's meaning:
-   it is the declaration order generated code uses, and it round-trips through the file. This is
-   done for classes, enums and members. Data sources and code generators still restore at the end,
-   because `Schema` exposes an ordered set (`ClassSet`, `EnumSet`) for the first two and not for
-   the other two, so the editor has nothing to reposition them with.
+   it is the declaration order generated code uses, and it round-trips through the file. This holds
+   for classes, enums, members, data sources and code generators. `Restore*` still appends — the
+   position is the caller's to remember — so `Schema` exposes an ordered set for each root
+   collection (`ClassSet`, `EnumSet`, `DataSourceSet`, `CodeGeneratorSet`) to move the element back
+   with ([#141](https://github.com/ktsu-dev/Schema/issues/141)).
 
 5. **Renames cascade.** Renaming a class or enum repoints every reference to it, rather than being
    blocked while references exist or allowed to dangle. It is the only option that neither loses

@@ -54,10 +54,16 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 					ImGuiProbes.MarkItem($"Delete{captured.Name}");
 					if (deleteChosen)
 					{
+						// Restored where it was rather than appended; see DeleteMember in the panel.
+						int index = schema.CodeGeneratorSet.IndexOf(captured);
 						schemaEditor.Execute(new DelegateCommand(
 							$"Delete Code Generator '{captured.Name}'",
 							() => captured.TryRemove(),
-							() => schema.RestoreCodeGenerator(captured),
+							() =>
+							{
+								schema.RestoreCodeGenerator(captured);
+								schema.CodeGeneratorSet.Move(captured, index);
+							},
 							ChangeType.Delete));
 					}
 				},

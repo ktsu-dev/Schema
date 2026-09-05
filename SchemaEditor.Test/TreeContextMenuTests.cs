@@ -106,27 +106,53 @@ public sealed class TreeContextMenuTests
 		AssertEnums("Colour", "Size");
 	}
 
-	/// <summary>
-	/// Data sources and code generators are deleted the same way, but their restore does not
-	/// preserve position: the schema exposes an ordered set for classes and enums and not for
-	/// these two, so the editor has nothing to move them back with. See the note in the roadmap.
-	/// </summary>
+	private void AddDataSources(params string[] names)
+	{
+		foreach (string name in names)
+		{
+			schema.AddDataSource(name.As<DataSourceName>());
+		}
+
+		harness.Editor.CurrentSchema = schema;
+	}
+
+	private void AssertDataSources(params string[] expected)
+	{
+		string[] actual = [.. schema.DataSources.Select(d => d.Name.ToString())];
+		CollectionAssert.AreEqual(expected, actual, $"Data sources were [{string.Join(", ", actual)}].");
+	}
+
 	[TestMethod]
 	public void DeletingADataSourceRemovesIt()
 	{
-		schema.AddDataSource("Users".As<DataSourceName>());
-		harness.Editor.CurrentSchema = schema;
+		AddDataSources("Users");
 
 		ChooseFromContextMenu("BtnUsers", "DeleteUsers");
 
 		Assert.IsNull(schema.GetDataSource("Users".As<DataSourceName>()));
 	}
 
+	/// <summary>
+	/// Deleted from the middle, because appending on restore would put it back in the right set
+	/// but the wrong place - and at either end that is indistinguishable from doing it correctly.
+	/// </summary>
+	[TestMethod]
+	public void UndoingADataSourceDeleteBringsItBackWhereItWas()
+	{
+		AddDataSources("Users", "Orders", "Products");
+
+		ChooseFromContextMenu("BtnOrders", "DeleteOrders");
+		AssertDataSources("Users", "Products");
+
+		harness.Editor.UndoRedo.Undo();
+
+		AssertDataSources("Users", "Orders", "Products");
+	}
+
 	[TestMethod]
 	public void RenamingADataSourceChangesItsName()
 	{
-		schema.AddDataSource("Users".As<DataSourceName>());
-		harness.Editor.CurrentSchema = schema;
+		AddDataSources("Users");
 
 		ChooseFromContextMenu("BtnUsers", "RenameUsers");
 		harness.TypeInto("input/field", "People");
@@ -135,11 +161,26 @@ public sealed class TreeContextMenuTests
 		Assert.IsNotNull(schema.GetDataSource("People".As<DataSourceName>()));
 	}
 
+	private void AddCodeGenerators(params string[] names)
+	{
+		foreach (string name in names)
+		{
+			schema.AddCodeGenerator(name.As<CodeGeneratorName>());
+		}
+
+		harness.Editor.CurrentSchema = schema;
+	}
+
+	private void AssertCodeGenerators(params string[] expected)
+	{
+		string[] actual = [.. schema.CodeGenerators.Select(g => g.Name.ToString())];
+		CollectionAssert.AreEqual(expected, actual, $"Code generators were [{string.Join(", ", actual)}].");
+	}
+
 	[TestMethod]
 	public void DeletingACodeGeneratorRemovesIt()
 	{
-		schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>());
-		harness.Editor.CurrentSchema = schema;
+		AddCodeGenerators("CSharp");
 
 		ChooseFromContextMenu("BtnCSharp", "DeleteCSharp");
 
@@ -147,10 +188,22 @@ public sealed class TreeContextMenuTests
 	}
 
 	[TestMethod]
+	public void UndoingACodeGeneratorDeleteBringsItBackWhereItWas()
+	{
+		AddCodeGenerators("CSharp", "Cpp", "Docs");
+
+		ChooseFromContextMenu("BtnCpp", "DeleteCpp");
+		AssertCodeGenerators("CSharp", "Docs");
+
+		harness.Editor.UndoRedo.Undo();
+
+		AssertCodeGenerators("CSharp", "Cpp", "Docs");
+	}
+
+	[TestMethod]
 	public void RenamingACodeGeneratorChangesItsName()
 	{
-		schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>());
-		harness.Editor.CurrentSchema = schema;
+		AddCodeGenerators("CSharp");
 
 		ChooseFromContextMenu("BtnCSharp", "RenameCSharp");
 		harness.TypeInto("input/field", "CSharpPocos");
