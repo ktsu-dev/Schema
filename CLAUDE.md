@@ -82,6 +82,7 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
 - `SchemaEditor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
+- `SchemaEditor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
 - `SchemaEditor/Program.cs` - The entry point, and the only file excluded from coverage measurement
 - `SchemaEditor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
 - `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test

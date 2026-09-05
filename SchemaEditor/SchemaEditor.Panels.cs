@@ -10,7 +10,6 @@ using System.Numerics;
 using Hexa.NET.ImGui;
 
 using ktsu.ImGui.Probes;
-using ktsu.ImGui.Styler;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
@@ -395,7 +394,7 @@ public partial class SchemaEditor
 		}
 
 		ImGui.SameLine();
-		using (Theme.FromColor(issue.Severity == SchemaValidationSeverity.Error ? Palette.Semantic.Error : Palette.Semantic.Warning))
+		using (EditorTheme.Severity(issue.Severity))
 		{
 			ImGui.TextUnformatted(issue.Severity == SchemaValidationSeverity.Error ? "!" : "?");
 		}

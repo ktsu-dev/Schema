@@ -14,6 +14,8 @@
     <!-- The headless harness: it drives ImGuiApp frames through a software rasterizer, so the
          editor's draw code runs with no window, no display and no GPU. -->
     <PackageReference Include="ktsu.ImGui.App.Testing" />
+    <PackageReference Include="ktsu.ImGui.Styler" />
+    <PackageReference Include="ktsu.ThemeProvider" />
     <!-- A mock file system for AppDataStorage, so a test never reads or writes the settings of
          whoever is running it. -->
     <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />

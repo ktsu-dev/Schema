@@ -96,6 +96,9 @@ rows' controls apart the same way `PushID` does for ImGui itself. A test then cl
 
 Frames are advanced by the test, never by wall-clock time — `Step(n)` for a fixed number and
 `StepUntil(condition, budget)` for a wait — so a loaded runner is slower rather than flakier.
+`App.Capture().SavePng(path)` writes the rendered frame to disk, which is how a visual change is
+checked without a display: render before, render after, and look at the two images.
+
 Where a regression is only visible on screen,
 `App.Capture()` gives the rendered pixels: `TwoRowsSharingALabelDoNotShareABuffer` compares one
 row's pixels before and during an edit of its sibling, which is the only place the shared-buffer

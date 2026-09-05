@@ -23,6 +23,7 @@
     <PackageReference Include="ktsu.IntervalAction" />
     <PackageReference Include="ktsu.Keybinding.Core" />
     <PackageReference Include="ktsu.Semantics.Paths" />
+    <PackageReference Include="ktsu.ThemeProvider" />
     <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="ktsu.UndoRedo.Core" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" />

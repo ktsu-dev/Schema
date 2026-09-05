@@ -40,6 +40,20 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 		public Action<ImGuiWidgets.Tree>? OnTreeEnd { get; set; }
 	}
 
+	/// <summary>
+	/// The width to draw a tree row at.
+	/// </summary>
+	/// <remarks>
+	/// The rows share a width so the tree reads as a column rather than a ragged edge, but that
+	/// width has to be a minimum rather than a fixed size: ImGui clips a button's label to its
+	/// frame, so "Code Generators (0)" - the longest label in the tree - lost its count entirely
+	/// at the sizes the editor actually runs at.
+	/// </remarks>
+	/// <param name="text">The label that has to fit.</param>
+	/// <returns>The column width, or the width the text needs when that is more.</returns>
+	private static float RowWidth(string text) =>
+		MathF.Max(SchemaEditor.FieldWidth, ImGui.CalcTextSize(text).X + (ImGui.GetStyle().FramePadding.X * 2));
+
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items) => ShowTree(id, text, items, new(), null);
 	internal static void ShowTree(string id, string text, IEnumerable<TItem> items, Config config, ImGuiWidgets.Tree? parent)
 	{
@@ -50,7 +64,8 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 		{
 			using (Button.Alignment.Left())
 			{
-				ImGui.Button(text, new(SchemaEditor.FieldWidth, 0));
+				ImGui.Button(text, new(RowWidth(text), 0));
+				ImGuiProbes.MarkItem($"Root{id}");
 			}
 
 			ImGui.SameLine();
@@ -111,13 +126,9 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 				SchemaValidationIssue? issue = config.GetIssue?.Invoke(item);
 
 				using (Button.Alignment.Left())
-				using (issue is null
-					? null
-					: Theme.FromColor(issue.Severity == SchemaValidationSeverity.Error
-						? Palette.Semantic.Error
-						: Palette.Semantic.Warning))
+				using (issue is null ? null : EditorTheme.Severity(issue.Severity))
 				{
-					ImGui.Button($"{buttonText}##Btn{itemId}", new(SchemaEditor.FieldWidth, 0));
+					ImGui.Button($"{buttonText}##Btn{itemId}", new(RowWidth(buttonText), 0));
 
 					// Every tree row in the editor is drawn here, so marking it here is what lets a
 					// test address any of them - a class, a member, an enum value, a data source -
