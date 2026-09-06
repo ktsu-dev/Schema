@@ -115,6 +115,22 @@ internal sealed class EditorHarness : IDisposable
 	}
 
 	/// <summary>
+	/// Opens one of the schema tree's tabs, so the rows it holds are drawn.
+	/// </summary>
+	/// <remarks>
+	/// The trees share the left column one tab at a time, so a test that clicks a class, a data
+	/// source or a code generator has to open that tree first. Asked for rather than clicked,
+	/// because at the window sizes these tests run at the tab bar is too narrow for four tabs and
+	/// the rightmost is scrolled out of reach.
+	/// </remarks>
+	/// <param name="name">The tab's name, as the constants on <see cref="TreeSchema"/> give it.</param>
+	internal void SelectTree(string name)
+	{
+		Editor.SelectTree(name);
+		App.Step(3);
+	}
+
+	/// <summary>
 	/// Right-clicks a marked item, which is how the tree opens an item's context menu.
 	/// </summary>
 	/// <param name="item">A marked name, or the trailing part of one.</param>

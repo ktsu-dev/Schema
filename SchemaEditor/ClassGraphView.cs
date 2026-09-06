@@ -4,6 +4,7 @@ namespace ktsu.SchemaEditor;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -56,11 +57,17 @@ internal sealed class ClassGraphView
 			return;
 		}
 
+		Vector2 editorSize = ImGui.GetContentRegionAvail();
+
 		string signature = ComputeSignature(schema);
 		if (signature != lastSignature)
 		{
-			Rebuild(schema);
+			Rebuild(schema, editorSize * 0.5f);
 			lastSignature = signature;
+
+			// The layout pulls nodes towards this point, so it is the centre of the ring the
+			// rebuild just laid out. Left where it starts, at the origin, gravity would drag the
+			// whole graph into the canvas's top-left corner and hold it there.
 			engine.InitializeWorldOriginToCentroid();
 		}
 
@@ -68,7 +75,6 @@ internal sealed class ClassGraphView
 		engine.SetDraggedNodes(renderer.CurrentlyDraggedNodes);
 		engine.UpdatePhysics(deltaTime);
 
-		Vector2 editorSize = ImGui.GetContentRegionAvail();
 		renderer.Render(engine, editorSize);
 
 		// Node transforms must be read back after rendering, while the editor context is active.
@@ -87,7 +93,9 @@ internal sealed class ClassGraphView
 	/// Rebuilds the node graph from the schema. Classes and enums become nodes; member references
 	/// between them become links.
 	/// </summary>
-	private void Rebuild(Schema schema)
+	/// <param name="schema">The schema to build the graph from.</param>
+	/// <param name="centre">Where on the canvas to lay the nodes out around.</param>
+	private void Rebuild(Schema schema, Vector2 centre)
 	{
 		engine.Clear();
 
@@ -163,15 +171,18 @@ internal sealed class ClassGraphView
 			}
 		}
 
-		// 4. Create the nodes, seeded around a circle so the layout has room to spread out.
+		// 4. Create the nodes, seeded around a circle so the layout has room to spread out. The
+		//    circle is centred on the canvas: ImNodes measures a node's position from the canvas's
+		//    top-left corner, so a ring around the origin is a ring around that corner, with three
+		//    quarters of it off the canvas entirely.
 		Dictionary<string, Node> nodesByKey = [];
 		int count = descriptors.Count;
-		float radius = MathF.Max(250.0f, count * 45.0f);
+		float radius = SeedRadius(count, centre);
 		for (int i = 0; i < count; i++)
 		{
 			NodeDescriptor descriptor = descriptors[i];
 			float angle = i / (float)count * MathF.Tau;
-			Vector2 position = new(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius);
+			Vector2 position = centre + new Vector2(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius);
 			Node node = engine.CreateNode(position, descriptor.Title, inputLabels[descriptor.Key], outputLabels[descriptor.Key]);
 			nodesByKey[descriptor.Key] = node;
 		}
@@ -191,6 +202,34 @@ internal sealed class ClassGraphView
 				targetNode.InputPins[edge.InputPinIndex].Id);
 		}
 	}
+
+	/// <summary>
+	/// The radius of the ring the nodes are seeded on.
+	/// </summary>
+	/// <remarks>
+	/// Wide enough that the nodes do not start on top of each other, and no wider than the canvas,
+	/// so that a graph opens in view rather than needing to be panned to. The layout spreads the
+	/// nodes out from there, which is what makes room for a graph too big for the ring.
+	/// </remarks>
+	/// <param name="count">How many nodes are being laid out.</param>
+	/// <param name="centre">The middle of the canvas, which is half its size.</param>
+	/// <returns>The radius to seed at.</returns>
+	private static float SeedRadius(int count, Vector2 centre)
+	{
+		float wanted = MathF.Max(250.0f, count * 45.0f);
+		float roomOnCanvas = MathF.Min(centre.X, centre.Y) * 0.7f;
+		return roomOnCanvas > 0.0f ? MathF.Min(wanted, roomOnCanvas) : wanted;
+	}
+
+	/// <summary>
+	/// Gets where the nodes sit, measured from the canvas's top-left corner.
+	/// </summary>
+	internal IEnumerable<Vector2> NodePositions => engine.Nodes.Select(node => node.Position);
+
+	/// <summary>
+	/// Gets how big the nodes are, as the node editor last measured them.
+	/// </summary>
+	internal IEnumerable<Vector2> NodeSizes => engine.Nodes.Select(node => node.Dimensions);
 
 	/// <summary>
 	/// Determines whether a member type references another class or enum, and resolves the node key.

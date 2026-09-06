@@ -66,6 +66,19 @@ internal static class EditorTheme
 		severity == SchemaValidationSeverity.Error ? Error() : Warning();
 
 	/// <summary>
+	/// Scopes the text colour that marks a validation issue, for a message drawn as plain text.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Severity"/> colours a widget's frame and picks whichever text colour reads on
+	/// top of it, so plain text inside that scope comes out black or white rather than red. Text
+	/// with no frame under it, such as the menu bar summary, takes the severity colour itself.
+	/// </remarks>
+	/// <param name="severity">The severity to colour for.</param>
+	/// <returns>A scope that reverts the colour when disposed.</returns>
+	internal static ScopedTextColor SeverityText(SchemaValidationSeverity severity) =>
+		new(severity == SchemaValidationSeverity.Error ? Palette.Semantic.Error : Palette.Semantic.Warning);
+
+	/// <summary>
 	/// Scopes the colour for something that is wrong.
 	/// </summary>
 	internal static ScopedThemeColor Error() => Theme.FromColor(Palette.Semantic.Error);

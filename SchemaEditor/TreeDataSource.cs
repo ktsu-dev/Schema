@@ -30,7 +30,7 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 				GetTooltip = (x) => x.Description,
 				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
-				OnTreeEnd = (t) =>
+				OnTreeStart = (t) =>
 				{
 					using (t.Child)
 					{

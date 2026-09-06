@@ -43,8 +43,14 @@ public sealed class TreeRowWidthTests
 		harness = EditorHarness.Start(new HarnessOptions { Width = 700, Height = 600 });
 		harness.Editor.CurrentSchema = new Schema();
 
+		// One tree is drawn at a time, so each heading is measured while its own tab is open.
+		harness.SelectTree("Code Generators");
+		int codeGenerators = WidthOf("RootCode Generators");
+		harness.SelectTree("Enums");
+		int enums = WidthOf("RootEnums");
+
 		Assert.IsTrue(
-			WidthOf("RootCode Generators") > WidthOf("RootEnums"),
+			codeGenerators > enums,
 			"'Code Generators (0)' is the longest heading in the tree; drawn at the same width as 'Enums (0)' it loses its count.");
 	}
 
@@ -56,6 +62,7 @@ public sealed class TreeRowWidthTests
 		schema.AddClass("A".As<ClassName>());
 		schema.AddClass("AClassNameLongEnoughToNeedMoreRoomThanTheColumnGives".As<ClassName>());
 		harness.Editor.CurrentSchema = schema;
+		harness.SelectTree("Classes");
 
 		Assert.IsTrue(
 			WidthOf("BtnAClassNameLongEnoughToNeedMoreRoomThanTheColumnGives") > WidthOf("BtnA"),
@@ -74,6 +81,7 @@ public sealed class TreeRowWidthTests
 		schema.AddClass("A".As<ClassName>());
 		schema.AddClass("Bee".As<ClassName>());
 		harness.Editor.CurrentSchema = schema;
+		harness.SelectTree("Classes");
 
 		Assert.AreEqual(WidthOf("BtnA"), WidthOf("BtnBee"));
 	}

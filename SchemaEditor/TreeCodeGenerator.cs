@@ -31,7 +31,7 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
 				OnItemClick = schemaEditor.EditCodeGenerator,
-				OnTreeEnd = (t) =>
+				OnTreeStart = (t) =>
 				{
 					using (t.Child)
 					{

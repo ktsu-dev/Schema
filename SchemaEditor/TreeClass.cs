@@ -33,7 +33,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 				GetTooltip = (x) => x.Description,
 				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
-				OnTreeEnd = (t) =>
+				OnTreeStart = (t) =>
 				{
 					using (t.Child)
 					{
@@ -90,7 +90,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			GetIssue = schemaEditor.GetIssueFor,
 			GetId = (x) => x.Name,
 			OnItemClick = (x) => schemaEditor.EditClass(schemaClass),
-			OnTreeEnd = (t) =>
+			OnTreeStart = (t) =>
 			{
 				using (t.Child)
 				{

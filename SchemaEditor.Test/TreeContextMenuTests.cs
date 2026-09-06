@@ -57,6 +57,8 @@ public sealed class TreeContextMenuTests
 	[TestMethod]
 	public void DeletingAClassRemovesIt()
 	{
+		harness.SelectTree("Classes");
+
 		ChooseFromContextMenu("BtnAccount", "DeleteAccount");
 
 		AssertClasses("User", "Order");
@@ -70,6 +72,8 @@ public sealed class TreeContextMenuTests
 	[TestMethod]
 	public void UndoingAClassDeleteBringsItBackWhereItWas()
 	{
+		harness.SelectTree("Classes");
+
 		ChooseFromContextMenu("BtnAccount", "DeleteAccount");
 
 		harness.Editor.UndoRedo.Undo();
@@ -80,6 +84,8 @@ public sealed class TreeContextMenuTests
 	[TestMethod]
 	public void RenamingAClassChangesItsName()
 	{
+		harness.SelectTree("Classes");
+
 		ChooseFromContextMenu("BtnAccount", "RenameAccount");
 		harness.TypeInto("input/field", "Ledger");
 		harness.Click("input/ok");
@@ -114,6 +120,7 @@ public sealed class TreeContextMenuTests
 		}
 
 		harness.Editor.CurrentSchema = schema;
+		harness.SelectTree("Data Sources");
 	}
 
 	private void AssertDataSources(params string[] expected)
@@ -169,6 +176,7 @@ public sealed class TreeContextMenuTests
 		}
 
 		harness.Editor.CurrentSchema = schema;
+		harness.SelectTree("Code Generators");
 	}
 
 	private void AssertCodeGenerators(params string[] expected)
@@ -227,6 +235,7 @@ public sealed class TreeContextMenuTests
 	{
 		SchemaClass user = schema.GetClass("User".As<ClassName>())!;
 
+		harness.SelectTree("Classes");
 		ChooseFromContextMenu("User/BtnId", "RenameId");
 		harness.TypeInto("input/field", "Identifier");
 		harness.Click("input/ok");
@@ -243,6 +252,8 @@ public sealed class TreeContextMenuTests
 	[TestMethod]
 	public void DeletingAMemberFromTheTreeRemovesIt()
 	{
+		harness.SelectTree("Classes");
+
 		ChooseFromContextMenu("User/BtnAge", "DeleteAge");
 
 		AssertMembersOfUser("Id", "Email");
@@ -255,6 +266,8 @@ public sealed class TreeContextMenuTests
 	[TestMethod]
 	public void UndoingAMemberDeleteFromTheTreeBringsItBackWhereItWas()
 	{
+		harness.SelectTree("Classes");
+
 		ChooseFromContextMenu("User/BtnAge", "DeleteAge");
 		AssertMembersOfUser("Id", "Email");
 

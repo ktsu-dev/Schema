@@ -32,7 +32,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 				GetIssue = schemaEditor.GetIssueFor,
 				GetId = (x) => x.Name,
 				OnItemClick = schemaEditor.EditEnum,
-				OnTreeEnd = (t) =>
+				OnTreeStart = (t) =>
 				{
 					using (t.Child)
 					{
@@ -99,7 +99,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 						ChangeType.Delete));
 				}
 			},
-			OnTreeEnd = (t) =>
+			OnTreeStart = (t) =>
 			{
 				using (t.Child)
 				{
