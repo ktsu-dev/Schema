@@ -91,26 +91,4 @@ public sealed class ValidationMarkingTests
 		Assert.IsNotNull(harness.Editor.GetIssueFor(id), "The broken reference should have been reported against the member.");
 		Assert.IsTrue(RedPixels() > before, "The member carrying an error was drawn no differently from one without.");
 	}
-
-	/// <summary>
-	/// The menu bar carries the counts as well, so a schema's health is visible without opening the
-	/// diagnostics tab.
-	/// </summary>
-	[TestMethod]
-	public void TheMenuBarIsDrawnInTheErrorColourWhileThereAreErrors()
-	{
-		Schema schema = new();
-		schema.AddClass("User".As<ClassName>());
-		harness.Editor.CurrentSchema = schema;
-		Revalidate();
-		int before = RedPixels();
-
-		// An empty class name is an error, and nothing is selected, so the only thing that can
-		// draw in the error colour is the summary in the menu bar.
-		schema.AddClass(new ClassName());
-		Revalidate();
-
-		Assert.IsTrue(harness.Editor.Diagnostics.Count > 0);
-		Assert.IsTrue(RedPixels() > before, "The menu bar did not report the errors in the error colour.");
-	}
 }

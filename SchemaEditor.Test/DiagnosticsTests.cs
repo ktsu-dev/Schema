@@ -8,6 +8,8 @@ using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Strings;
 
+using SchemaTypes = ktsu.Schema.Models.Types;
+
 /// <summary>
 /// The diagnostics panel's logic: when validation runs, and what clicking an issue selects.
 /// </summary>
@@ -47,6 +49,40 @@ public sealed class DiagnosticsTests
 		schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>());
 
 		return schema;
+	}
+
+	/// <summary>
+	/// Validates immediately, rather than waiting out the debounce, and draws the frames that put
+	/// the result on screen.
+	/// </summary>
+	private void Validate()
+	{
+		harness.Editor.RequestValidation();
+		harness.Editor.UpdateValidation(SchemaEditor.ValidationDebounceSeconds);
+		harness.App.Step(2);
+	}
+
+	/// <summary>
+	/// The counts are what a schema's health looks like from outside the diagnostics tab, so they
+	/// ride on the tab's own label.
+	/// </summary>
+	[TestMethod]
+	public void TheDiagnosticsTabCarriesTheCounts()
+	{
+		Schema schema = new();
+		SchemaClass user = schema.AddClass("User".As<ClassName>())!;
+		user.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		harness.Editor.CurrentSchema = schema;
+		Validate();
+
+		Assert.AreEqual("Diagnostics", harness.Editor.DiagnosticsTabLabel, "A clean schema has nothing to count.");
+
+		// An empty class name is an error, and a member left without a type is a warning.
+		schema.AddClass(new ClassName());
+		user.AddMember("Untyped".As<MemberName>());
+		Validate();
+
+		Assert.AreEqual("Diagnostics (1 error, 1 warning)", harness.Editor.DiagnosticsTabLabel);
 	}
 
 	[TestMethod]

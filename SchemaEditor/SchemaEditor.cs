@@ -42,6 +42,9 @@ public partial class SchemaEditor
 	private ClassGraphView ClassGraph { get; } = new();
 	private ImGuiWidgets.TabPanel MainTabs { get; }
 
+	// The tab whose label carries the validation counts.
+	private readonly string diagnosticsTabId;
+
 	// Tab content delegates are parameterless, so the current frame's delta is stashed here for them.
 	private float currentDeltaTime;
 
@@ -66,7 +69,7 @@ public partial class SchemaEditor
 		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
 		MainTabs.AddTab("Editor", ShowEditorPanel);
 		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
-		MainTabs.AddTab("Diagnostics", ShowDiagnosticsPanel);
+		diagnosticsTabId = MainTabs.AddTab(DiagnosticsTab.Name, ShowDiagnosticsPanel);
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
@@ -243,7 +246,11 @@ public partial class SchemaEditor
 	private void ShowLeftPanel(float dt) => TreeSchema.Show();
 
 	// The right zone hosts the Editor / Class Graph / Diagnostics tab bar.
-	private void ShowRightPanel(float dt) => MainTabs.Draw();
+	private void ShowRightPanel(float dt)
+	{
+		DiagnosticsTab.ShowCounts(MainTabs, diagnosticsTabId, ErrorCount, WarningCount);
+		MainTabs.Draw();
+	}
 
 	private void ShowEditorPanel()
 	{
@@ -276,8 +283,6 @@ public partial class SchemaEditor
 		{
 			RecordThemeChoice();
 		}
-
-		ShowDocumentStatus();
 	}
 
 	private void ShowFileMenu()
@@ -424,6 +429,7 @@ public partial class SchemaEditor
 	{
 		ClearSelection();
 		CurrentClass = schemaClass;
+		SelectTree(TreeSchema.ClassesTab);
 		QueueSaveOptions();
 	}
 
@@ -433,6 +439,7 @@ public partial class SchemaEditor
 	{
 		ClearSelection();
 		CurrentDataSource = dataSource;
+		SelectTree(TreeSchema.DataSourcesTab);
 		QueueSaveOptions();
 	}
 
@@ -440,6 +447,7 @@ public partial class SchemaEditor
 	{
 		ClearSelection();
 		CurrentEnum = schemaEnum;
+		SelectTree(TreeSchema.EnumsTab);
 		QueueSaveOptions();
 	}
 
@@ -449,8 +457,15 @@ public partial class SchemaEditor
 	{
 		ClearSelection();
 		CurrentCodeGenerator = codeGenerator;
+		SelectTree(TreeSchema.CodeGeneratorsTab);
 		QueueSaveOptions();
 	}
+
+	/// <summary>
+	/// Opens the tree tab holding one kind of element.
+	/// </summary>
+	/// <param name="name">The tab's name, as the constants on <see cref="TreeSchema"/> give it.</param>
+	internal void SelectTree(string name) => TreeSchema.SelectTab(name);
 
 	private void ClearSelection()
 	{

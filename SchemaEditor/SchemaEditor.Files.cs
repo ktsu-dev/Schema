@@ -37,28 +37,6 @@ public partial class SchemaEditor
 			? "Untitled schema"
 			: Path.GetFileName(CurrentSchemaPath);
 
-	/// <summary>
-	/// Draws the open document's name and unsaved marker, plus the validation summary, at the end
-	/// of the application menu bar.
-	/// </summary>
-	/// <remarks>
-	/// The window title carries the same information (see <see cref="UpdateWindowTitle"/>). This is
-	/// kept as well as, not instead of: a maximised window's title bar is easy to overlook, and on a
-	/// tiling window manager it may not be drawn at all.
-	/// </remarks>
-	private void ShowDocumentStatus()
-	{
-		if (CurrentSchema is null)
-		{
-			return;
-		}
-
-		ImGui.Separator();
-		ImGui.TextUnformatted($"{DocumentName}{(HasUnsavedChanges ? "*" : string.Empty)}");
-
-		ShowValidationSummary();
-	}
-
 	private void ShowRecentFilesMenu()
 	{
 		IReadOnlyList<AbsoluteFilePath> recent = [.. Options.RecentFiles];

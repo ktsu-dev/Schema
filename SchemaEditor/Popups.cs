@@ -44,8 +44,28 @@ internal sealed class Popups
 	internal void OpenBrowserDirectory(string title, Action<AbsoluteDirectoryPath> onConfirm) =>
 		Queue.Enqueue(() => PopupFilesystemBrowser.ChooseDirectory(title, onConfirm));
 
-	internal void OpenTypeList(string title, string label, IEnumerable<BaseType> items, BaseType? defaultItem, Action<BaseType> onConfirm) =>
-		Queue.Enqueue(() => PopupTypeList.Open(title, label, items, defaultItem, (t) => t.DisplayName, onConfirm));
+	/// <summary>
+	/// Opens the type picker, with the type the caller already holds selected.
+	/// </summary>
+	/// <remarks>
+	/// The types are materialised, and the current one resolved to the instance in that list,
+	/// because the picker redraws from the same sequence every frame and tracks its selection by
+	/// reference. <c>Schema.GetAvailableTypes</c> is lazy and builds fresh instances on each
+	/// enumeration, so passing it straight through gives the picker a different object every frame
+	/// and nothing ever draws as selected.
+	/// </remarks>
+	/// <param name="title">The popup title.</param>
+	/// <param name="label">The label above the list.</param>
+	/// <param name="items">The types that can be chosen from.</param>
+	/// <param name="current">The type held now, or null when there is none.</param>
+	/// <param name="onConfirm">Applies the chosen type.</param>
+	internal void OpenTypeList(string title, string label, IEnumerable<BaseType> items, BaseType? current, Action<BaseType> onConfirm) =>
+		Queue.Enqueue(() =>
+		{
+			List<BaseType> types = [.. items];
+			BaseType? selected = types.Find(type => type == current);
+			PopupTypeList.Open(title, label, types, selected, (t) => t.DisplayName, onConfirm);
+		});
 
 	internal void Update()
 	{

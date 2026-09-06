@@ -42,6 +42,8 @@ public sealed class TreeEditingTests
 	[TestMethod]
 	public void AddingAClassNamesItAndSelectsIt()
 	{
+		harness.SelectTree("Classes");
+
 		AddNamed("NewClass", "Order");
 
 		Assert.IsNotNull(schema.GetClass("Order".As<ClassName>()));
@@ -51,6 +53,8 @@ public sealed class TreeEditingTests
 	[TestMethod]
 	public void AddingAClassIsUndoable()
 	{
+		harness.SelectTree("Classes");
+
 		AddNamed("NewClass", "Order");
 		Assert.IsNotNull(schema.GetClass("Order".As<ClassName>()));
 
@@ -67,6 +71,7 @@ public sealed class TreeEditingTests
 	public void AddingAClassWithANameAlreadyInUseIsRefused()
 	{
 		schema.AddClass("Order".As<ClassName>());
+		harness.SelectTree("Classes");
 
 		AddNamed("NewClass", "Order");
 
@@ -78,6 +83,7 @@ public sealed class TreeEditingTests
 	{
 		SchemaClass user = schema.AddClass("User".As<ClassName>())!;
 		harness.Editor.EditClass(user);
+		harness.SelectTree("Classes");
 
 		AddNamed("User/NewMember", "Age");
 
@@ -105,6 +111,8 @@ public sealed class TreeEditingTests
 	[TestMethod]
 	public void AddingADataSourcePutsItOnTheSchemaAndSelectsIt()
 	{
+		harness.SelectTree("Data Sources");
+
 		AddNamed("NewDataSource", "Users");
 
 		Assert.IsNotNull(schema.GetDataSource("Users".As<DataSourceName>()));
@@ -114,6 +122,8 @@ public sealed class TreeEditingTests
 	[TestMethod]
 	public void AddingACodeGeneratorPutsItOnTheSchema()
 	{
+		harness.SelectTree("Code Generators");
+
 		AddNamed("NewCodeGenerator", "CSharp");
 
 		Assert.IsNotNull(schema.GetCodeGenerator("CSharp".As<CodeGeneratorName>()));

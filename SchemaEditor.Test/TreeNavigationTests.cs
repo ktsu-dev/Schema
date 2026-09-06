@@ -49,6 +49,7 @@ public sealed class TreeNavigationTests
 	public void ClickingAClassRowSelectsThatClass()
 	{
 		OpenPopulatedSchema();
+		harness.SelectTree("Classes");
 
 		harness.Click("BtnAccount");
 
@@ -63,6 +64,7 @@ public sealed class TreeNavigationTests
 	public void ClickingAMemberRowSelectsItsOwningClass()
 	{
 		OpenPopulatedSchema();
+		harness.SelectTree("Classes");
 		harness.Click("BtnAccount");
 
 		harness.Click("User/BtnAge");
@@ -85,6 +87,7 @@ public sealed class TreeNavigationTests
 	public void ClickingADataSourceRowSelectsThatDataSource()
 	{
 		OpenPopulatedSchema();
+		harness.SelectTree("Data Sources");
 
 		harness.Click("BtnUsers");
 
@@ -95,6 +98,7 @@ public sealed class TreeNavigationTests
 	public void ClickingACodeGeneratorRowSelectsThatCodeGenerator()
 	{
 		OpenPopulatedSchema();
+		harness.SelectTree("Code Generators");
 
 		harness.Click("BtnCSharp");
 
@@ -110,8 +114,11 @@ public sealed class TreeNavigationTests
 	{
 		OpenPopulatedSchema();
 
+		harness.SelectTree("Classes");
 		harness.Click("BtnUser");
+		harness.SelectTree("Data Sources");
 		harness.Click("BtnUsers");
+		harness.SelectTree("Code Generators");
 		harness.Click("BtnCSharp");
 
 		Assert.IsNull(harness.Editor.CurrentClass);

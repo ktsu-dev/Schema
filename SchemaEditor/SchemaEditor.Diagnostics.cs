@@ -66,32 +66,9 @@ public partial class SchemaEditor
 	}
 
 	/// <summary>
-	/// Draws the error and warning counts, so the schema's health is visible without opening the
-	/// diagnostics tab.
+	/// Gets the diagnostics tab's label, which carries the issue counts.
 	/// </summary>
-	private void ShowValidationSummary()
-	{
-		if (Diagnostics.Count == 0)
-		{
-			return;
-		}
-
-		int errors = ErrorCount;
-		int warnings = WarningCount;
-
-		ImGui.Separator();
-		using (EditorTheme.Severity(errors > 0 ? SchemaValidationSeverity.Error : SchemaValidationSeverity.Warning))
-		{
-			ImGui.TextUnformatted(FormatSummary(errors, warnings));
-		}
-	}
-
-	private static string FormatSummary(int errors, int warnings)
-	{
-		string errorText = $"{errors} error{(errors == 1 ? string.Empty : "s")}";
-		string warningText = $"{warnings} warning{(warnings == 1 ? string.Empty : "s")}";
-		return $"{errorText}, {warningText}";
-	}
+	internal string DiagnosticsTabLabel => DiagnosticsTab.LabelOf(MainTabs, diagnosticsTabId);
 
 	private void ShowDiagnosticsPanel()
 	{
@@ -107,7 +84,11 @@ public partial class SchemaEditor
 			return;
 		}
 
-		ImGui.TextUnformatted(FormatSummary(ErrorCount, WarningCount));
+		using (EditorTheme.SeverityText(ErrorCount > 0 ? SchemaValidationSeverity.Error : SchemaValidationSeverity.Warning))
+		{
+			ImGui.TextUnformatted(DiagnosticsTab.FormatSummary(ErrorCount, WarningCount));
+		}
+
 		ImGui.Separator();
 
 		// Errors first: they are what stops the schema being usable.
