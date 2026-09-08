@@ -6,6 +6,7 @@ using System.Linq;
 
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 
 using SchemaTypes = ktsu.Schema.Models.Types;
@@ -120,6 +121,12 @@ public sealed class ElementPanelTests
 		Assert.AreEqual("Where an order has got to.", status.Description.ToString());
 	}
 
+	/// <summary>
+	/// The expected value is built through the same conversion the panel puts the typed text
+	/// through, rather than written out as a string: a relative path normalises its separators to
+	/// the platform's, so a literal "data/users.json" is what the field holds on Linux and not on
+	/// Windows. What this is about is the typed value reaching the model, not how a path is spelt.
+	/// </summary>
 	[TestMethod]
 	public void SettingADataSourcesFilePathRecordsIt()
 	{
@@ -128,7 +135,7 @@ public sealed class ElementPanelTests
 
 		harness.Commit("field/DataSourceFileUsers", "data/users.json");
 
-		Assert.AreEqual("data/users.json", users.File.ToString());
+		Assert.AreEqual("data/users.json".As<RelativeFilePath>(), users.File);
 	}
 
 	[TestMethod]
