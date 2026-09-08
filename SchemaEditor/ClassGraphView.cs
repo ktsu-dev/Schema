@@ -10,7 +10,7 @@ using System.Text;
 
 using Hexa.NET.ImGui;
 
-using ktsu.ImGuiNodeEditor;
+using ktsu.ImGui.NodeEditor;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 
@@ -18,7 +18,7 @@ using SchemaTypes = Schema.Models.Types;
 
 /// <summary>
 /// Renders the relationships between schema classes and enums as an interactive node graph
-/// using <c>ktsu.NodeGraph</c> metadata concepts and the <c>ktsu.ImGuiNodeEditor</c> engine.
+/// using <c>ktsu.NodeGraph</c> metadata concepts and the <c>ktsu.ImGui.NodeEditor</c> engine.
 ///
 /// Each class and enum becomes a node. A member whose type references another class or enum
 /// (directly, or as the element type of an array) becomes a link from the owning class to the
