@@ -78,7 +78,7 @@ public sealed class ElementPanelTests
 		harness.App.Step(3);
 
 		Assert.AreEqual("User", user.Name.ToString());
-		Assert.IsTrue(harness.App.Probe.Matches("prompt/OK").Count > 0, "The collision was not reported.");
+		Assert.IsNotEmpty(harness.App.Probe.Matches("prompt/OK"), "The collision was not reported.");
 		Assert.IsFalse(harness.Editor.UndoRedo.CanUndo, "A rename that was refused left an undo entry behind.");
 	}
 
@@ -288,8 +288,9 @@ public sealed class ElementPanelTests
 		harness.Editor.EditClass(user);
 		harness.App.Step(2);
 
-		Assert.IsFalse(
-			harness.App.Probe.KnownNames.Any(name => name.Contains("field/MemberDescription", StringComparison.Ordinal)),
+		Assert.DoesNotContain(
+			name => name.Contains("field/MemberDescription", StringComparison.Ordinal),
+			harness.App.Probe.KnownNames,
 			"The description editor was drawn before the row was opened.");
 	}
 
@@ -302,7 +303,7 @@ public sealed class ElementPanelTests
 
 		harness.Click("memberId/ToggleDescription");
 
-		Assert.IsTrue(harness.App.Probe.Matches("field/MemberDescriptionUser.Id").Count > 0, "The description editor was not drawn.");
+		Assert.IsNotEmpty(harness.App.Probe.Matches("field/MemberDescriptionUser.Id"), "The description editor was not drawn.");
 	}
 
 	/// <summary>

@@ -26,6 +26,11 @@ public partial class SchemaEditor
 	private static Vector2 DescriptionSize => new(FieldWidth * 3, ImGui.GetTextLineHeight() * 3);
 
 	/// <summary>
+	/// What a picker offers for "point this at nothing", and the name that option is recorded under.
+	/// </summary>
+	private const string NoneOption = "<none>";
+
+	/// <summary>
 	/// Draws a description editor bound to a schema element, committing one undo entry per edit.
 	/// </summary>
 	/// <remarks>
@@ -204,8 +209,8 @@ public partial class SchemaEditor
 			return;
 		}
 
-		bool none = ImGui.Selectable("<none>");
-		ImGuiProbes.MarkItem("class-option", "<none>");
+		bool none = ImGui.Selectable(NoneOption);
+		ImGuiProbes.MarkItem("class-option", NoneOption);
 		if (none)
 		{
 			SetDataSourceClass(dataSource, new ClassName());
@@ -486,7 +491,7 @@ public partial class SchemaEditor
 
 	private void ShowArrayKeySelector(SchemaTypes.Array array, SchemaClass elementClass)
 	{
-		ImGui.Button(string.IsNullOrEmpty(array.Key) ? "<none>" : array.Key, new Vector2(FieldWidth, 0));
+		ImGui.Button(string.IsNullOrEmpty(array.Key) ? NoneOption : array.Key, new Vector2(FieldWidth, 0));
 		ImGuiProbes.MarkItem("KeySelector");
 
 		if (!ImGui.BeginPopupContextItem("##Key", ImGuiPopupFlags.MouseButtonLeft))
@@ -494,8 +499,8 @@ public partial class SchemaEditor
 			return;
 		}
 
-		bool none = ImGui.Selectable("<none>");
-		ImGuiProbes.MarkItem("key-option", "<none>");
+		bool none = ImGui.Selectable(NoneOption);
+		ImGuiProbes.MarkItem("key-option", NoneOption);
 		if (none)
 		{
 			SetArrayKey(array, new MemberName());
