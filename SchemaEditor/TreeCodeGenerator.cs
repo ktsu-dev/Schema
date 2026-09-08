@@ -23,7 +23,7 @@ internal sealed class TreeCodeGenerator(SchemaEditor schemaEditor)
 			IReadOnlyCollection<SchemaCodeGenerator> children = schema.CodeGenerators;
 
 			string name = "Code Generators";
-			ButtonTree<SchemaCodeGenerator>.ShowTree(name, $"{name} ({children.Count})", children, new()
+			ButtonTree<SchemaCodeGenerator>.ShowTree(schemaEditor, name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
 				GetText = (x) => x.Name,

@@ -7,6 +7,8 @@ using System.Numerics;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
+
 /// <summary>
 /// Text inputs that report a value to commit once per editing session rather than once per frame.
 /// </summary>
@@ -50,6 +52,7 @@ internal static class EditField
 
 		ImGui.SetNextItemWidth(width);
 		ImGui.InputText(id, ref buffer, (uint)maxLength);
+		Mark(id);
 
 		return Resolve(key, buffer, modelValue, out committed);
 	}
@@ -69,9 +72,22 @@ internal static class EditField
 		string buffer = Buffers.TryGetValue(key, out string? inProgress) ? inProgress : modelValue;
 
 		ImGui.InputTextMultiline(id, ref buffer, (uint)maxLength, size);
+		Mark(id);
 
 		return Resolve(key, buffer, modelValue, out committed);
 	}
+
+	/// <summary>
+	/// Records where the field was drawn, so a test can click into it.
+	/// </summary>
+	/// <remarks>
+	/// Every one of these is a hidden label - an id beginning with "##" so nothing is drawn beside
+	/// the box - which leaves a test no text to find it by. The id without its hashes is what the
+	/// caller already named the field, and any surrounding probe scope keeps two rows' fields
+	/// apart the same way <c>PushID</c> keeps them apart for ImGui.
+	/// </remarks>
+	/// <param name="id">The widget id the field was drawn with.</param>
+	private static void Mark(string id) => ImGuiProbes.MarkItem("field", id.TrimStart('#'));
 
 	/// <summary>
 	/// Decides, from the widget state ImGui reports for the item just drawn, whether the buffer

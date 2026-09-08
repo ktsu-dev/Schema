@@ -11,6 +11,7 @@ using System.IO;
 using Hexa.NET.ImGui;
 
 using ktsu.ImGui.App;
+using ktsu.ImGui.Probes;
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
 
@@ -41,7 +42,7 @@ public partial class SchemaEditor
 	{
 		IReadOnlyList<AbsoluteFilePath> recent = [.. Options.RecentFiles];
 
-		if (!ImGui.BeginMenu("Open Recent", recent.Count > 0))
+		if (!BeginMenu("Open Recent", recent.Count > 0))
 		{
 			return;
 		}
@@ -57,7 +58,13 @@ public partial class SchemaEditor
 			}
 
 			anyShown = true;
-			if (ImGui.MenuItem(path))
+			bool clicked = ImGui.MenuItem(path);
+
+			// Recorded under the file name rather than the whole path, which a probe name would
+			// otherwise read as a chain of scopes because both are separated by slashes.
+			ImGuiProbes.MarkItem("recent", Path.GetFileName(path));
+
+			if (clicked)
 			{
 				AbsoluteFilePath captured = path;
 				WithUnsavedChangesGuard(() => LoadFrom(captured));

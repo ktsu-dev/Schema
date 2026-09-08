@@ -128,4 +128,64 @@ public sealed class TreeEditingTests
 
 		Assert.IsNotNull(schema.GetCodeGenerator("CSharp".As<CodeGeneratorName>()));
 	}
+
+	/// <summary>
+	/// Each tree refuses a name a sibling already has, rather than silently replacing it or adding
+	/// a second element nothing could tell apart.
+	/// </summary>
+	[TestMethod]
+	public void AddingAnEnumWithANameAlreadyInUseIsRefused()
+	{
+		schema.AddEnum("Colour".As<EnumName>());
+
+		AddNamed("NewEnum", "Colour");
+
+		Assert.AreEqual(1, schema.Enums.Count(e => e.Name.ToString() == "Colour"));
+	}
+
+	[TestMethod]
+	public void AddingAnEnumValueAlreadyInUseIsRefused()
+	{
+		SchemaEnum colour = schema.AddEnum("Colour".As<EnumName>())!;
+		colour.TryAddValue("Red".As<EnumValueName>());
+
+		AddNamed("NewValue", "Red");
+
+		Assert.AreEqual(1, colour.Values.Count(v => v.ToString() == "Red"));
+	}
+
+	[TestMethod]
+	public void AddingADataSourceWithANameAlreadyInUseIsRefused()
+	{
+		schema.AddDataSource("Users".As<DataSourceName>());
+		harness.SelectTree("Data Sources");
+
+		AddNamed("NewDataSource", "Users");
+
+		Assert.AreEqual(1, schema.DataSources.Count(d => d.Name.ToString() == "Users"));
+	}
+
+	[TestMethod]
+	public void AddingACodeGeneratorWithANameAlreadyInUseIsRefused()
+	{
+		schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>());
+		harness.SelectTree("Code Generators");
+
+		AddNamed("NewCodeGenerator", "CSharp");
+
+		Assert.AreEqual(1, schema.CodeGenerators.Count(g => g.Name.ToString() == "CSharp"));
+	}
+
+	[TestMethod]
+	public void AddingAMemberWithANameAlreadyInUseIsRefused()
+	{
+		SchemaClass user = schema.AddClass("User".As<ClassName>())!;
+		user.AddMember("Age".As<MemberName>());
+		harness.Editor.EditClass(user);
+		harness.SelectTree("Classes");
+
+		AddNamed("User/NewMember", "Age");
+
+		Assert.AreEqual(1, user.Members.Count(m => m.Name.ToString() == "Age"));
+	}
 }

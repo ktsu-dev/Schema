@@ -324,6 +324,25 @@ public sealed class DocumentGuardTests
 	}
 
 	/// <summary>
+	/// Backing out of the close prompt has to release the latch that stops a second prompt stacking
+	/// on the first, or the close button would stop working for the rest of the session.
+	/// </summary>
+	[TestMethod]
+	public void BackingOutOfTheClosePromptLeavesTheCloseButtonWorking()
+	{
+		OpenDirtyDocument();
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		AnswerPrompt("Cancel");
+
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		harness.App.Step(4);
+
+		Assert.IsTrue(
+			harness.IsOnScreen("prompt/Discard"),
+			"A second close raised no prompt, so the editor could no longer be closed.");
+	}
+
+	/// <summary>
 	/// Hitting the close button repeatedly must not stack a prompt per press, which would leave the
 	/// user dismissing the same question several times.
 	/// </summary>

@@ -9,6 +9,7 @@ using System.Linq;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.Schema.Models;
 
 /// <summary>
@@ -70,7 +71,15 @@ public partial class SchemaEditor
 	/// </summary>
 	internal string DiagnosticsTabLabel => DiagnosticsTab.LabelOf(MainTabs, diagnosticsTabId);
 
-	private void ShowDiagnosticsPanel()
+	/// <summary>
+	/// Draws the issue list behind the diagnostics tab.
+	/// </summary>
+	/// <remarks>
+	/// Internal so a test can draw it directly. The tab bar hosting it comes from a widget library
+	/// that neither records its tabs for a probe nor takes a selection from outside, so there is no
+	/// tab for a test to click; drawing the panel is what the tab delegate does either way.
+	/// </remarks>
+	internal void ShowDiagnosticsPanel()
 	{
 		if (CurrentSchema is null)
 		{
@@ -110,7 +119,14 @@ public partial class SchemaEditor
 		ImGui.SameLine();
 
 		// Selectable rather than text so the whole row is a navigation target.
-		if (ImGui.Selectable($"{issue.Path}: {issue.Message}##{issue.Path}{issue.Message}"))
+		bool clicked = ImGui.Selectable($"{issue.Path}: {issue.Message}##{issue.Path}{issue.Message}");
+
+		// Severity and path rather than the whole row, so a test names the issue it means without
+		// repeating the wording of the message - and so that an element with both an error and a
+		// warning against it does not record two rows under one name.
+		ImGuiProbes.MarkItem("diagnostic", $"{issue.Severity}:{issue.Path}");
+
+		if (clicked)
 		{
 			NavigateTo(issue);
 		}

@@ -231,6 +231,46 @@ public sealed class TreeContextMenuTests
 	}
 
 	[TestMethod]
+	public void RenamingAnEnumValueChangesIt()
+	{
+		SchemaEnum colour = schema.GetEnum("Colour".As<EnumName>())!;
+		colour.TryAddValue("Red".As<EnumValueName>());
+
+		ChooseFromContextMenu("BtnRed", "RenameRed");
+		harness.TypeInto("input/field", "Crimson");
+		harness.Click("input/ok");
+
+		Assert.IsTrue(colour.Values.Any(v => v.ToString() == "Crimson"));
+		Assert.IsFalse(colour.Values.Any(v => v.ToString() == "Red"));
+	}
+
+	[TestMethod]
+	public void DeletingAnEnumValueRemovesIt()
+	{
+		SchemaEnum colour = schema.GetEnum("Colour".As<EnumName>())!;
+		colour.TryAddValue("Red".As<EnumValueName>());
+		colour.TryAddValue("Green".As<EnumValueName>());
+
+		ChooseFromContextMenu("BtnRed", "DeleteRed");
+
+		string[] remaining = [.. colour.Values.Select(v => v.ToString())];
+		Assert.AreEqual(1, remaining.Length, $"Values were [{string.Join(", ", remaining)}].");
+		Assert.AreEqual("Green", remaining[0]);
+	}
+
+	[TestMethod]
+	public void UndoingAnEnumValueDeleteBringsItBack()
+	{
+		SchemaEnum colour = schema.GetEnum("Colour".As<EnumName>())!;
+		colour.TryAddValue("Red".As<EnumValueName>());
+
+		ChooseFromContextMenu("BtnRed", "DeleteRed");
+		harness.Editor.UndoRedo.Undo();
+
+		Assert.IsTrue(colour.Values.Any(v => v.ToString() == "Red"));
+	}
+
+	[TestMethod]
 	public void RenamingAMemberChangesItsName()
 	{
 		SchemaClass user = schema.GetClass("User".As<ClassName>())!;

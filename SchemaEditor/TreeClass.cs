@@ -26,7 +26,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 			IReadOnlyCollection<SchemaClass> children = schema.Classes;
 
 			string name = "Classes";
-			ButtonTree<SchemaClass>.ShowTree(name, $"{name} ({children.Count})", children, new()
+			ButtonTree<SchemaClass>.ShowTree(schemaEditor, name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
 				GetText = (x) => $"{x.Name} ({x.Members.Count})",
@@ -81,7 +81,7 @@ internal sealed class TreeClass(SchemaEditor schemaEditor)
 
 		ImGui.PushID(schemaClass.Name);
 		ImGuiProbes.PushScope(schemaClass.Name);
-		ButtonTree<SchemaMember>.ShowTree(schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()
+		ButtonTree<SchemaMember>.ShowTree(schemaEditor, schemaClass.Name, $"{schemaClass.Name} ({children.Count})", children, new()
 		{
 			GetText = (x) => x.Name,
 			GetTooltip = (x) => string.IsNullOrEmpty(x.Description)
