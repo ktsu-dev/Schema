@@ -18,7 +18,7 @@
     <PackageReference Include="ktsu.ImGui.Probes" />
     <PackageReference Include="ktsu.ImGui.Styler" />
     <PackageReference Include="ktsu.ImGui.Widgets" />
-    <PackageReference Include="ktsu.ImGuiNodeEditor" />
+    <PackageReference Include="ktsu.ImGui.NodeEditor" />
     <PackageReference Include="ktsu.NodeGraph" />
     <PackageReference Include="ktsu.IntervalAction" />
     <PackageReference Include="ktsu.Keybinding.Core" />

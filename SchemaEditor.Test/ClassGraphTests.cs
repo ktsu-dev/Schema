@@ -64,7 +64,7 @@ public sealed class ClassGraphTests
 	/// every frame the graph was open, and the node's measured width grew by eight pixels a frame,
 	/// without limit, for as long as it was on screen.
 	///
-	/// The node is drawn by ktsu.ImGuiNodeEditor, so that is where the fix is: it submits an item
+	/// The node is drawn by ktsu.ImGui.NodeEditor, so that is where the fix is: it submits an item
 	/// of its own for a node with no pins, from 3.16.8.
 	/// </remarks>
 	[TestMethod]
