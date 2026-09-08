@@ -1,6 +1,4 @@
-## v1.16.1 (patch)
+## v1.16.1
 
-Changes since v1.16.0:
-
-- Take the assertions SonarCloud's analyzer asked for ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.16.1.
 
