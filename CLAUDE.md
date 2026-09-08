@@ -85,7 +85,24 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 - `SchemaEditor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
 - `SchemaEditor/Program.cs` - The entry point, and the only file excluded from coverage measurement
 - `SchemaEditor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
-- `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test
+- `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
+
+### Addressing the editor from a test
+
+The editor's own draw code records where it put things, through `ImGuiProbes.MarkItem` from
+`ktsu.ImGui.Probes`. That is what lets a test click a widget by name rather than by pixel position,
+and it costs nothing when no probe is installed - which is every run that is not a test. Marking is
+therefore part of drawing a control, not an afterthought: a new button, menu item or picker option
+that a test will need is marked where it is submitted.
+
+The names are qualified by the ImGui window and any pushed scope, and a test matches on the trailing
+part: `menu/New`, `field/ClassNameUser`, `memberId/Delete`, `diagnostic/Error:Users`. Rows that share
+a label push a probe scope alongside `ImGui.PushID`, so two members' fields do not collide.
+
+One thing has no name to click: the right-hand tab bar comes from a widget library that neither
+records its tabs nor takes a selection from outside. A panel behind it - the class graph, the
+diagnostics list - is tested by drawing it directly in a `WidgetHarness`, which is what the tab's
+own delegate does.
 
 ## Dependencies
 

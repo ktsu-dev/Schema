@@ -23,7 +23,7 @@ internal sealed class TreeDataSource(SchemaEditor schemaEditor)
 			IReadOnlyCollection<DataSource> children = schema.DataSources;
 
 			string name = "DataSources";
-			ButtonTree<DataSource>.ShowTree(name, $"{name} ({children.Count})", children, new()
+			ButtonTree<DataSource>.ShowTree(schemaEditor, name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
 				GetText = (x) => x.Name,

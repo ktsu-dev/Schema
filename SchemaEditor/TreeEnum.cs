@@ -24,7 +24,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			IReadOnlyCollection<SchemaEnum> children = schema.Enums;
 
 			string name = "Enums";
-			ButtonTree<SchemaEnum>.ShowTree(name, $"{name} ({children.Count})", children, new()
+			ButtonTree<SchemaEnum>.ShowTree(schemaEditor, name, $"{name} ({children.Count})", children, new()
 			{
 				Collapsible = true,
 				GetText = (x) => $"{x.Name} ({x.Values.Count})",
@@ -76,7 +76,7 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 	private void ShowEnumValueTree(ImGuiWidgets.Tree parent, SchemaEnum schemaEnum)
 	{
 		IReadOnlyCollection<EnumValueName> children = schemaEnum.Values;
-		ButtonTree<EnumValueName>.ShowTree(schemaEnum.Name, $"{schemaEnum.Name} ({children.Count})", children, new()
+		ButtonTree<EnumValueName>.ShowTree(schemaEditor, schemaEnum.Name, $"{schemaEnum.Name} ({children.Count})", children, new()
 		{
 			GetText = (x) => x,
 			GetId = (x) => x,
@@ -84,13 +84,17 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 			{
 				EnumValueName captured = x;
 
-				if (ImGui.Selectable($"Rename {captured}"))
+				bool rename = ImGui.Selectable($"Rename {captured}");
+				ImGuiProbes.MarkItem($"Rename{captured}");
+				if (rename)
 				{
 					schemaEditor.PromptRename("enum value", captured,
 						newName => schemaEnum.TryRenameValue(captured, newName.As<EnumValueName>()));
 				}
 
-				if (ImGui.Selectable($"Delete {captured}"))
+				bool delete = ImGui.Selectable($"Delete {captured}");
+				ImGuiProbes.MarkItem($"Delete{captured}");
+				if (delete)
 				{
 					schemaEditor.Execute(new DelegateCommand(
 						$"Delete Enum Value '{captured}'",

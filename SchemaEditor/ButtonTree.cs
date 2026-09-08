@@ -54,11 +54,23 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 	private static float RowWidth(string text) =>
 		MathF.Max(SchemaEditor.FieldWidth, ImGui.CalcTextSize(text).X + (ImGui.GetStyle().FramePadding.X * 2));
 
-	internal static void ShowTree(string id, string text, IEnumerable<TItem> items) => ShowTree(id, text, items, new(), null);
-	internal static void ShowTree(string id, string text, IEnumerable<TItem> items, Config config, ImGuiWidgets.Tree? parent)
+	/// <summary>
+	/// Draws a tree of rows, one button each.
+	/// </summary>
+	/// <remarks>
+	/// Takes the editor rather than reaching for <see cref="SchemaEditor.Instance"/>, because which
+	/// rows are folded open is part of that editor's settings.
+	/// </remarks>
+	/// <param name="editor">The editor the tree belongs to.</param>
+	/// <param name="id">A stable id for the tree, which is also what its folded state is keyed by.</param>
+	/// <param name="text">The tree's heading.</param>
+	/// <param name="items">The rows to draw.</param>
+	/// <param name="config">What each row does.</param>
+	/// <param name="parent">The tree this one hangs under, or null when it is a root.</param>
+	internal static void ShowTree(SchemaEditor editor, string id, string text, IEnumerable<TItem> items, Config config, ImGuiWidgets.Tree? parent)
 	{
 		bool isRoot = parent is null;
-		bool treeIsOpen = !isRoot || SchemaEditor.IsVisible(id);
+		bool treeIsOpen = !isRoot || editor.IsVisible(id);
 
 		if (isRoot)
 		{
@@ -71,7 +83,7 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 			ImGui.SameLine();
 			if (ImGui.ArrowButton($"##Arrow{id}", treeIsOpen ? ImGuiDir.Down : ImGuiDir.Up))
 			{
-				SchemaEditor.ToggleVisibility(id);
+				editor.ToggleVisibility(id);
 			}
 		}
 
@@ -83,7 +95,7 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 
 				foreach (TItem? item in items.ToCollection())
 				{
-					ShowTreeItem(id, config, tree, item);
+					ShowTreeItem(editor, id, config, tree, item);
 				}
 
 				config?.OnTreeEnd?.Invoke(tree);
@@ -112,13 +124,13 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 		}
 	}
 
-	private static void ShowTreeItem(string id, Config config, ImGuiWidgets.Tree tree, TItem? item)
+	private static void ShowTreeItem(SchemaEditor editor, string id, Config config, ImGuiWidgets.Tree tree, TItem? item)
 	{
 		if (item is not null)
 		{
 			string buttonText = config.GetText?.Invoke(item) ?? item.ToString() ?? string.Empty;
 			string itemId = config.GetId?.Invoke(item) ?? $"{id}.{buttonText}";
-			bool itemIsOpen = !config.Collapsible || SchemaEditor.IsVisible(itemId);
+			bool itemIsOpen = !config.Collapsible || editor.IsVisible(itemId);
 			using (tree.Child)
 			{
 				config.OnItemStart?.Invoke(tree, item);
@@ -168,7 +180,7 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 					ImGui.SameLine();
 					if (ImGui.ArrowButton($"##Arrow{itemId}", itemIsOpen ? ImGuiDir.Down : ImGuiDir.Up))
 					{
-						SchemaEditor.ToggleVisibility(itemId);
+						editor.ToggleVisibility(itemId);
 					}
 				}
 			}

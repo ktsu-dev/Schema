@@ -131,6 +131,40 @@ internal sealed class EditorHarness : IDisposable
 	}
 
 	/// <summary>
+	/// Whether a marked item was drawn in the frame just rendered.
+	/// </summary>
+	/// <remarks>
+	/// Not the same question as whether the probe has ever seen it: the probe remembers every name
+	/// it has recorded, so a popup that has been dismissed still matches by name. This is what to
+	/// ask about something that is expected to have gone away, or to have come back.
+	/// </remarks>
+	/// <param name="item">A marked name, or the trailing part of one.</param>
+	internal bool IsOnScreen(string item) => App.Probe.WasSeenInFrame(item, App.FrameCount - 1);
+
+	/// <summary>
+	/// Opens one of the application menus in the menu bar.
+	/// </summary>
+	/// <remarks>
+	/// Named by its window, unlike the items inside it. A menu header is recorded twice - once as
+	/// the bar draws it, and again inside the popup it opens, since that popup is the window the
+	/// mark is qualified by - so the bare name stops identifying one item as soon as the menu has
+	/// been opened once.
+	/// </remarks>
+	/// <param name="name">The menu's label, as the menu bar draws it.</param>
+	internal void OpenMenu(string name) => Click($"##MainMenuBar/menu/{name}");
+
+	/// <summary>
+	/// Opens a menu and chooses one of its items.
+	/// </summary>
+	/// <param name="menu">The menu's label.</param>
+	/// <param name="item">The item's label.</param>
+	internal void ChooseMenuItem(string menu, string item)
+	{
+		OpenMenu(menu);
+		Click($"menu/{item}");
+	}
+
+	/// <summary>
 	/// Right-clicks a marked item, which is how the tree opens an item's context menu.
 	/// </summary>
 	/// <param name="item">A marked name, or the trailing part of one.</param>
@@ -154,6 +188,24 @@ internal sealed class EditorHarness : IDisposable
 		Click(field);
 		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.A, ctrl: true);
 		App.Keyboard.Type(text);
+	}
+
+	/// <summary>
+	/// Types a value into a marked single-line field and finishes the edit.
+	/// </summary>
+	/// <remarks>
+	/// The edit has to be finished for anything to happen: <see cref="EditField"/> reports a value
+	/// to write only on the frame the field is deactivated having been changed, which is what keeps
+	/// an editing session to one undo entry. Enter is how a single-line field is left; a
+	/// multi-line one takes the Enter as a newline and has to be left by clicking away from it.
+	/// </remarks>
+	/// <param name="field">A marked name, or the trailing part of one.</param>
+	/// <param name="text">The text to leave in the field.</param>
+	internal void Commit(string field, string text)
+	{
+		TypeInto(field, text);
+		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.Enter);
+		App.Step(2);
 	}
 
 	public void Dispose()

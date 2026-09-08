@@ -9,6 +9,7 @@ using System.Diagnostics;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.ImGui.Widgets;
 using ktsu.IntervalAction;
 using ktsu.Schema.Models;
@@ -285,19 +286,51 @@ public partial class SchemaEditor
 		}
 	}
 
+	/// <summary>
+	/// Opens a menu, recording where its header was drawn.
+	/// </summary>
+	/// <remarks>
+	/// ImGui gives a menu item no identity a probe can find on its own, so until the header and
+	/// the items under it were marked there was no way for a test to reach New, Open, Save or
+	/// Exit the way a user does - through the menu rather than by calling what it invokes.
+	/// </remarks>
+	/// <param name="label">The menu's label, which is also the name it is recorded under.</param>
+	/// <param name="enabled">Whether the menu can be opened.</param>
+	/// <returns>True while the menu is open, in which case it must be ended.</returns>
+	internal static bool BeginMenu(string label, bool enabled = true)
+	{
+		bool open = ImGui.BeginMenu(label, enabled);
+		ImGuiProbes.MarkItem("menu", label);
+		return open;
+	}
+
+	/// <summary>
+	/// Draws a menu item, recording where it was drawn.
+	/// </summary>
+	/// <param name="label">The item's label, which is also the name it is recorded under.</param>
+	/// <param name="shortcut">The keyboard shortcut shown beside it.</param>
+	/// <param name="enabled">Whether the item can be chosen.</param>
+	/// <returns>True on the frame it is clicked.</returns>
+	internal static bool MenuItem(string label, string shortcut = "", bool enabled = true)
+	{
+		bool clicked = ImGui.MenuItem(label, shortcut, false, enabled);
+		ImGuiProbes.MarkItem("menu", label);
+		return clicked;
+	}
+
 	private void ShowFileMenu()
 	{
-		if (!ImGui.BeginMenu("File"))
+		if (!BeginMenu("File"))
 		{
 			return;
 		}
 
-		if (ImGui.MenuItem("New", "Ctrl+N"))
+		if (MenuItem("New", "Ctrl+N"))
 		{
 			New();
 		}
 
-		if (ImGui.MenuItem("Open", "Ctrl+O"))
+		if (MenuItem("Open", "Ctrl+O"))
 		{
 			Open();
 		}
@@ -306,29 +339,33 @@ public partial class SchemaEditor
 
 		ImGui.Separator();
 
-		if (ImGui.MenuItem("Save", "Ctrl+S", false, CurrentSchema is not null))
+		if (MenuItem("Save", "Ctrl+S", CurrentSchema is not null))
 		{
 			Save();
 		}
 
 		// Always available while a schema is open: without it there is no way to save a copy
 		// somewhere else once the schema has a path.
-		if (ImGui.MenuItem("Save As...", "Ctrl+Shift+S", false, CurrentSchema is not null))
+		if (MenuItem("Save As...", "Ctrl+Shift+S", CurrentSchema is not null))
 		{
 			SaveAs();
 		}
 
 		ImGui.Separator();
 
+		// Enabled rather than selected: the two-argument ImGui overload this used to call takes
+		// the flag as the item's checked state, so the item was drawn with a tick beside it once
+		// the schema had a path, and stayed clickable - handing an empty path to the shell -
+		// while it had none.
 		string schemaFilePath = CurrentSchemaPath;
-		if (ImGui.MenuItem("Open Externally", !string.IsNullOrEmpty(schemaFilePath)))
+		if (MenuItem("Open Externally", string.Empty, !string.IsNullOrEmpty(schemaFilePath)))
 		{
 			OpenExternally(schemaFilePath);
 		}
 
 		ImGui.Separator();
 
-		if (ImGui.MenuItem("Exit"))
+		if (MenuItem("Exit"))
 		{
 			ExitWithUnsavedChangesGuard();
 		}
@@ -338,17 +375,17 @@ public partial class SchemaEditor
 
 	private void ShowEditMenu()
 	{
-		if (!ImGui.BeginMenu("Edit"))
+		if (!BeginMenu("Edit"))
 		{
 			return;
 		}
 
-		if (ImGui.MenuItem("Undo", "Ctrl+Z", false, UndoRedo.CanUndo))
+		if (MenuItem("Undo", "Ctrl+Z", UndoRedo.CanUndo))
 		{
 			Undo();
 		}
 
-		if (ImGui.MenuItem("Redo", "Ctrl+Y", false, UndoRedo.CanRedo))
+		if (MenuItem("Redo", "Ctrl+Y", UndoRedo.CanRedo))
 		{
 			Redo();
 		}
@@ -384,19 +421,35 @@ public partial class SchemaEditor
 		}
 	}
 
-	internal static bool ToggleVisibility(string key)
+	/// <summary>
+	/// Folds a collapsible part of the interface open or shut, and remembers which it now is.
+	/// </summary>
+	/// <remarks>
+	/// An instance member rather than a static one reaching for <see cref="Instance"/>. The state
+	/// belongs to the settings of the editor drawing the row, and while the application only ever
+	/// has one editor, a test has one per test - so reading it off the singleton meant a row left
+	/// open by one test came back open in the next.
+	/// </remarks>
+	/// <param name="key">What is being folded, as the caller names it.</param>
+	/// <returns>True if it is now hidden.</returns>
+	internal bool ToggleVisibility(string key)
 	{
-		Instance.QueueSaveOptions();
-		if (Instance.Options.HiddenItems.Remove(key))
+		QueueSaveOptions();
+		if (Options.HiddenItems.Remove(key))
 		{
 			return false;
 		}
 
-		Instance.Options.HiddenItems.Add(key);
+		Options.HiddenItems.Add(key);
 		return true;
 	}
 
-	internal static bool IsVisible(string key) => !Instance.Options.HiddenItems.Contains(key);
+	/// <summary>
+	/// Whether a collapsible part of the interface is folded open.
+	/// </summary>
+	/// <param name="key">What is being asked about, as the caller names it.</param>
+	/// <returns>True if it is not hidden.</returns>
+	internal bool IsVisible(string key) => !Options.HiddenItems.Contains(key);
 
 	private void ShowSchemaConfig()
 	{

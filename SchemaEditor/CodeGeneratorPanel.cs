@@ -6,6 +6,7 @@ using System.Numerics;
 
 using Hexa.NET.ImGui;
 
+using ktsu.ImGui.Probes;
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
@@ -63,7 +64,9 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 		}
 
 		ImGui.SameLine();
-		if (ImGui.Button($"Browse...##CodeGeneratorBrowse{codeGenerator.Name}"))
+		bool browse = ImGui.Button($"Browse...##CodeGeneratorBrowse{codeGenerator.Name}");
+		ImGuiProbes.MarkItem("browse", codeGenerator.Name);
+		if (browse)
 		{
 			SchemaCodeGenerator captured = codeGenerator;
 			Popups.OpenBrowserDirectory("Choose Output Directory", (directory) =>
@@ -84,6 +87,7 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 	{
 		string label = string.IsNullOrEmpty(codeGenerator.Language) ? "<Select Language>" : codeGenerator.Language;
 		ImGui.Button($"{label}##CodeGeneratorLanguage{codeGenerator.Name}", new Vector2(SchemaEditor.FieldWidth, 0));
+		ImGuiProbes.MarkItem("language-selector", codeGenerator.Name);
 
 		if (!ImGui.BeginPopupContextItem($"##CodeGeneratorLanguageSelect{codeGenerator.Name}", ImGuiPopupFlags.MouseButtonLeft))
 		{
@@ -92,7 +96,9 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 
 		foreach (string language in SchemaGenerator.SupportedLanguages)
 		{
-			if (ImGui.Selectable(language))
+			bool chosen = ImGui.Selectable(language);
+			ImGuiProbes.MarkItem("language-option", language);
+			if (chosen)
 			{
 				LanguageName previous = codeGenerator.Language;
 				LanguageName next = language.As<LanguageName>();
@@ -136,7 +142,9 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 			return;
 		}
 
-		if (!ImGui.Button($"Generate##CodeGeneratorGenerate{codeGenerator.Name}"))
+		bool generate = ImGui.Button($"Generate##CodeGeneratorGenerate{codeGenerator.Name}");
+		ImGuiProbes.MarkItem("generate", codeGenerator.Name);
+		if (!generate)
 		{
 			return;
 		}

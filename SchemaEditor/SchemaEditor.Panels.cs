@@ -197,20 +197,25 @@ public partial class SchemaEditor
 	{
 		string label = string.IsNullOrEmpty(dataSource.ClassName) ? "<Select Class>" : dataSource.ClassName;
 		ImGui.Button($"{label}##DataSourceClass{dataSource.Name}", new Vector2(FieldWidth, 0));
+		ImGuiProbes.MarkItem("class-selector", dataSource.Name);
 
 		if (!ImGui.BeginPopupContextItem($"##DataSourceClassSelect{dataSource.Name}", ImGuiPopupFlags.MouseButtonLeft))
 		{
 			return;
 		}
 
-		if (ImGui.Selectable("<none>"))
+		bool none = ImGui.Selectable("<none>");
+		ImGuiProbes.MarkItem("class-option", "<none>");
+		if (none)
 		{
 			SetDataSourceClass(dataSource, new ClassName());
 		}
 
 		foreach (SchemaClass schemaClass in schema.Classes)
 		{
-			if (ImGui.Selectable(schemaClass.Name))
+			bool chosen = ImGui.Selectable(schemaClass.Name);
+			ImGuiProbes.MarkItem("class-option", schemaClass.Name);
+			if (chosen)
 			{
 				SetDataSourceClass(dataSource, schemaClass.Name);
 			}
@@ -293,7 +298,9 @@ public partial class SchemaEditor
 		ImGui.SameLine();
 		string descriptionKey = $"memberdescription:{schemaClass.Name}.{member.Name}";
 		bool descriptionOpen = !IsVisible(descriptionKey);
-		if (ImGui.ArrowButton("##ToggleDescription", descriptionOpen ? ImGuiDir.Down : ImGuiDir.Right))
+		bool toggleDescription = ImGui.ArrowButton("##ToggleDescription", descriptionOpen ? ImGuiDir.Down : ImGuiDir.Right);
+		ImGuiProbes.MarkItem("ToggleDescription");
+		if (toggleDescription)
 		{
 			ToggleVisibility(descriptionKey);
 		}
@@ -435,7 +442,9 @@ public partial class SchemaEditor
 		Ensure.NotNull(schema);
 		Ensure.NotNull(schemaMember);
 
-		if (ImGui.Button($"{schemaMember.Type.DisplayName}##Type", new Vector2(FieldWidth, 0)))
+		bool typeClicked = ImGui.Button($"{schemaMember.Type.DisplayName}##Type", new Vector2(FieldWidth, 0));
+		ImGuiProbes.MarkItem("Type");
+		if (typeClicked)
 		{
 			SchemaMember captured = schemaMember;
 			Popups.OpenTypeList("Select Type", "Type", schema.GetAvailableTypes(), captured.Type, (type) => SetMemberType(captured, type));
@@ -478,20 +487,25 @@ public partial class SchemaEditor
 	private void ShowArrayKeySelector(SchemaTypes.Array array, SchemaClass elementClass)
 	{
 		ImGui.Button(string.IsNullOrEmpty(array.Key) ? "<none>" : array.Key, new Vector2(FieldWidth, 0));
+		ImGuiProbes.MarkItem("KeySelector");
 
 		if (!ImGui.BeginPopupContextItem("##Key", ImGuiPopupFlags.MouseButtonLeft))
 		{
 			return;
 		}
 
-		if (ImGui.Selectable("<none>"))
+		bool none = ImGui.Selectable("<none>");
+		ImGuiProbes.MarkItem("key-option", "<none>");
+		if (none)
 		{
 			SetArrayKey(array, new MemberName());
 		}
 
 		foreach (SchemaMember primitiveMember in elementClass.Members.Where(m => m.Type.IsPrimitive).OrderBy(m => m.Name.ToString(), StringComparer.Ordinal))
 		{
-			if (ImGui.Selectable(primitiveMember.Name))
+			bool chosen = ImGui.Selectable(primitiveMember.Name);
+			ImGuiProbes.MarkItem("key-option", primitiveMember.Name);
+			if (chosen)
 			{
 				SetArrayKey(array, primitiveMember.Name);
 			}
