@@ -1,8 +1,6 @@
-## v1.16.0 (minor)
+## v1.16.1 (patch)
 
-Changes since v1.15.0:
+Changes since v1.16.0:
 
-- Compare the data source path as a path, not as a string ([@Claude](https://github.com/Claude))
-- Cover the editor's menus, panels and diagnostics list ([@Claude](https://github.com/Claude))
-- Move to the renamed ktsu.ImGui.NodeEditor package ([@Claude](https://github.com/Claude))
+- Take the assertions SonarCloud's analyzer asked for ([@Claude](https://github.com/Claude))
 
