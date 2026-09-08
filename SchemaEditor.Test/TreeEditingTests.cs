@@ -140,7 +140,7 @@ public sealed class TreeEditingTests
 
 		AddNamed("NewEnum", "Colour");
 
-		Assert.AreEqual(1, schema.Enums.Count(e => e.Name.ToString() == "Colour"));
+		Assert.ContainsSingle(e => e.Name.ToString() == "Colour", schema.Enums);
 	}
 
 	[TestMethod]
@@ -151,7 +151,7 @@ public sealed class TreeEditingTests
 
 		AddNamed("NewValue", "Red");
 
-		Assert.AreEqual(1, colour.Values.Count(v => v.ToString() == "Red"));
+		Assert.ContainsSingle(v => v.ToString() == "Red", colour.Values);
 	}
 
 	[TestMethod]
@@ -162,7 +162,7 @@ public sealed class TreeEditingTests
 
 		AddNamed("NewDataSource", "Users");
 
-		Assert.AreEqual(1, schema.DataSources.Count(d => d.Name.ToString() == "Users"));
+		Assert.ContainsSingle(d => d.Name.ToString() == "Users", schema.DataSources);
 	}
 
 	[TestMethod]
@@ -173,7 +173,7 @@ public sealed class TreeEditingTests
 
 		AddNamed("NewCodeGenerator", "CSharp");
 
-		Assert.AreEqual(1, schema.CodeGenerators.Count(g => g.Name.ToString() == "CSharp"));
+		Assert.ContainsSingle(g => g.Name.ToString() == "CSharp", schema.CodeGenerators);
 	}
 
 	[TestMethod]
@@ -186,6 +186,6 @@ public sealed class TreeEditingTests
 
 		AddNamed("User/NewMember", "Age");
 
-		Assert.AreEqual(1, user.Members.Count(m => m.Name.ToString() == "Age"));
+		Assert.ContainsSingle(m => m.Name.ToString() == "Age", user.Members);
 	}
 }

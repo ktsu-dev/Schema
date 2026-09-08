@@ -79,7 +79,7 @@ public sealed class DiagnosticsPanelTests
 		harness.App.Step(2);
 
 		Assert.IsNull(harness.Editor.CurrentSchema, "This test is about the panel with no document behind it.");
-		Assert.AreEqual(0, ListedIssues.Length);
+		Assert.IsEmpty(ListedIssues);
 	}
 
 	[TestMethod]
@@ -90,8 +90,8 @@ public sealed class DiagnosticsPanelTests
 		harness.Editor.CurrentSchema = schema;
 		Validate();
 
-		Assert.AreEqual(0, harness.Editor.Diagnostics.Count, "This schema was supposed to start clean.");
-		Assert.AreEqual(0, ListedIssues.Length);
+		Assert.IsEmpty(harness.Editor.Diagnostics, "This schema was supposed to start clean.");
+		Assert.IsEmpty(ListedIssues);
 	}
 
 	[TestMethod]
@@ -100,9 +100,11 @@ public sealed class DiagnosticsPanelTests
 		harness.Editor.CurrentSchema = BuildSchemaWithAWarningAndAnError();
 		Validate();
 
-		CollectionAssert.AreEquivalent(
+		// In any order: the panel sorts its rows by severity, which is what the next test is about.
+		Assert.AreSequenceEqual(
 			harness.Editor.Diagnostics.Select(i => $"{i.Severity}:{i.Path}").Distinct().ToArray(),
-			ListedIssues.Distinct().ToArray());
+			ListedIssues.Distinct().ToArray(),
+			SequenceOrder.InAnyOrder);
 	}
 
 	/// <summary>
@@ -120,7 +122,7 @@ public sealed class DiagnosticsPanelTests
 		Rectangle warning = harness.App.Probe.Rect("diagnostic/Warning:User.Untyped")
 			?? throw new AssertFailedException("The member's warning was not listed.");
 
-		Assert.IsTrue(error.MinY < warning.MinY, "The warning was listed above the error.");
+		Assert.IsLessThan(warning.MinY, error.MinY, "The warning was listed above the error.");
 	}
 
 	/// <summary>

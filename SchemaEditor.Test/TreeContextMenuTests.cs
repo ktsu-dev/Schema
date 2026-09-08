@@ -240,8 +240,8 @@ public sealed class TreeContextMenuTests
 		harness.TypeInto("input/field", "Crimson");
 		harness.Click("input/ok");
 
-		Assert.IsTrue(colour.Values.Any(v => v.ToString() == "Crimson"));
-		Assert.IsFalse(colour.Values.Any(v => v.ToString() == "Red"));
+		Assert.Contains(v => v.ToString() == "Crimson", colour.Values);
+		Assert.DoesNotContain(v => v.ToString() == "Red", colour.Values);
 	}
 
 	[TestMethod]
@@ -254,7 +254,7 @@ public sealed class TreeContextMenuTests
 		ChooseFromContextMenu("BtnRed", "DeleteRed");
 
 		string[] remaining = [.. colour.Values.Select(v => v.ToString())];
-		Assert.AreEqual(1, remaining.Length, $"Values were [{string.Join(", ", remaining)}].");
+		Assert.HasCount(1, remaining, $"Values were [{string.Join(", ", remaining)}].");
 		Assert.AreEqual("Green", remaining[0]);
 	}
 
@@ -267,7 +267,7 @@ public sealed class TreeContextMenuTests
 		ChooseFromContextMenu("BtnRed", "DeleteRed");
 		harness.Editor.UndoRedo.Undo();
 
-		Assert.IsTrue(colour.Values.Any(v => v.ToString() == "Red"));
+		Assert.Contains(v => v.ToString() == "Red", colour.Values);
 	}
 
 	[TestMethod]
