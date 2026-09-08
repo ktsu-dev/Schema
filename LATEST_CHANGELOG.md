@@ -1,6 +1,6 @@
-## v1.15.1 (patch)
+## v1.15.2 (patch)
 
-Changes since v1.15.0:
+Changes since v1.15.1:
 
-- Bump the ktsu group with 15 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Move to the renamed ktsu.ImGui.NodeEditor package ([@Claude](https://github.com/Claude))
 
