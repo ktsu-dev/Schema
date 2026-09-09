@@ -4,6 +4,7 @@ namespace ktsu.Schema.Tests;
 
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
@@ -31,7 +32,8 @@ public class CodeGenerationTests
 	}
 
 	/// <summary>
-	/// A schema exercising every built-in type and both container kinds.
+	/// A schema exercising every built-in type, both container kinds, and every kind of member
+	/// metadata.
 	/// </summary>
 	internal static Schema CreateFullSchema()
 	{
@@ -74,6 +76,24 @@ public class CodeGenerationTests
 			Container = ContainerName.Map,
 			Key = "Id".As<MemberName>(),
 		});
+
+		// The metadata, spread across the member kinds that can carry each piece so the round trip
+		// sees a unit on a vector as well as on a scalar, and a default of every kind.
+		SchemaMember ratio = user.GetMember("Ratio".As<MemberName>())!;
+		ratio.Unit = "m/s".As<UnitSymbol>();
+		ratio.Range = new MemberRange { Minimum = 0.0, Maximum = 6.2831853, Wrap = true };
+		ratio.DefaultValue = new NumberDefault { Value = 1.5 };
+		ratio.Editor = "dial".As<EditorHint>();
+
+		SchemaMember position = user.GetMember("Position3".As<MemberName>())!;
+		position.Unit = "Radian".As<UnitSymbol>();
+		position.Interpolation = Interpolation.Spherical;
+		position.Network = new MemberNetwork { Quantise = 0.01, Delta = true };
+
+		user.GetMember("Count".As<MemberName>())!.DefaultValue = new NumberDefault { Value = 3.0 };
+		user.GetMember("Flag".As<MemberName>())!.DefaultValue = new BooleanDefault { Value = true };
+		user.GetMember("Name".As<MemberName>())!.DefaultValue = new TextDefault { Value = "anonymous" };
+		user.GetMember("Role".As<MemberName>())!.DefaultValue = new TextDefault { Value = "Member" };
 
 		return schema;
 	}

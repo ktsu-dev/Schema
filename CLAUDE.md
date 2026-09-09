@@ -84,6 +84,11 @@ fall behind it. Two symbols there are ambiguous (`g`, `rad`), so resolution refu
 symbol and `UnitRegistry.PreferredText` is what a picker writes: the symbol when it identifies one
 unit, the name when it does not. `docs/schema-format.md` documents the file's side of all of this.
 
+Generated C# carries the metadata as attributes from `ktsu.Schema.Runtime`, and `ClrTypeImporter`
+reads them back, because none of it is expressible in a CLR type. The two sides are inverses and
+the generate-compile-reimport round-trip test fails if either changes alone. A default is emitted
+as the property initialiser as well, so a generated instance starts at it.
+
 ### Key Files
 
 - `Schema/Contracts/` - The `ISchema` abstraction seam implemented by the models
@@ -91,6 +96,8 @@ unit, the name when it does not. `docs/schema-format.md` documents the file's si
 - `Schema/Models/SchemaChildSet.cs` - Order-preserving, name-unique view owning the uniqueness rule
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
+- `Schema/Models/ClrTypeImporter.cs` - Reads a .NET type into a schema; the exact inverse of the C# generator
+- `Schema/Runtime/SchemaMetadataAttributes.cs` - What generated code carries that its C# types cannot say
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
 - `SchemaEditor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
 - `SchemaEditor/MemberSemanticsPanel.cs` - The metadata behind a member's fold, and the only place that decides what a picker writes for a unit

@@ -3,7 +3,6 @@
 namespace ktsu.Schema.Models;
 
 using System.Collections.ObjectModel;
-using System.Reflection;
 using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts;
 using ktsu.Schema.Contracts.Names;
@@ -470,182 +469,14 @@ public partial class Schema : ISchema
 	/// <summary>
 	/// Adds a class based on a .NET Type.
 	/// </summary>
+	/// <remarks>
+	/// The reflection that reads the type lives in <see cref="ClrTypeImporter"/>, which is the
+	/// inverse of what the C# generator emits and is checked against it by the
+	/// generate-then-reimport round trip.
+	/// </remarks>
 	/// <param name="type">The .NET type to add as a schema class.</param>
 	/// <returns>The added class if successful, null otherwise.</returns>
-	public SchemaClass? AddClass(Type type)
-	{
-		Ensure.NotNull(type);
-
-		ClassName className = type.Name.As<ClassName>();
-		SchemaClass? schemaClass = AddClass(className);
-		if (schemaClass is not null)
-		{
-			// Add properties as members
-			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-			{
-				MemberName memberName = property.Name.As<MemberName>();
-				SchemaMember? member = schemaClass.AddMember(memberName);
-				if (member is not null)
-				{
-					BaseType? schemaType = GetOrCreateSchemaType(property.PropertyType);
-					if (schemaType is not null)
-					{
-						ApplySchemaKey(schemaType, property);
-						member.SetType(schemaType);
-					}
-				}
-			}
-
-			// Add fields as members
-			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
-			{
-				MemberName memberName = field.Name.As<MemberName>();
-				SchemaMember? member = schemaClass.AddMember(memberName);
-				if (member is not null)
-				{
-					BaseType? schemaType = GetOrCreateSchemaType(field.FieldType);
-					if (schemaType is not null)
-					{
-						ApplySchemaKey(schemaType, field);
-						member.SetType(schemaType);
-					}
-				}
-			}
-		}
-
-		return schemaClass;
-	}
-
-	private BaseType? GetOrCreateSchemaType(Type type)
-	{
-		Ensure.NotNull(type);
-
-		type = Nullable.GetUnderlyingType(type) ?? type;
-
-		if (DirectTypeMappings.TryGetValue(type, out Func<BaseType>? create))
-		{
-			return create();
-		}
-
-		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
-		{
-			BaseType element = GetOrCreateSchemaType(elementType) ?? new None();
-			return new Array() { ElementType = element, Container = container };
-		}
-		else if (type.IsEnum)
-		{
-			EnumName enumName = type.Name.As<EnumName>();
-			SchemaEnum? schemaEnum = GetEnum(enumName) ?? AddEnum(enumName);
-			if (schemaEnum is not null)
-			{
-				// Add enum values
-				foreach (string enumValue in System.Enum.GetNames(type))
-				{
-					schemaEnum.TryAddValue(enumValue.As<EnumValueName>());
-				}
-				return new Enum() { EnumName = enumName };
-			}
-		}
-		else if (type.IsClass && type != typeof(string))
-		{
-			ClassName className = type.Name.As<ClassName>();
-			SchemaClass? schemaClass = GetClass(className) ?? AddClass(type);
-			if (schemaClass is not null)
-			{
-				return new Object() { ClassName = className };
-			}
-		}
-
-		return new None();
-	}
-
-	/// <summary>
-	/// Restores an array's key member from the attribute a generator wrote it into.
-	/// </summary>
-	/// <remarks>
-	/// The CLR type of a keyed map carries the key's type but not which member it came from, so
-	/// this is the only place that information survives a trip through generated code.
-	/// </remarks>
-	private static void ApplySchemaKey(BaseType schemaType, MemberInfo member)
-	{
-		if (schemaType is Array arrayType &&
-			member.GetCustomAttribute<Runtime.SchemaKeyAttribute>() is Runtime.SchemaKeyAttribute key)
-		{
-			arrayType.Key = key.KeyMemberName.As<MemberName>();
-		}
-	}
-
-	/// <summary>
-	/// The CLR types that map straight onto a schema type, with no further inspection.
-	/// </summary>
-	/// <remarks>
-	/// A table rather than a chain of comparisons: it reads as the mapping it is, and it is the
-	/// exact inverse of what a code generator emits, so the two can be checked against each other.
-	/// The vector types are <see cref="System.Numerics"/> ones and the colours are the types this
-	/// library provides, because the base class library has none - without them, reimporting
-	/// generated code would turn a Vector3 member into an object referencing a class called
-	/// "Vector3" and the generate-then-reimport round trip would not hold.
-	/// </remarks>
-	private static readonly Dictionary<Type, Func<BaseType>> DirectTypeMappings = new()
-	{
-		[typeof(string)] = () => new String(),
-		[typeof(int)] = () => new Int(),
-		[typeof(short)] = () => new Int(),
-		[typeof(byte)] = () => new Int(),
-		[typeof(long)] = () => new Long(),
-		[typeof(float)] = () => new Float(),
-		[typeof(double)] = () => new Double(),
-		[typeof(decimal)] = () => new Double(),
-		[typeof(bool)] = () => new Bool(),
-		[typeof(System.DateTime)] = () => new DateTime(),
-		[typeof(System.TimeSpan)] = () => new TimeSpan(),
-		[typeof(System.Numerics.Vector2)] = () => new Vector2(),
-		[typeof(System.Numerics.Vector3)] = () => new Vector3(),
-		[typeof(System.Numerics.Vector4)] = () => new Vector4(),
-		[typeof(Runtime.ColorRgb)] = () => new ColorRGB(),
-		[typeof(Runtime.ColorRgba)] = () => new ColorRGBA(),
-	};
-
-	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
-	{
-		elementType = null;
-		container = null;
-
-		if (type == typeof(string))
-		{
-			return false;
-		}
-
-		if (type.IsArray)
-		{
-			elementType = type.GetElementType();
-			container = Types.Array.VectorContainer.As<ContainerName>();
-			return elementType is not null;
-		}
-
-		Type? dictionaryInterface = GetGenericInterface(type, typeof(IDictionary<,>));
-		if (dictionaryInterface is not null)
-		{
-			elementType = dictionaryInterface.GetGenericArguments()[1];
-			container = Types.Array.MapContainer.As<ContainerName>();
-			return true;
-		}
-
-		Type? enumerableInterface = GetGenericInterface(type, typeof(IEnumerable<>));
-		if (enumerableInterface is not null)
-		{
-			elementType = enumerableInterface.GetGenericArguments()[0];
-			container = Types.Array.VectorContainer.As<ContainerName>();
-			return true;
-		}
-
-		return false;
-	}
-
-	private static Type? GetGenericInterface(Type type, Type genericInterfaceDefinition) =>
-		type.IsInterface && type.IsGenericType && type.GetGenericTypeDefinition() == genericInterfaceDefinition
-			? type
-			: System.Array.Find(type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == genericInterfaceDefinition);
+	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
 
 	/// <summary>
 	/// Gets the first class in the schema.

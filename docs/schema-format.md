@@ -420,9 +420,35 @@ generating C# from a schema and reimporting the compiled result reproduces the s
 from. A test compiles the generated source and reimports it, so the two mappings cannot drift
 apart unnoticed.
 
-One thing needs help to survive that trip: a `Dictionary<TKey, T>` records the key's *type* but
-not which member it came from. Generated properties for keyed maps therefore carry
-`[ktsu.Schema.Runtime.SchemaKey("Id")]`, which the importer reads back.
+Some things need help to survive that trip, because a C# type says what a value *is* and nothing
+about what it means. A `Dictionary<TKey, T>` records the key's *type* but not which member it came
+from, and a `float` measured in metres per second is the same `float` as one measured in nothing.
+Generated properties therefore carry attributes from `ktsu.Schema.Runtime`, which the importer
+reads back:
+
+| Attribute | Carries |
+| --- | --- |
+| `[SchemaKey("Id")]` | The member a keyed map keys on. |
+| `[SchemaUnit("m/s")]` | The member's unit, in the same spelling the file holds. |
+| `[SchemaRange(0D, 6.2831853D, Wrap = true)]` | Its bounds, and whether they wrap. |
+| `[SchemaDefault(1.5D)]` | Its default. One constructor per kind of value - number, boolean, text - so the overload says which kind it is. |
+| `[SchemaInterpolation(Interpolation.Spherical)]` | How two of its states blend. |
+| `[SchemaNetwork(0.01D, true)]` | Its quantisation step and delta flag. |
+| `[SchemaEditorHint("dial")]` | How an editor should present it. |
+
+A default is also emitted as the property's initialiser, so a generated instance *starts* at the
+default rather than only recording what it should have been:
+
+```csharp
+[ktsu.Schema.Runtime.SchemaUnit("m/s")]
+[ktsu.Schema.Runtime.SchemaRange(0D, 6.2831853D, Wrap = true)]
+[ktsu.Schema.Runtime.SchemaDefault(1.5D)]
+[ktsu.Schema.Runtime.SchemaEditorHint("dial")]
+public float Ratio { get; set; } = 1.5f;
+```
+
+The attribute and the initialiser are not redundant: the initialiser is what makes the object
+right, and the attribute is what lets the default be read back off the type.
 
 ### Running a generator
 
