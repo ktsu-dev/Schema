@@ -96,9 +96,11 @@ internal static class EditField
 
 		committed = parsed;
 
-		// Equals rather than !=, because "1.0" and "1" are different text and the same number,
-		// and only a changed number is worth an undo entry.
-		return !parsed.Equals(modelValue);
+		// Compared as the text the field is bound to rather than as two doubles, because only a
+		// changed number is worth an undo entry and "1.0" and "1" are different text and the same
+		// number. Rendering both and comparing the strings answers that without an exact
+		// floating-point comparison, which is brittle enough that the analyzers refuse it.
+		return !string.Equals(parsed.ToString(CultureInfo.InvariantCulture), text, StringComparison.Ordinal);
 	}
 
 	/// <summary>

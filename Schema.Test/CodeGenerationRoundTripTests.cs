@@ -124,7 +124,7 @@ public class CodeGenerationRoundTripTests
 
 		Assert.AreEqual(1.5f, user.GetProperty("Ratio")!.GetValue(instance));
 		Assert.AreEqual(3, user.GetProperty("Count")!.GetValue(instance));
-		Assert.AreEqual(true, user.GetProperty("Flag")!.GetValue(instance));
+		Assert.IsTrue((bool)user.GetProperty("Flag")!.GetValue(instance)!);
 		Assert.AreEqual("anonymous", user.GetProperty("Name")!.GetValue(instance));
 		Assert.AreEqual("Member", user.GetProperty("Role")!.GetValue(instance)!.ToString());
 	}

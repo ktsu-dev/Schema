@@ -37,44 +37,53 @@ internal static class ClrTypeImporter
 
 		ClassName className = type.Name.As<ClassName>();
 		SchemaClass? schemaClass = schema.AddClass(className);
-		if (schemaClass is not null)
+		if (schemaClass is null)
 		{
-			// Add properties as members
-			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-			{
-				MemberName memberName = property.Name.As<MemberName>();
-				SchemaMember? member = schemaClass.AddMember(memberName);
-				if (member is not null)
-				{
-					BaseType? schemaType = GetOrCreateSchemaType(schema, property.PropertyType);
-					if (schemaType is not null)
-					{
-						ApplySchemaKey(schemaType, property);
-						member.SetType(schemaType);
-						ApplyMemberMetadata(member, property);
-					}
-				}
-			}
+			return null;
+		}
 
-			// Add fields as members
-			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
-			{
-				MemberName memberName = field.Name.As<MemberName>();
-				SchemaMember? member = schemaClass.AddMember(memberName);
-				if (member is not null)
-				{
-					BaseType? schemaType = GetOrCreateSchemaType(schema, field.FieldType);
-					if (schemaType is not null)
-					{
-						ApplySchemaKey(schemaType, field);
-						member.SetType(schemaType);
-						ApplyMemberMetadata(member, field);
-					}
-				}
-			}
+		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+		{
+			ImportMember(schema, schemaClass, property, property.PropertyType);
+		}
+
+		foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+		{
+			ImportMember(schema, schemaClass, field, field.FieldType);
 		}
 
 		return schemaClass;
+	}
+
+	/// <summary>
+	/// Reads one property or field into a member of the class being imported.
+	/// </summary>
+	/// <remarks>
+	/// A property and a field are read the same way, and the only thing that differs is where the
+	/// type comes from - which is why the caller supplies it rather than this asking which kind of
+	/// member it was handed.
+	/// </remarks>
+	/// <param name="schema">The schema being built, for the types this member refers to.</param>
+	/// <param name="schemaClass">The class the member belongs to.</param>
+	/// <param name="info">The property or field to read, and the attributes on it.</param>
+	/// <param name="memberType">The CLR type of the value it holds.</param>
+	private static void ImportMember(Schema schema, SchemaClass schemaClass, MemberInfo info, Type memberType)
+	{
+		SchemaMember? member = schemaClass.AddMember(info.Name.As<MemberName>());
+		if (member is null)
+		{
+			return;
+		}
+
+		BaseType? schemaType = GetOrCreateSchemaType(schema, memberType);
+		if (schemaType is null)
+		{
+			return;
+		}
+
+		ApplySchemaKey(schemaType, info);
+		member.SetType(schemaType);
+		ApplyMemberMetadata(member, info);
 	}
 
 	private static BaseType? GetOrCreateSchemaType(Schema schema, Type type)
