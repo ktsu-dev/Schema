@@ -6,6 +6,7 @@ using System.Reflection;
 
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Strings;
 
@@ -77,6 +78,75 @@ public class CodeGenerationRoundTripTests
 				actualMember.Type,
 				$"'{className}.{expectedMember.Name}' came back as '{actualMember.Type.DisplayName}' " +
 				$"instead of '{expectedMember.Type.DisplayName}'.");
+
+			AssertMetadataMatches(expectedMember, actualMember, $"{className}.{expectedMember.Name}");
 		}
+	}
+
+	/// <summary>
+	/// A member's semantic metadata has to survive the trip too. None of it is expressible in the
+	/// generated property's type, so it survives only as long as the attributes the generator
+	/// writes and the importer reads stay a matched pair - which is the thing this asserts.
+	/// </summary>
+	private static void AssertMetadataMatches(SchemaMember expected, SchemaMember actual, string path)
+	{
+		Assert.AreEqual(expected.Unit?.ToString(), actual.Unit?.ToString(), $"'{path}' lost its unit.");
+		Assert.AreEqual(expected.Interpolation, actual.Interpolation, $"'{path}' lost its interpolation.");
+		Assert.AreEqual(expected.Editor?.ToString(), actual.Editor?.ToString(), $"'{path}' lost its editor hint.");
+
+		Assert.AreEqual(expected.Range?.Minimum, actual.Range?.Minimum, $"'{path}' lost its range minimum.");
+		Assert.AreEqual(expected.Range?.Maximum, actual.Range?.Maximum, $"'{path}' lost its range maximum.");
+		Assert.AreEqual(expected.Range?.Wrap, actual.Range?.Wrap, $"'{path}' lost its wrap flag.");
+
+		Assert.AreEqual(expected.Network?.Quantise, actual.Network?.Quantise, $"'{path}' lost its quantisation step.");
+		Assert.AreEqual(expected.Network?.Delta, actual.Network?.Delta, $"'{path}' lost its delta flag.");
+
+		// Compared by type as well as by text, since a NumberDefault of 1 and a TextDefault of "1"
+		// print the same and mean different things.
+		Assert.AreEqual(expected.DefaultValue?.GetType(), actual.DefaultValue?.GetType(), $"'{path}' changed the kind of its default.");
+		Assert.AreEqual(expected.DefaultValue?.ToString(), actual.DefaultValue?.ToString(), $"'{path}' lost its default.");
+	}
+
+	/// <summary>
+	/// The generated type does not merely record its defaults, it starts at them: an attribute a
+	/// consumer has to read is not the same as an instance that is already right.
+	/// </summary>
+	[TestMethod]
+	public void TestGeneratedPropertiesStartAtTheirDefaults()
+	{
+		Schema schema = CodeGenerationTests.CreateFullSchema();
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, CodeGenerationTests.ConfigureGenerator(schema));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		Assembly assembly = GeneratedSourceCompiler.Compile(result.Files);
+		Type user = assembly.GetType("Generated.User", throwOnError: true)!;
+		object instance = Activator.CreateInstance(user)!;
+
+		Assert.AreEqual(1.5f, user.GetProperty("Ratio")!.GetValue(instance));
+		Assert.AreEqual(3, user.GetProperty("Count")!.GetValue(instance));
+		Assert.IsTrue((bool)user.GetProperty("Flag")!.GetValue(instance)!);
+		Assert.AreEqual("anonymous", user.GetProperty("Name")!.GetValue(instance));
+		Assert.AreEqual("Member", user.GetProperty("Role")!.GetValue(instance)!.ToString());
+	}
+
+	/// <summary>
+	/// A default of the wrong kind for its member cannot reach the generator through
+	/// <see cref="SchemaGenerator"/>, which refuses an invalid schema - but the generator is public
+	/// and can be called directly. It falls back to the type's own initialiser rather than emitting
+	/// source that does not compile.
+	/// </summary>
+	[TestMethod]
+	public void TestAMismatchedDefaultDoesNotBreakTheGeneratedSource()
+	{
+		Schema schema = CodeGenerationTests.CreateFullSchema();
+		schema.GetClass("User".As<ClassName>())!.GetMember("Name".As<MemberName>())!.DefaultValue = new NumberDefault { Value = 4.0 };
+
+		IReadOnlyDictionary<string, string> files =
+			new CSharpCodeGenerator().Generate(schema, CodeGenerationTests.ConfigureGenerator(schema));
+
+		Assembly assembly = GeneratedSourceCompiler.Compile(files);
+		object instance = Activator.CreateInstance(assembly.GetType("Generated.User", throwOnError: true)!)!;
+
+		Assert.AreEqual(string.Empty, assembly.GetType("Generated.User")!.GetProperty("Name")!.GetValue(instance));
 	}
 }

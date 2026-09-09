@@ -208,6 +208,24 @@ internal sealed class EditorHarness : IDisposable
 		App.Step(2);
 	}
 
+	/// <summary>
+	/// Empties a marked single-line field and finishes the edit.
+	/// </summary>
+	/// <remarks>
+	/// Not <c>Commit(field, "")</c>: typing an empty string types nothing, so the field is left
+	/// deactivated without having been edited and reports no value at all. Deleting the selection
+	/// is what a person does, and it is the only way to see what a field does with emptiness.
+	/// </remarks>
+	/// <param name="field">A marked name, or the trailing part of one.</param>
+	internal void Clear(string field)
+	{
+		Click(field);
+		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.A, ctrl: true);
+		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.Backspace);
+		App.Keyboard.Press(Hexa.NET.ImGui.ImGuiKey.Enter);
+		App.Step(2);
+	}
+
 	public void Dispose()
 	{
 		if (disposed)

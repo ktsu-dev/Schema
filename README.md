@@ -237,6 +237,9 @@ dotnet run --project SchemaEditor
 - Tree view for navigating classes, enums, data sources, and code generators
 - Property panels for editing members and types
 - Type selection dialogs
+- A fold behind every member row for its semantic metadata: unit, range, default value,
+  interpolation, network encoding and editor hint
+- A unit picker over every unit in `ktsu.Semantics.Quantities`, searchable by name or symbol
 - Create, open, and save schema files
 - Resizable split-panel layout with persistent settings
 

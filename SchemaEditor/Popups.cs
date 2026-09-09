@@ -9,7 +9,9 @@ using System.Text.Json.Serialization;
 using static ktsu.ImGui.Popups.ImGuiPopups;
 using ktsu.Semantics.Paths;
 
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Quantities;
 
 internal sealed class Popups
 {
@@ -17,6 +19,7 @@ internal sealed class Popups
 	[JsonIgnore] private Prompt PopupPrompt { get; init; } = new();
 	[JsonIgnore] private InputString PopupInputString { get; init; } = new();
 	[JsonIgnore] private SearchableList<BaseType> PopupTypeList { get; init; } = new();
+	[JsonIgnore] private SearchableList<IUnit> PopupUnitList { get; init; } = new();
 	[JsonInclude] private FilesystemBrowser PopupFilesystemBrowser { get; init; } = new();
 	[JsonIgnore] private Queue<Action> Queue { get; init; } = [];
 
@@ -67,6 +70,33 @@ internal sealed class Popups
 			PopupTypeList.Open(title, label, types, selected, (t) => t.DisplayName, onConfirm);
 		});
 
+	/// <summary>
+	/// Opens the unit picker, with the unit the member already names selected.
+	/// </summary>
+	/// <remarks>
+	/// Searchable rather than a menu because the registry holds close to two hundred units, which
+	/// is more than a list is worth scrolling. Each is offered as its name and its symbol
+	/// together: the symbol is what a schema usually writes, and the name is what tells two units
+	/// sharing a symbol apart.
+	/// <para>
+	/// The member's unit is text and may be either spelling, or something that resolves to no unit
+	/// at all, so the selection is resolved through <see cref="UnitRegistry"/> rather than matched
+	/// on the text.
+	/// </para>
+	/// </remarks>
+	/// <param name="title">The popup title.</param>
+	/// <param name="label">The label above the list.</param>
+	/// <param name="units">The units that can be chosen from.</param>
+	/// <param name="current">The unit text the member holds now, or null when it has none.</param>
+	/// <param name="onConfirm">Applies the chosen unit. Null clears the member's unit.</param>
+	internal void OpenUnitList(string title, string label, IEnumerable<IUnit> units, UnitSymbol? current, Action<IUnit?> onConfirm) =>
+		Queue.Enqueue(() =>
+		{
+			List<IUnit> choices = [.. units];
+			IUnit? selected = UnitRegistry.TryResolve(current, out IUnit? resolved, out _) ? resolved : null;
+			PopupUnitList.Open(title, label, choices, selected, unit => $"{unit.Name} ({unit.Symbol})", onConfirm!);
+		});
+
 	internal void Update()
 	{
 		while (Queue.Count > 0)
@@ -76,6 +106,7 @@ internal sealed class Popups
 		}
 
 		PopupTypeList.ShowIfOpen();
+		PopupUnitList.ShowIfOpen();
 		PopupMessageOK.ShowIfOpen();
 		PopupPrompt.ShowIfOpen();
 		PopupInputString.ShowIfOpen();

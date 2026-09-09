@@ -2,8 +2,11 @@
 
 namespace ktsu.Schema.Generation;
 
+using System.Globalization;
+
 using ktsu.CodeBlocker;
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 
@@ -86,7 +89,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 				WriteDocComment(code, member.Description);
 				WriteSchemaKeyAttribute(code, member.Type);
-				code.WriteLine($"public {MapType(member.Type)} {member.Name} {{ get; set; }}{InitialiserFor(member.Type)}");
+				WriteMetadataAttributes(code, member);
+				code.WriteLine($"public {MapType(member.Type)} {member.Name} {{ get; set; }}{InitialiserFor(member)}");
 			}
 		}
 
@@ -146,6 +150,85 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			code.WriteLine($"[ktsu.Schema.Runtime.SchemaKey(\"{arrayType.Key}\")]");
 		}
 	}
+
+	/// <summary>
+	/// Records a member's semantic metadata on the generated property.
+	/// </summary>
+	/// <remarks>
+	/// A C# type says what a value is and nothing about what it means, so without these the unit,
+	/// range, default, interpolation and network encoding would be dropped by the reimport the
+	/// round trip is built on - the same problem <see cref="WriteSchemaKeyAttribute"/> solves for
+	/// a keyed map.
+	/// </remarks>
+	private static void WriteMetadataAttributes(CodeBlocker code, SchemaMember member)
+	{
+		if (member.Unit is not null)
+		{
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaUnit({Quote(member.Unit)})]");
+		}
+
+		if (member.Range is MemberRange range)
+		{
+			string wrap = range.Wrap ? ", Wrap = true" : string.Empty;
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
+		}
+
+		if (DefaultArgument(member.DefaultValue) is string argument)
+		{
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaDefault({argument})]");
+		}
+
+		if (member.Interpolation is not Interpolation.None)
+		{
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaInterpolation(ktsu.Schema.Models.Metadata.Interpolation.{member.Interpolation})]");
+		}
+
+		if (member.Network is MemberNetwork network)
+		{
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
+		}
+
+		if (member.Editor is not null)
+		{
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaEditorHint({Quote(member.Editor)})]");
+		}
+	}
+
+	/// <summary>
+	/// Writes a default as the argument that binds the right <c>SchemaDefault</c> constructor.
+	/// </summary>
+	/// <returns>The argument text, or null when the member has no default.</returns>
+	private static string? DefaultArgument(MemberDefault? value) => value switch
+	{
+		NumberDefault number => Literal(number.Value),
+		BooleanDefault boolean => boolean.Value ? "true" : "false",
+		TextDefault text => Quote(text.Value),
+		_ => null,
+	};
+
+	/// <summary>
+	/// Writes a double as a C# literal of type <see cref="double"/>.
+	/// </summary>
+	/// <remarks>
+	/// The <c>D</c> suffix is what picks the double overload of <c>SchemaDefault</c> rather than
+	/// the one taking a bool or a string, and round-trip formatting is what keeps the value the
+	/// schema holds - a bound written back one bit short is a range that no longer contains what
+	/// it used to. Invariant, because a machine writing a decimal comma would emit source that
+	/// does not compile.
+	/// </remarks>
+	private static string Literal(double value) => value switch
+	{
+		double.PositiveInfinity => "double.PositiveInfinity",
+		double.NegativeInfinity => "double.NegativeInfinity",
+		_ when double.IsNaN(value) => "double.NaN",
+		_ => $"{value.ToString("R", CultureInfo.InvariantCulture)}D",
+	};
+
+	/// <summary>
+	/// Writes text as a C# string literal.
+	/// </summary>
+	private static string Quote(string text) =>
+		$"\"{text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
 
 	private static string Escape(string text) =>
 		text.Replace("&", "&amp;", StringComparison.Ordinal)
@@ -218,16 +301,42 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	}
 
 	/// <summary>
-	/// Gets the initialiser a property needs to satisfy nullable reference analysis.
+	/// Gets the initialiser a property is given: the member's default when it has one, and
+	/// otherwise whatever nullable reference analysis needs.
 	/// </summary>
-	private static string InitialiserFor(BaseType type) => type switch
+	/// <remarks>
+	/// A default that is only recorded in an attribute is a default in name only - an instance of
+	/// the generated type would still start at zero. The attribute is what lets the default be
+	/// read back; this is what makes it true of the object.
+	/// </remarks>
+	private static string InitialiserFor(SchemaMember member) =>
+		DefaultInitialiserFor(member) ?? member.Type switch
+		{
+			Models.Types.String => " = string.Empty;",
+			Models.Types.Array arrayType => $" = new {MapArray(arrayType)}();",
+			Models.Types.Object objectType => $" = new {objectType.ClassName}();",
+			_ => string.Empty,
+		};
+
+	/// <summary>
+	/// Gets the initialiser for a member's default, or null when it has none that fits.
+	/// </summary>
+	/// <remarks>
+	/// A default of a kind the member cannot hold is a validation error, and generation is refused
+	/// for a schema that has one - so the mismatched cases here are only reachable by calling this
+	/// generator directly on a schema that was never validated. They fall through to the type's
+	/// own initialiser rather than emitting source that does not compile.
+	/// </remarks>
+	private static string? DefaultInitialiserFor(SchemaMember member) => (member.DefaultValue, member.Type) switch
 	{
-		Models.Types.String => " = string.Empty;",
-		Models.Types.Array => $" = new {MapArrayInitialiser(type)}();",
-		Models.Types.Object objectType => $" = new {objectType.ClassName}();",
-		_ => string.Empty,
+		(NumberDefault number, Int) => $" = {(long)number.Value};",
+		(NumberDefault number, Long) => $" = {(long)number.Value}L;",
+		(NumberDefault number, Float) => $" = {number.Value.ToString("R", CultureInfo.InvariantCulture)}f;",
+		(NumberDefault number, Double) => $" = {Literal(number.Value)};",
+		(BooleanDefault boolean, Bool) => $" = {(boolean.Value ? "true" : "false")};",
+		(TextDefault text, Models.Types.String) => $" = {Quote(text.Value)};",
+		(TextDefault text, Models.Types.Enum enumType) => $" = {enumType.EnumName}.{text.Value};",
+		_ => null,
 	};
 
-	private static string MapArrayInitialiser(BaseType type) =>
-		type is Models.Types.Array arrayType ? MapArray(arrayType) : string.Empty;
 }

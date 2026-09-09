@@ -67,6 +67,80 @@ will declare members in.
 | `type` | [type](#types) | The member's type. |
 | `name` | string | The member name. Unique within its class. |
 | `description` | string | Free text. |
+| `unit` | string | The unit the member's values are measured in. See [Units](#units). |
+| `range` | [range](#range) | The values the member may take. |
+| `defaultValue` | [default](#default) | The value the member takes when none is supplied. |
+| `interpolation` | string | `None`, `Linear`, `Spherical` or `Step`. Absent means `None`. |
+| `network` | [network](#network) | How the member should be encoded when sent to a peer. |
+| `editor` | string | A hint about how an editor should present the member. Free text. |
+
+All six are optional and omitted when absent. They were added in format version 2.
+
+### Units
+
+A unit is written as its symbol (`"m/s"`) or its name (`"MeterPerSecond"`), and is resolved
+against the unit registry in `ktsu.Semantics.Quantities` when the schema is validated.
+
+The symbol is the natural thing to write, and is what a person reads. Names exist because two
+symbols in the registry are ambiguous — `g` is both gram and standard gravity, and `rad` is both
+radian and *radiation absorbed dose*, which is not even the same dimension. Validation refuses an
+ambiguous symbol and names the candidates rather than picking one, so a schema that means radians
+must say `"Radian"`.
+
+The text is what the file stores, not a resolved unit: the file stays readable, and the
+conversion factors stay owned by `ktsu.Semantics.Quantities` instead of being copied into every
+schema that uses them.
+
+A unit is only meaningful on a numeric or vector member.
+
+### Range
+
+```json
+{ "minimum": 0.0, "maximum": 6.2831853, "wrap": true }
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `minimum` | number | The smallest allowed value, in the member's own unit. |
+| `maximum` | number | The largest allowed value, in the member's own unit. |
+| `wrap` | boolean | Whether values outside the range wrap into it rather than being invalid. |
+
+`wrap` changes what the range *means*. Without it the range is a bound and a value outside it is
+invalid. With it the range is a **period**: an angle of 7 radians on a `[0, 2π)` member is
+un-normalised rather than wrong, and clamping it to the maximum would be the one transformation
+that is certainly incorrect. A validator should reduce a wrapping value into range and reject a
+non-wrapping one — and for the same reason, a default outside a wrapping range is accepted.
+
+### Default
+
+Polymorphic, discriminated by `DefaultKind`, matching the `TypeName` discriminator on types:
+
+```json
+{ "DefaultKind": "NumberDefault", "value": 1.0 }
+{ "DefaultKind": "BooleanDefault", "value": true }
+{ "DefaultKind": "TextDefault", "value": "Dynamic" }
+```
+
+`NumberDefault` carries a number for any numeric or vector member; `BooleanDefault` a boolean;
+`TextDefault` a string member's contents, or the **name** of an enum value. The name rather than
+the ordinal, so that reordering an enum cannot silently change what a default means.
+
+A default is not the same as a zeroed value. `default(T)` in C# and a value-initialised struct in
+C++ are all-zero bytes, which is rarely what a schema means by "the default".
+
+### Network
+
+```json
+{ "quantise": 0.01, "delta": true }
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `quantise` | number | The smallest change worth transmitting, in the member's own unit. Zero means full precision. |
+| `delta` | boolean | Whether to send the member only when it differs from the last acknowledged state. |
+
+Both are advisory: a codec that ignores them is still correct, just larger. A quantised round
+trip is accurate to half the step and no better.
 
 ## Enum
 
@@ -257,6 +331,14 @@ needs to know about.
 | --- | --- | --- |
 | *(absent)* | - | Any file written before versioning. Read as version 0 and migrated on load. |
 | `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
+| `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
+
+Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
+the version 1 file it would have been. The version still moves, because a version 1 reader
+ignores properties it does not recognise — it would load such a file, drop the metadata, and
+write it back without it, losing information that the round-trip contract above says must
+survive. Refusing to read a version 2 file is the honest outcome, and is what the policy below
+already specifies.
 
 ### How a reader must behave
 
@@ -338,9 +420,35 @@ generating C# from a schema and reimporting the compiled result reproduces the s
 from. A test compiles the generated source and reimports it, so the two mappings cannot drift
 apart unnoticed.
 
-One thing needs help to survive that trip: a `Dictionary<TKey, T>` records the key's *type* but
-not which member it came from. Generated properties for keyed maps therefore carry
-`[ktsu.Schema.Runtime.SchemaKey("Id")]`, which the importer reads back.
+Some things need help to survive that trip, because a C# type says what a value *is* and nothing
+about what it means. A `Dictionary<TKey, T>` records the key's *type* but not which member it came
+from, and a `float` measured in metres per second is the same `float` as one measured in nothing.
+Generated properties therefore carry attributes from `ktsu.Schema.Runtime`, which the importer
+reads back:
+
+| Attribute | Carries |
+| --- | --- |
+| `[SchemaKey("Id")]` | The member a keyed map keys on. |
+| `[SchemaUnit("m/s")]` | The member's unit, in the same spelling the file holds. |
+| `[SchemaRange(0D, 6.2831853D, Wrap = true)]` | Its bounds, and whether they wrap. |
+| `[SchemaDefault(1.5D)]` | Its default. One constructor per kind of value - number, boolean, text - so the overload says which kind it is. |
+| `[SchemaInterpolation(Interpolation.Spherical)]` | How two of its states blend. |
+| `[SchemaNetwork(0.01D, true)]` | Its quantisation step and delta flag. |
+| `[SchemaEditorHint("dial")]` | How an editor should present it. |
+
+A default is also emitted as the property's initialiser, so a generated instance *starts* at the
+default rather than only recording what it should have been:
+
+```csharp
+[ktsu.Schema.Runtime.SchemaUnit("m/s")]
+[ktsu.Schema.Runtime.SchemaRange(0D, 6.2831853D, Wrap = true)]
+[ktsu.Schema.Runtime.SchemaDefault(1.5D)]
+[ktsu.Schema.Runtime.SchemaEditorHint("dial")]
+public float Ratio { get; set; } = 1.5f;
+```
+
+The attribute and the initialiser are not redundant: the initialiser is what makes the object
+right, and the attribute is what lets the default be read back off the type.
 
 ### Running a generator
 

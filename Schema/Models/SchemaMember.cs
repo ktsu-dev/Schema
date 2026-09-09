@@ -4,8 +4,10 @@ namespace ktsu.Schema.Models;
 
 using System.Text.Json.Serialization;
 using ktsu.Schema.Contracts;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Quantities;
 using ktsu.Semantics.Strings;
 
 /// <summary>
@@ -73,6 +75,64 @@ public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember
 	/// </remarks>
 	void ISchemaMember.SetType(ISchemaType type) =>
 		SetType(type as BaseType ?? throw new ArgumentException($"The type must derive from {nameof(BaseType)}.", nameof(type)));
+
+	/// <summary>
+	/// Gets or sets the unit this member's values are measured in, if any.
+	/// </summary>
+	/// <remarks>
+	/// A symbol (<c>m/s</c>) or a unit name (<c>MeterPerSecond</c>), resolved against
+	/// <see cref="UnitRegistry"/>. Null on a member that measures nothing — an identifier, a
+	/// name, a flag.
+	/// <para>
+	/// The text is stored rather than a resolved unit so that the file stays readable and the
+	/// conversion factors stay owned by <c>ktsu.Semantics.Quantities</c>. Use
+	/// <see cref="TryResolveUnit"/> to get the unit itself.
+	/// </para>
+	/// </remarks>
+	public UnitSymbol? Unit { get; set; }
+
+	/// <summary>
+	/// Gets or sets the range of values this member may take, if it is bounded.
+	/// </summary>
+	public MemberRange? Range { get; set; }
+
+	/// <summary>
+	/// Gets or sets the value this member takes when none is supplied.
+	/// </summary>
+	public MemberDefault? DefaultValue { get; set; }
+
+	/// <summary>
+	/// Gets or sets how this member should be encoded when sent over a network.
+	/// </summary>
+	/// <remarks>
+	/// Null means no guidance, which a codec should read as "send it verbatim, every time".
+	/// </remarks>
+	public MemberNetwork? Network { get; set; }
+
+	/// <summary>
+	/// Gets or sets how two states of this member may be blended.
+	/// </summary>
+	public Interpolation Interpolation { get; set; }
+
+	/// <summary>
+	/// Gets or sets a hint about how an editor should present this member.
+	/// </summary>
+	public EditorHint? Editor { get; set; }
+
+	/// <summary>
+	/// Resolves <see cref="Unit"/> to a unit from <c>ktsu.Semantics.Quantities</c>.
+	/// </summary>
+	/// <param name="unit">The resolved unit, or null when the member has no unit or it does
+	/// not resolve.</param>
+	/// <param name="error">Why it did not resolve. Empty when the member has no unit at all,
+	/// since that is not an error.</param>
+	/// <returns><see langword="true"/> when the member has a unit and it resolved.</returns>
+	public bool TryResolveUnit(out IUnit? unit, out string error)
+	{
+		unit = null;
+		error = string.Empty;
+		return Unit is not null && UnitRegistry.TryResolve(Unit, out unit, out error);
+	}
 
 	/// <summary>
 	/// Tries to remove the schema member from its parent class.
