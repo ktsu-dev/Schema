@@ -3,6 +3,7 @@
 namespace ktsu.SchemaEditor;
 
 using System.Collections.Generic;
+using System.Globalization;
 using System.Numerics;
 
 using Hexa.NET.ImGui;
@@ -55,6 +56,49 @@ internal static class EditField
 		Mark(id);
 
 		return Resolve(key, buffer, modelValue, out committed);
+	}
+
+	/// <summary>
+	/// Draws a text input bound to a numeric model value.
+	/// </summary>
+	/// <remarks>
+	/// Text rather than ImGui's own numeric input, for the reason the rest of this class exists:
+	/// <c>InputDouble</c> reports its value every frame, so a range bound edited through it would
+	/// push an undo entry per keystroke. Text also lets the field hold what a number cannot -
+	/// "-", "0.", an empty box mid-edit - without the model seeing any of it.
+	/// <para>
+	/// Parsed invariantly, matching how the value is written to the schema file. A machine whose
+	/// locale writes a decimal comma would otherwise produce a file another machine reads
+	/// differently.
+	/// </para>
+	/// </remarks>
+	/// <param name="id">The widget id, which also keys the scratch buffer.</param>
+	/// <param name="width">The item width.</param>
+	/// <param name="modelValue">The value currently held by the model.</param>
+	/// <param name="committed">The value to write, valid only when this returns true.</param>
+	/// <returns>True on the frame the user finished editing with a different, parsable number.</returns>
+	internal static bool Number(string id, float width, double modelValue, out double committed)
+	{
+		committed = modelValue;
+
+		string text = modelValue.ToString(CultureInfo.InvariantCulture);
+		if (!Text(id, width, text, out string edited))
+		{
+			return false;
+		}
+
+		// An unparsable value is discarded rather than reported: the field has already been
+		// deactivated, so the next frame redraws it from the model and the nonsense disappears.
+		if (!double.TryParse(edited, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+		{
+			return false;
+		}
+
+		committed = parsed;
+
+		// Equals rather than !=, because "1.0" and "1" are different text and the same number,
+		// and only a changed number is worth an undo entry.
+		return !parsed.Equals(modelValue);
 	}
 
 	/// <summary>

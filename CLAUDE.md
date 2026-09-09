@@ -73,6 +73,17 @@ Example: `"User".As<ClassName>()`
 
 Schema elements maintain parent references via `AssociateWith()` methods. After deserialization, `Schema.Reassociate()` re-establishes these relationships.
 
+### Member metadata
+
+A member carries six optional properties beside its type - `Unit`, `Range`, `DefaultValue`,
+`Interpolation`, `Network` and `Editor` - modelled in `Schema/Models/Metadata/` and validated
+together in `Schema/Models/Schema.Validation.cs`, since most of them are only wrong in combination.
+Units are not modelled here: a member stores the text and `UnitRegistry` resolves it against
+`ktsu.Semantics.Quantities`, reflecting over that assembly rather than keeping a list that would
+fall behind it. Two symbols there are ambiguous (`g`, `rad`), so resolution refuses an ambiguous
+symbol and `UnitRegistry.PreferredText` is what a picker writes: the symbol when it identifies one
+unit, the name when it does not. `docs/schema-format.md` documents the file's side of all of this.
+
 ### Key Files
 
 - `Schema/Contracts/` - The `ISchema` abstraction seam implemented by the models
@@ -81,6 +92,8 @@ Schema elements maintain parent references via `AssociateWith()` methods. After 
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
+- `SchemaEditor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
+- `SchemaEditor/MemberSemanticsPanel.cs` - The metadata behind a member's fold, and the only place that decides what a picker writes for a unit
 - `SchemaEditor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
 - `SchemaEditor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
 - `SchemaEditor/Program.cs` - The entry point, and the only file excluded from coverage measurement
@@ -107,6 +120,7 @@ own delegate does.
 ## Dependencies
 
 - **ktsu.Semantics.Strings/Paths** - Type-safe string and path wrappers
+- **ktsu.Semantics.Quantities** - The units a member's values can be measured in
 - **ktsu.ImGui.App/Widgets/Popups** - ImGui application framework (editor only)
 - **ktsu.AppDataStorage** - Persistent settings storage (editor only)
 - **Polyfill** - .NET compatibility shims for multi-targeting

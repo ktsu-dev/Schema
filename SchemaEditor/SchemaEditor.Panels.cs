@@ -4,7 +4,6 @@
 
 namespace ktsu.SchemaEditor;
 
-using System.Linq;
 using System.Numerics;
 
 using Hexa.NET.ImGui;
@@ -16,8 +15,6 @@ using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 using ktsu.UndoRedo;
 
-using SchemaTypes = Schema.Models.Types;
-
 /// <summary>
 /// The property panels for the selected schema element, and the member grid.
 /// </summary>
@@ -28,7 +25,7 @@ public partial class SchemaEditor
 	/// <summary>
 	/// What a picker offers for "point this at nothing", and the name that option is recorded under.
 	/// </summary>
-	private const string NoneOption = "<none>";
+	internal const string NoneOption = "<none>";
 
 	/// <summary>
 	/// Draws a description editor bound to a schema element, committing one undo entry per edit.
@@ -130,7 +127,7 @@ public partial class SchemaEditor
 			ShowDescriptionEditor($"##ClassDescription{schemaClass.Name}", "Description:", schemaClass.Description, value => schemaClass.Description = value);
 		}
 
-		ShowMembers();
+		MemberGrid.Show(schema, schemaClass);
 	}
 
 	private void ShowEnumProperties()
@@ -236,296 +233,6 @@ public partial class SchemaEditor
 			$"Set Data Source Class '{className}'",
 			() => dataSource.ClassName = className,
 			() => dataSource.ClassName = previous,
-			ChangeType.Modify));
-	}
-
-	public static void ShowMemberHeadings()
-	{
-		ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
-		ImGui.Button("Name", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Type", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Container", new Vector2(FieldWidth, 0));
-		ImGui.SameLine();
-		ImGui.Button("Key", new Vector2(FieldWidth, 0));
-		ImGui.PopStyleColor();
-	}
-
-	private void ShowMembers()
-	{
-		if (CurrentClass is null || CurrentSchema is null)
-		{
-			return;
-		}
-
-		SchemaClass schemaClass = CurrentClass;
-		if (!ImGui.CollapsingHeader($"{schemaClass.Name} Members", ImGuiTreeNodeFlags.DefaultOpen))
-		{
-			return;
-		}
-
-		float frameHeight = ImGui.GetFrameHeight();
-		float spacing = ImGui.GetStyle().ItemSpacing.X;
-
-		// Leave room for the reorder and delete controls that precede each row.
-		ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ((frameHeight + spacing) * 4));
-		ShowMemberHeadings();
-
-		SchemaMember[] members = [.. schemaClass.Members];
-		for (int index = 0; index < members.Length; index++)
-		{
-			ShowMemberRow(schemaClass, members[index], index, members.Length, frameHeight);
-		}
-
-		ImGui.NewLine();
-	}
-
-	private void ShowMemberRow(SchemaClass schemaClass, SchemaMember member, int index, int memberCount, float frameHeight)
-	{
-		ImGui.PushID($"member{member.Name}");
-
-		// A probe scope alongside the ImGui id stack: PushID keeps two rows' widgets apart for
-		// ImGui, and this keeps their recorded names apart for a test, which would otherwise see
-		// one ambiguous "Delete" however many members the class has.
-		ImGuiProbes.PushScope($"member{member.Name}");
-
-		ShowMemberReorderButtons(schemaClass, member, index, memberCount);
-
-		ImGui.SameLine();
-		bool deleteClicked = ImGui.Button("X", new Vector2(frameHeight, 0));
-		ImGuiProbes.MarkItem("Delete");
-		if (deleteClicked)
-		{
-			DeleteMember(schemaClass, member);
-		}
-
-		ImGui.SameLine();
-		string descriptionKey = $"memberdescription:{schemaClass.Name}.{member.Name}";
-		bool descriptionOpen = !IsVisible(descriptionKey);
-		bool toggleDescription = ImGui.ArrowButton("##ToggleDescription", descriptionOpen ? ImGuiDir.Down : ImGuiDir.Right);
-		ImGuiProbes.MarkItem("ToggleDescription");
-		if (toggleDescription)
-		{
-			ToggleVisibility(descriptionKey);
-		}
-
-		if (ImGui.IsItemHovered())
-		{
-			ImGui.SetTooltip(string.IsNullOrEmpty(member.Description) ? "Add a description" : member.Description);
-		}
-
-		ImGui.SameLine();
-		ShowMemberNameField(schemaClass, member);
-
-		ImGui.SameLine();
-		ShowMemberConfig(CurrentSchema!, member);
-
-		ShowMemberIssueMarker(member);
-
-		if (descriptionOpen)
-		{
-			ImGui.Indent();
-			ShowDescriptionEditor(
-				$"##MemberDescription{schemaClass.Name}.{member.Name}",
-				"Description:",
-				member.Description,
-				value => member.Description = value);
-			ImGui.Unindent();
-		}
-
-		ImGuiProbes.PopScope();
-		ImGui.PopID();
-	}
-
-	/// <summary>
-	/// Draws the up/down controls that move a member within its class.
-	/// </summary>
-	/// <remarks>
-	/// Up/down rather than drag-and-drop: the member row is already five controls wide, and a drag
-	/// source competing with the text field and the type button in that space is easy to trigger
-	/// by accident.
-	/// </remarks>
-	private void ShowMemberReorderButtons(SchemaClass schemaClass, SchemaMember member, int index, int memberCount)
-	{
-		ImGui.BeginDisabled(index == 0);
-		bool moveUp = ImGui.ArrowButton("##MoveUp", ImGuiDir.Up);
-		ImGuiProbes.MarkItem("MoveUp");
-		if (moveUp)
-		{
-			MoveMember(schemaClass, member, index - 1);
-		}
-
-		ImGui.EndDisabled();
-
-		ImGui.SameLine();
-		ImGui.BeginDisabled(index == memberCount - 1);
-		bool moveDown = ImGui.ArrowButton("##MoveDown", ImGuiDir.Down);
-		ImGuiProbes.MarkItem("MoveDown");
-		if (moveDown)
-		{
-			MoveMember(schemaClass, member, index + 1);
-		}
-
-		ImGui.EndDisabled();
-	}
-
-	private void MoveMember(SchemaClass schemaClass, SchemaMember member, int newIndex)
-	{
-		int previousIndex = schemaClass.IndexOfMember(member);
-		if (previousIndex < 0)
-		{
-			return;
-		}
-
-		Execute(new DelegateCommand(
-			$"Move Member '{member.Name}'",
-			() => schemaClass.TryMoveMember(member, newIndex),
-			() => schemaClass.TryMoveMember(member, previousIndex),
-			ChangeType.Move));
-	}
-
-	private void ShowMemberNameField(SchemaClass schemaClass, SchemaMember member)
-	{
-		if (EditField.Text("##Name", FieldWidth, member.Name, out string committed, 64))
-		{
-			ApplyRename("member", member.Name, committed,
-				newName => schemaClass.TryRenameMember(member, newName.As<MemberName>()));
-		}
-	}
-
-	/// <summary>
-	/// Marks a member row that owns a validation issue, with the message as its tooltip.
-	/// </summary>
-	private void ShowMemberIssueMarker(SchemaMember member)
-	{
-		SchemaValidationIssue? issue = GetIssueFor(member);
-		if (issue is null)
-		{
-			return;
-		}
-
-		ImGui.SameLine();
-		using (EditorTheme.Severity(issue.Severity))
-		{
-			ImGui.TextUnformatted(issue.Severity == SchemaValidationSeverity.Error ? "!" : "?");
-		}
-
-		if (ImGui.IsItemHovered())
-		{
-			ImGui.SetTooltip(issue.Message);
-		}
-	}
-
-	/// <summary>
-	/// Removes a member, remembering where it was so an undo puts it back there.
-	/// </summary>
-	/// <remarks>
-	/// <c>RestoreMember</c> appends, and member order is part of the schema's meaning rather than
-	/// a display concern - it is the declaration order generated code uses, and it round-trips
-	/// through the file. So restoring alone turns an undo into an edit of its own: delete a member
-	/// from the middle of a class, undo, and the class comes back reordered.
-	/// </remarks>
-	private void DeleteMember(SchemaClass schemaClass, SchemaMember member)
-	{
-		int index = schemaClass.IndexOfMember(member);
-
-		Execute(new DelegateCommand(
-			$"Delete Member '{member.Name}'",
-			() => member.TryRemove(),
-			() =>
-			{
-				schemaClass.RestoreMember(member);
-				schemaClass.TryMoveMember(member, index);
-			},
-			ChangeType.Delete));
-	}
-
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S3267:Loops should be simplified with \"LINQ\" expressions", Justification = "We want to separate out ImGui calls from enumerations")]
-	public void ShowMemberConfig(Schema schema, SchemaMember schemaMember)
-	{
-		Ensure.NotNull(schema);
-		Ensure.NotNull(schemaMember);
-
-		bool typeClicked = ImGui.Button($"{schemaMember.Type.DisplayName}##Type", new Vector2(FieldWidth, 0));
-		ImGuiProbes.MarkItem("Type");
-		if (typeClicked)
-		{
-			SchemaMember captured = schemaMember;
-			Popups.OpenTypeList("Select Type", "Type", schema.GetAvailableTypes(), captured.Type, (type) => SetMemberType(captured, type));
-		}
-
-		if (schemaMember.Type is not SchemaTypes.Array array)
-		{
-			return;
-		}
-
-		ImGui.SameLine();
-		if (EditField.Text("##Container", FieldWidth, array.Container, out string container, 64))
-		{
-			ContainerName previous = array.Container;
-			ContainerName next = container.As<ContainerName>();
-			Execute(new DelegateCommand(
-				$"Set Container '{next}'",
-				() => array.Container = next,
-				() => array.Container = previous,
-				ChangeType.Modify));
-		}
-
-		if (array.ElementType is SchemaTypes.Object obj && obj.Class is not null)
-		{
-			ImGui.SameLine();
-			ShowArrayKeySelector(array, obj.Class);
-		}
-	}
-
-	private void SetMemberType(SchemaMember member, SchemaTypes.BaseType type)
-	{
-		SchemaTypes.BaseType previous = member.Type;
-		Execute(new DelegateCommand(
-			$"Set Type '{type.DisplayName}'",
-			() => member.SetType(type),
-			() => member.SetType(previous),
-			ChangeType.Modify));
-	}
-
-	private void ShowArrayKeySelector(SchemaTypes.Array array, SchemaClass elementClass)
-	{
-		ImGui.Button(string.IsNullOrEmpty(array.Key) ? NoneOption : array.Key, new Vector2(FieldWidth, 0));
-		ImGuiProbes.MarkItem("KeySelector");
-
-		if (!ImGui.BeginPopupContextItem("##Key", ImGuiPopupFlags.MouseButtonLeft))
-		{
-			return;
-		}
-
-		bool none = ImGui.Selectable(NoneOption);
-		ImGuiProbes.MarkItem("key-option", NoneOption);
-		if (none)
-		{
-			SetArrayKey(array, new MemberName());
-		}
-
-		foreach (SchemaMember primitiveMember in elementClass.Members.Where(m => m.Type.IsPrimitive).OrderBy(m => m.Name.ToString(), StringComparer.Ordinal))
-		{
-			bool chosen = ImGui.Selectable(primitiveMember.Name);
-			ImGuiProbes.MarkItem("key-option", primitiveMember.Name);
-			if (chosen)
-			{
-				SetArrayKey(array, primitiveMember.Name);
-			}
-		}
-
-		ImGui.EndPopup();
-	}
-
-	private void SetArrayKey(SchemaTypes.Array array, MemberName key)
-	{
-		MemberName previous = array.Key;
-		Execute(new DelegateCommand(
-			$"Set Array Key '{key}'",
-			() => array.Key = key,
-			() => array.Key = previous,
 			ChangeType.Modify));
 	}
 }

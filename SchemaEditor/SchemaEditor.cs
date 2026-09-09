@@ -40,6 +40,8 @@ public partial class SchemaEditor
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
+
+	private MemberGridPanel MemberGrid { get; init; }
 	private ClassGraphView ClassGraph { get; } = new();
 	private ImGuiWidgets.TabPanel MainTabs { get; }
 
@@ -54,6 +56,7 @@ public partial class SchemaEditor
 		UndoRedo = new UndoRedoService(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 		TreeSchema = new(this);
 		CodeGeneratorPanel = new(this);
+		MemberGrid = new(this);
 		DividerContainerCols =
 			new(
 				"RootDivider",

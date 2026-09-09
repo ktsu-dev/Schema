@@ -111,6 +111,38 @@ public class MemberMetadataTests
 	}
 
 	[TestMethod]
+	public void TheTextToWriteForAUnitIsItsSymbolUnlessThatIsShared()
+	{
+		// What a picker writes when the user has chosen a unit rather than typed one. The symbol
+		// reads better and is right for all but the shared two, and the point of choosing per unit
+		// is that those two are the only ones that have to be spelled out.
+		Assert.IsTrue(UnitRegistry.TryResolve("MeterPerSecond", out IUnit? metersPerSecond, out _));
+		Assert.AreEqual("m/s", UnitRegistry.PreferredText(metersPerSecond!));
+
+		Assert.IsTrue(UnitRegistry.TryResolve("Radian", out IUnit? radian, out _));
+		Assert.AreEqual("Radian", UnitRegistry.PreferredText(radian!));
+
+		Assert.IsTrue(UnitRegistry.TryResolve("Gram", out IUnit? gram, out _));
+		Assert.AreEqual("Gram", UnitRegistry.PreferredText(gram!));
+	}
+
+	/// <summary>
+	/// The property that matters: whatever text is written for a unit has to name that same unit
+	/// when it is read back. Asserted over the whole registry rather than a sample, since the
+	/// spellings that do not round-trip are exactly the ones nobody thinks to sample.
+	/// </summary>
+	[TestMethod]
+	public void EveryUnitsPreferredTextResolvesBackToIt()
+	{
+		foreach (IUnit unit in UnitRegistry.All)
+		{
+			string text = UnitRegistry.PreferredText(unit);
+			Assert.IsTrue(UnitRegistry.TryResolve(text, out IUnit? resolved, out string error), $"'{text}' for {unit.Name}: {error}");
+			Assert.AreEqual(unit.Name, resolved!.Name, $"'{text}' was written for {unit.Name}");
+		}
+	}
+
+	[TestMethod]
 	public void TheRegistryIsNotEmpty()
 	{
 		// Guards the reflection that builds it: a registry that silently found nothing

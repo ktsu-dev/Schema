@@ -136,6 +136,35 @@ public static class UnitRegistry
 	}
 
 	/// <summary>
+	/// Gets the text a schema should write to mean this unit.
+	/// </summary>
+	/// <param name="unit">The unit to name.</param>
+	/// <returns>
+	/// The unit's symbol when that symbol belongs to it alone, and its name when the symbol is
+	/// shared.
+	/// </returns>
+	/// <remarks>
+	/// A picker knows which unit was chosen, so it should never write text that loses that. The
+	/// symbol is what a person reads, and is right for all but two units in the registry; for
+	/// those two -- <c>g</c> and <c>rad</c> -- the symbol would not resolve back, so the name is
+	/// written instead. Choosing per unit rather than always writing the name keeps the common
+	/// case readable.
+	/// </remarks>
+	/// <exception cref="ArgumentNullException"><paramref name="unit"/> is null.</exception>
+	public static string PreferredText(IUnit unit)
+	{
+		Ensure.NotNull(unit);
+
+		Registry registry = Lookup.Value;
+		bool symbolIdentifiesIt =
+			!registry.ByName.ContainsKey(unit.Symbol) &&
+			registry.BySymbol.TryGetValue(unit.Symbol, out List<IUnit>? sharing) &&
+			sharing.Count == 1;
+
+		return symbolIdentifiesIt ? unit.Symbol : unit.Name;
+	}
+
+	/// <summary>
 	/// Resolves unit text to a unit, or throws.
 	/// </summary>
 	/// <param name="text">A unit symbol or unit name.</param>
