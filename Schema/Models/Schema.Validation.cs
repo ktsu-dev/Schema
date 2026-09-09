@@ -173,9 +173,16 @@ public partial class Schema
 		if (!member.Range.IsWellFormed)
 		{
 			Report(issues, path, member, $"The range minimum ({Number(member.Range.Minimum)}) is above its maximum ({Number(member.Range.Maximum)}), so no value satisfies it.");
+
+			// A backwards range has no width to ask about, and saying so as well would be two
+			// messages for one mistake.
+			return;
 		}
 
-		if (member.Range.Wrap && member.Range.Minimum == member.Range.Maximum)
+		// The range is well formed by here, so its maximum is at or above its minimum and this
+		// says the two are the same value -- without comparing two doubles for equality, which is
+		// brittle enough that the analyzers refuse it.
+		if (member.Range.Wrap && member.Range.Maximum <= member.Range.Minimum)
 		{
 			Report(issues, path, member, "A wrapping range of zero width has no values to wrap into.");
 		}
@@ -198,7 +205,11 @@ public partial class Schema
 					return;
 				}
 
-				if (member.Type.IsIntegral && number.Value != Math.Truncate(number.Value))
+				// double.IsInteger rather than a comparison against Math.Truncate: it asks the
+				// question directly, and it does not compare two doubles for equality. It also
+				// answers false for an infinity, which is not a whole number and cannot narrow to
+				// one - the comparison called that whole, since truncating an infinity returns it.
+				if (member.Type.IsIntegral && !double.IsInteger(number.Value))
 				{
 					Report(issues, path, member, $"The default {Number(number.Value)} is not a whole number, but the member is {member.Type.TypeName}.");
 				}

@@ -179,6 +179,21 @@ public class MemberMetadataTests
 		AssertMentions(Errors(schema), "wrap into");
 	}
 
+	/// <summary>
+	/// A backwards range has no width to ask about, so it is one mistake and one message.
+	/// </summary>
+	[TestMethod]
+	public void ABackwardsWrappingRangeIsReportedOnce()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Float(), out Schema schema);
+		member.Range = new MemberRange { Minimum = 10.0, Maximum = 1.0, Wrap = true };
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(1, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+		AssertMentions(errors, "no value satisfies");
+	}
+
 	// ---------------------------------------------------------------- defaults
 
 	[TestMethod]
@@ -208,6 +223,18 @@ public class MemberMetadataTests
 	{
 		SchemaMember member = MemberWith(new SchemaTypes.Int(), out Schema schema);
 		member.DefaultValue = new NumberDefault { Value = 1.5 };
+
+		AssertMentions(Errors(schema), "not a whole number");
+	}
+
+	/// <summary>
+	/// An infinity is not a whole number, and cannot be narrowed to one.
+	/// </summary>
+	[TestMethod]
+	public void AnInfiniteDefaultOnAnIntegralMemberIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Int(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = double.PositiveInfinity };
 
 		AssertMentions(Errors(schema), "not a whole number");
 	}
