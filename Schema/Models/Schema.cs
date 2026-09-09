@@ -25,8 +25,18 @@ public partial class Schema : ISchema
 	/// Version 1 is the first versioned format. A file with no version field predates versioning
 	/// and is treated as version <see cref="PreVersioningFormatVersion"/>; see
 	/// <c>docs/schema-format.md</c> for the migration path and the compatibility policy.
+	/// <para>
+	/// Version 2 added the semantic metadata a member can carry: unit, range, default,
+	/// interpolation, network encoding and editor hint. Every one of them is optional and
+	/// omitted when absent, so a version 2 file with none of them is byte-identical to the
+	/// version 1 file it would have been. The version still moves, because a version 1 reader
+	/// silently ignores properties it does not know: it would load such a file, drop the
+	/// metadata, and write it back without it — which is exactly the information loss the
+	/// round-trip contract in <c>docs/schema-format.md</c> forbids. Refusing to read it is
+	/// the honest outcome.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 1;
+	public const int CurrentFormatVersion = 2;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.

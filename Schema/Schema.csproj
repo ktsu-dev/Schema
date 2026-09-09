@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="ktsu.CodeBlocker" />
     <PackageReference Include="ktsu.RoundTripStringJsonConverter" />
+    <PackageReference Include="ktsu.Semantics.Quantities" />
     <PackageReference Include="ktsu.Semantics.Strings" />
     <PackageReference Include="ktsu.Semantics.Paths" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />

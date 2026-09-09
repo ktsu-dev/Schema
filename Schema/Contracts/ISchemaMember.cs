@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Contracts;
 
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 
 /// <summary>
@@ -24,4 +25,34 @@ public interface ISchemaMember : ISchemaClassChild<MemberName>
 	/// </remarks>
 	/// <param name="type">The type to set.</param>
 	public void SetType(ISchemaType type);
+
+	/// <summary>
+	/// Gets the unit this member's values are measured in, or null if it measures nothing.
+	/// </summary>
+	public UnitSymbol? Unit { get; }
+
+	/// <summary>
+	/// Gets the range of values this member may take, or null if it is unbounded.
+	/// </summary>
+	public MemberRange? Range { get; }
+
+	/// <summary>
+	/// Gets the value this member takes when none is supplied, or null if it has no default.
+	/// </summary>
+	public MemberDefault? DefaultValue { get; }
+
+	/// <summary>
+	/// Gets how this member should be encoded when sent over a network, or null for no guidance.
+	/// </summary>
+	public MemberNetwork? Network { get; }
+
+	/// <summary>
+	/// Gets how two states of this member may be blended.
+	/// </summary>
+	public Interpolation Interpolation { get; }
+
+	/// <summary>
+	/// Gets a hint about how an editor should present this member, or null for none.
+	/// </summary>
+	public EditorHint? Editor { get; }
 }
