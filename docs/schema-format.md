@@ -12,9 +12,11 @@ lose information.
 
 ```json
 {
-  "formatVersion": 1,
+  "formatVersion": 3,
   "classes": [],
   "enums": [],
+  "semanticTypes": [],
+  "interfaces": [],
   "codeGenerators": [],
   "dataSources": []
 }
@@ -25,10 +27,12 @@ lose information.
 | `formatVersion` | integer | The format version. Written first so a reader can find it without scanning the document. See [Versioning](#versioning). |
 | `classes` | array of [class](#class) | The classes the schema defines. |
 | `enums` | array of [enum](#enum) | The enumerations the schema defines. |
+| `semanticTypes` | array of [semantic type](#semantic-type) | The semantic types the schema defines. |
+| `interfaces` | array of [interface](#interface) | The interfaces the schema defines. See [Declaring behaviour](#declaring-behaviour). |
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
 
-All four collections are always written, empty or not.
+All six collections are always written, empty or not.
 
 Every named element also carries a `description`, a free-text string that is always written even
 when empty. It is the natural source for a doc comment in generated code.
@@ -142,6 +146,171 @@ C++ are all-zero bytes, which is rarely what a schema means by "the default".
 Both are advisory: a codec that ignores them is still correct, just larger. A quantised round
 trip is accurate to half the step and no better.
 
+## Semantic type
+
+An entity id is a number. So is a texture id. Adding one to the other is nonsense that compiles.
+
+A semantic type is how the schema says the two are different things: both are stored as a `Long`,
+and neither is interchangeable with the other or with a bare number.
+
+```json
+{
+  "underlyingType": { "TypeName": "Float" },
+  "unit": "m",
+  "interpolation": "Linear",
+  "name": "Metres",
+  "description": "A distance in metres"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `underlyingType` | [type](#types) | What values of this type are represented as. |
+| `name` | string | The type name. Unique among semantic types. |
+| `description` | string | Free text. |
+| `unit`, `range`, `defaultValue`, `interpolation`, `network`, `editor` | see [Member](#member) | The same six properties a member may carry, for the cases where they belong to the *type* rather than to a use of it. |
+
+Refer to one with the [`Semantic`](#semantic---a-reference-to-a-semantic-type-in-this-schema) type.
+
+### What it refuses
+
+The point of a semantic type is what it will not let you do, and those rules are conventions of the
+schema rather than per-declaration settings:
+
+- **Crossing into or out of the underlying type is always explicit.** A bare number never becomes
+  an `EntityId` by accident, and getting the number back out is a named call, never an implicit
+  conversion.
+- **A semantic type may refine another**, in which case the narrower widens to the broader
+  implicitly and narrows back explicitly. A `Weight` is a `ForceMagnitude`; not every force is a
+  weight.
+
+### What may be shimmed
+
+| Underlying type | Allowed | Why |
+| --- | --- | --- |
+| Primitives, vectors, colours | yes | Their values would otherwise be interchangeable. That is the case a semantic type exists for. |
+| Another semantic type | yes | Refinement. |
+| `Object`, `Interface`, `Enum` | **no** | Already distinct types. Naming one again buys nothing and leaves it ambiguous which conversions apply. |
+| `Array`, `Span`, `Handle`, `Result`, `Optional`, `Void` | **no** | These describe how a value is *carried*, not what it *is*. Shimming one crosses two unrelated axes. |
+| `None` | **no** | No type was chosen; not generatable. |
+
+A refinement cycle - `A` refines `B` refines `A` - is reported, because it is represented as
+nothing.
+
+### Where metadata belongs
+
+Some of the six properties belong to a type and some to a use of it. A `Metres` is metres
+everywhere it appears, so declaring the unit once on the type is what stops every member restating
+it. A range is more often contextual - one mass is bounded `[0.001, 1e6]` and another is not - so it
+usually belongs on the member.
+
+The rules for whether a given combination makes sense are identical either way, and are applied
+identically: a unit on something that measures nothing is refused whether it was declared on a
+member or on a semantic type.
+
+## Declaring behaviour
+
+A class says what data *is*. An interface says what the program can *do*: a named set of
+functions, which a generator turns into the header an implementation is written against — an
+abstract type in C++, an interface in C#. The declaration is the contract, so an implementation
+cannot drift from it without failing to compile.
+
+### The four conventions
+
+A signature carries no ownership, lifetime, or error annotations, and does not need them. Four
+conventions carry that weight instead, and each one is a rule the *program* keeps rather than a
+fact every signature restates:
+
+| Question | Answered by | Not by |
+| --- | --- | --- |
+| Can this call fail? | The return type is [`Result`](#result). | a `throws` clause |
+| May the callee keep this? | [`Handle`](#handle) yes, [`Span`](#span) no. | an ownership annotation |
+| Who frees it? | Nobody: a handle is an identifier, a span is a borrow. | a lifetime annotation |
+| Is this argument read-only? | `direction`. | `const` |
+
+This is deliberate. Every interface language that let signatures answer these individually grew
+annotations until it was a worse version of the language it described. Making them global
+conventions keeps the declaration small, and the cost is that a program which wants two error
+conventions cannot express the second — which is the point.
+
+## Interface
+
+```json
+{
+  "functions": [ ... ],
+  "name": "Renderer",
+  "description": "Submits work to the GPU"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `functions` | array of [function](#function) | The interface's functions, **in declaration order**. |
+| `name` | string | The interface name. Unique among interfaces. |
+| `description` | string | Free text. |
+
+Order is preserved, for the same reason member order is: a generated header that reorders itself
+between runs produces a diff nobody can review.
+
+## Function
+
+```json
+{
+  "parameters": [ ... ],
+  "returnType": { "TypeName": "Result", "elementType": { "TypeName": "Void" } },
+  "name": "Present",
+  "description": "Presents the completed frame"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `parameters` | array of [parameter](#parameter) | The parameters, **in declaration order**. Order is the signature. |
+| `returnType` | [type](#types) | What the function returns. `Void` for nothing; never `None`. |
+| `name` | string | The function name, unique within its interface. |
+| `description` | string | Free text. |
+
+**There is no overloading.** A name identifies a function within its interface. Two functions
+differing only in their parameters are one name in some target languages and two in others, so the
+schema refuses the case rather than generating something different per language.
+
+## Parameter
+
+```json
+{
+  "type": { "TypeName": "Span", "elementType": { "TypeName": "Float" } },
+  "direction": "Out",
+  "name": "samples",
+  "description": "Filled with the captured audio"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `type` | [type](#types) | The parameter's type. |
+| `direction` | string | `In`, `Out` or `InOut`. Absent means `In`. |
+| `name` | string | The parameter name, unique within its function. |
+| `description` | string | Free text. |
+
+`direction` replaces const-ness, which is one language's spelling of a parameter rather than a
+property of the call. A C++ generator emits `In` as a const reference or a by-value copy; a C#
+generator emits `in`, `out` and `ref`.
+
+**On a `Span`, direction describes the elements, not the view.** A span is always a borrow the
+callee may not retain; `In` makes its elements read-only and `Out` or `InOut` makes them writable.
+So `In Span<Velocity>` is `std::span<const Velocity>` and `Out Span<Position>` is
+`std::span<Position>` — which is exactly the shape of a system that reads one component and writes
+another.
+
+Some things are refused in a signature, and the refusals are what keep the conventions honest:
+
+| Refused | Why |
+| --- | --- |
+| An `Array` parameter | An array is a collection a class owns. A borrowed sequence is a `Span`. |
+| A `Result` parameter | Fallibility describes the call, not an argument to it. |
+| A `Void` parameter | It carries no value. |
+| A `None` return or parameter | No type was chosen; not generatable. Use `Void` to mean "returns nothing". |
+
 ## Enum
 
 ```json
@@ -203,6 +372,7 @@ it is the polymorphic discriminator, not a data property.
 | `TypeName` | Meaning |
 | --- | --- |
 | `None` | No type chosen yet. A valid intermediate editing state, not a generatable one. |
+| `Void` | Returns nothing. A decision, unlike `None`. Only valid as a return type, or inside a `Result`. |
 | `Bool` | Boolean. |
 | `Int` | 32-bit signed integer. |
 | `Long` | 64-bit signed integer. |
@@ -228,6 +398,43 @@ library, so unlike `Object` they carry no class reference.
 ```
 
 `className` must name a class in `classes`.
+
+### `Semantic` - a reference to a semantic type in this schema
+
+```json
+{ "TypeName": "Semantic", "semanticTypeName": "EntityId" }
+```
+
+`semanticTypeName` must name a semantic type in `semanticTypes`.
+
+### `Interface` - a reference to an interface in this schema
+
+```json
+{ "TypeName": "Interface", "interfaceName": "AudioDevice" }
+```
+
+`interfaceName` must name an interface in `interfaces`. The counterpart of `Object` for a class.
+
+### Wrappers - types that wrap one other type
+
+Each holds an `elementType` and differs only in what the wrapping *means*:
+
+```json
+{ "TypeName": "Span",     "elementType": { "TypeName": "Float" } }
+{ "TypeName": "Handle",   "elementType": { "TypeName": "Object", "className": "Texture" } }
+{ "TypeName": "Result",   "elementType": { "TypeName": "Int" } }
+{ "TypeName": "Optional", "elementType": { "TypeName": "String" } }
+```
+
+| `TypeName` | Means |
+| --- | --- |
+| `Span` | A **borrowed** view over a contiguous sequence, valid for the call and not retained. Contrast `Array`, which is a stored collection a class owns: a span is never a member's type and an array is never a parameter's. |
+| `Handle` | An opaque, generation-counted reference to a resource the engine owns. The caller may keep it indefinitely and has nothing to free; a stale handle is detectable rather than undefined. |
+| `Result` | The outcome of a call that can fail: the element, or an error. Valid only as a return type. `Result<Void>` is a call that can fail and produces nothing. |
+| `Optional` | A value that may be absent. **Absence is not failure** — `Optional` is a lookup that found nothing, `Result` is a call that did not succeed. Using one for the other turns "not found" into an error path, or an error into a silent nothing. |
+
+A reference inside a wrapper resolves exactly as one named directly does, so `Span<Transform>`
+finds its class.
 
 ### `Enum` - a reference to an enum in this schema
 
@@ -332,6 +539,7 @@ needs to know about.
 | *(absent)* | - | Any file written before versioning. Read as version 0 and migrated on load. |
 | `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
 | `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
+| `3` | Interfaces and semantic types | The root gains `interfaces` and `semanticTypes`, and the type vocabulary gains `Void`, `Interface`, `Semantic`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with neither. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
@@ -472,6 +680,7 @@ What a release may do to this format:
 | --- | --- |
 | Adding an optional property that older readers can ignore | patch or minor |
 | Adding a new `TypeName` | minor - older readers will fail to read files that use it, so `formatVersion` increases with it |
+| Adding a top-level collection (as `interfaces` and `semanticTypes` were) | minor, with a `formatVersion` increase - additive, so an older file loads with the collection empty |
 | Adding a container name to the known vocabulary | patch or minor - the vocabulary is open, so an unknown name is only a warning |
 | Renaming or removing a property, or changing the meaning of an existing one | major, with a migration step and a `formatVersion` increase |
 | Changing the discriminator property name (`TypeName`) | major |

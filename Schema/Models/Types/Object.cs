@@ -25,7 +25,7 @@ public class Object : BaseType
 		{
 			if (!string.IsNullOrEmpty(ClassName) && internalClass?.Name != ClassName)
 			{
-				ParentMember?.ParentSchema?.TryGetClass(ClassName, out internalClass);
+				ParentSchema?.TryGetClass(ClassName, out internalClass);
 			}
 
 			return internalClass;

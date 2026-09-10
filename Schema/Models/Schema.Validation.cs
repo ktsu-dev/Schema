@@ -30,6 +30,8 @@ public partial class Schema
 		ValidateUniqueNames(issues);
 		ValidateClasses(issues);
 		ValidateEnums(issues);
+		ValidateInterfaces(issues);
+		ValidateSemanticTypes(issues);
 		ValidateDataSources(issues);
 		ValidateCodeGenerators(issues);
 
@@ -40,6 +42,8 @@ public partial class Schema
 	{
 		ReportDuplicates(issues, ClassesInternal.Select(c => c.Name.ToString()), "class");
 		ReportDuplicates(issues, EnumsInternal.Select(e => e.Name.ToString()), "enum");
+		ReportDuplicates(issues, InterfacesInternal.Select(i => i.Name.ToString()), "interface");
+		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
 	}
@@ -107,7 +111,7 @@ public partial class Schema
 				}
 
 				ValidateType(issues, member.Type, memberPath, member);
-				ValidateMemberMetadata(issues, member, memberPath);
+				ValidateMetadata(issues, member, member.Type, memberPath, member, "member");
 			}
 		}
 	}
@@ -122,34 +126,34 @@ public partial class Schema
 	/// flag means nothing without one — and a schema being edited passes through inconsistent
 	/// states that it would be unhelpful to reject one keystroke at a time.
 	/// </remarks>
-	private static void ValidateMemberMetadata(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMetadata(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
-		ValidateMemberUnit(issues, member, path);
-		ValidateMemberRange(issues, member, path);
-		ValidateMemberDefault(issues, member, path);
-		ValidateMemberInterpolation(issues, member, path);
-		ValidateMemberNetwork(issues, member, path);
+		ValidateMemberUnit(issues, carrier, type, path, element, kind);
+		ValidateMemberRange(issues, carrier, type, path, element, kind);
+		ValidateMemberDefault(issues, carrier, type, path, element, kind);
+		ValidateMemberInterpolation(issues, carrier, type, path, element);
+		ValidateMemberNetwork(issues, carrier, type, path, element);
 	}
 
 	/// <summary>
 	/// A unit has to resolve, and has to be on something that can carry one.
 	/// </summary>
-	private static void ValidateMemberUnit(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMemberUnit(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
-		if (member.Unit is null)
+		if (carrier.Unit is null)
 		{
 			return;
 		}
 
-		if (!CanCarryUnit(member.Type))
+		if (!CanCarryUnit(type))
 		{
-			Report(issues, path, member, $"A unit is meaningless on a {member.Type.TypeName} member; only numeric and vector members measure something.");
+			Report(issues, path, element, $"A unit is meaningless on a {type.TypeName} {kind}; only numeric and vector members measure something.");
 			return;
 		}
 
-		if (!UnitRegistry.TryResolve(member.Unit, out IUnit? _, out string error))
+		if (!UnitRegistry.TryResolve(carrier.Unit, out IUnit? _, out string error))
 		{
-			Report(issues, path, member, error);
+			Report(issues, path, element, error);
 		}
 	}
 
@@ -157,22 +161,22 @@ public partial class Schema
 	/// A range has to be satisfiable, has to be on something orderable, and a wrap flag needs
 	/// a range to wrap into.
 	/// </summary>
-	private static void ValidateMemberRange(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMemberRange(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
-		if (member.Range is null)
+		if (carrier.Range is null)
 		{
 			return;
 		}
 
-		if (!member.Type.IsNumeric && !IsVector(member.Type))
+		if (!type.IsNumeric && !IsVector(type))
 		{
-			Report(issues, path, member, $"A range is meaningless on a {member.Type.TypeName} member.");
+			Report(issues, path, element, $"A range is meaningless on a {type.TypeName} {kind}.");
 			return;
 		}
 
-		if (!member.Range.IsWellFormed)
+		if (!carrier.Range.IsWellFormed)
 		{
-			Report(issues, path, member, $"The range minimum ({Number(member.Range.Minimum)}) is above its maximum ({Number(member.Range.Maximum)}), so no value satisfies it.");
+			Report(issues, path, element, $"The range minimum ({Number(carrier.Range.Minimum)}) is above its maximum ({Number(carrier.Range.Maximum)}), so no value satisfies it.");
 
 			// A backwards range has no width to ask about, and saying so as well would be two
 			// messages for one mistake.
@@ -182,26 +186,26 @@ public partial class Schema
 		// The range is well formed by here, so its maximum is at or above its minimum and this
 		// says the two are the same value -- without comparing two doubles for equality, which is
 		// brittle enough that the analyzers refuse it.
-		if (member.Range.Wrap && member.Range.Maximum <= member.Range.Minimum)
+		if (carrier.Range.Wrap && carrier.Range.Maximum <= carrier.Range.Minimum)
 		{
-			Report(issues, path, member, "A wrapping range of zero width has no values to wrap into.");
+			Report(issues, path, element, "A wrapping range of zero width has no values to wrap into.");
 		}
 	}
 
 	/// <summary>
 	/// A default has to be of the member's own kind, and inside its range.
 	/// </summary>
-	private static void ValidateMemberDefault(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMemberDefault(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
-		switch (member.DefaultValue)
+		switch (carrier.DefaultValue)
 		{
 			case null:
 				return;
 
 			case NumberDefault number:
-				if (!member.Type.IsNumeric && !IsVector(member.Type))
+				if (!type.IsNumeric && !IsVector(type))
 				{
-					Report(issues, path, member, $"A numeric default does not fit a {member.Type.TypeName} member.");
+					Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
 					return;
 				}
 
@@ -209,35 +213,35 @@ public partial class Schema
 				// question directly, and it does not compare two doubles for equality. It also
 				// answers false for an infinity, which is not a whole number and cannot narrow to
 				// one - the comparison called that whole, since truncating an infinity returns it.
-				if (member.Type.IsIntegral && !double.IsInteger(number.Value))
+				if (type.IsIntegral && !double.IsInteger(number.Value))
 				{
-					Report(issues, path, member, $"The default {Number(number.Value)} is not a whole number, but the member is {member.Type.TypeName}.");
+					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {type.TypeName}.");
 				}
 
 				// A wrapping range is a period rather than a bound, so a value outside it is
 				// un-normalised rather than wrong -- the same reading a validator must take of
 				// live data, applied here to the default.
-				if (member.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
+				if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
 				{
-					Report(issues, path, member, $"The default {Number(number.Value)} is outside the member's own range {range}.");
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
 				}
 
 				return;
 
 			case BooleanDefault:
-				if (member.Type is not Bool)
+				if (type is not Bool)
 				{
-					Report(issues, path, member, $"A boolean default does not fit a {member.Type.TypeName} member.");
+					Report(issues, path, element, $"A boolean default does not fit a {type.TypeName} {kind}.");
 				}
 
 				return;
 
 			case TextDefault text:
-				ValidateTextDefault(issues, member, path, text);
+				ValidateTextDefault(issues, type, path, element, kind, text);
 				return;
 
 			default:
-				Report(issues, path, member, $"Unrecognised default of kind {member.DefaultValue.GetType().Name}.");
+				Report(issues, path, element, $"Unrecognised default of kind {carrier.DefaultValue.GetType().Name}.");
 				return;
 		}
 	}
@@ -245,16 +249,16 @@ public partial class Schema
 	/// <summary>
 	/// A textual default names an enum value or supplies a string; anything else is a mismatch.
 	/// </summary>
-	private static void ValidateTextDefault(Collection<SchemaValidationIssue> issues, SchemaMember member, string path, TextDefault text)
+	private static void ValidateTextDefault(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement element, string kind, TextDefault text)
 	{
-		if (member.Type is Types.String)
+		if (type is Types.String)
 		{
 			return;
 		}
 
-		if (member.Type is not Types.Enum enumType)
+		if (type is not Types.Enum enumType)
 		{
-			Report(issues, path, member, $"A textual default does not fit a {member.Type.TypeName} member.");
+			Report(issues, path, element, $"A textual default does not fit a {type.TypeName} {kind}.");
 			return;
 		}
 
@@ -269,59 +273,59 @@ public partial class Schema
 		if (!target.Values.Any(value => string.Equals(value, text.Value, StringComparison.Ordinal)))
 		{
 			string known = string.Join(", ", target.Values.Select(value => value.ToString()));
-			Report(issues, path, member, $"The default '{text.Value}' is not a value of enum '{enumType.EnumName}'. Its values are: {known}.");
+			Report(issues, path, element, $"The default '{text.Value}' is not a value of enum '{enumType.EnumName}'. Its values are: {known}.");
 		}
 	}
 
 	/// <summary>
 	/// Interpolation is a claim that the member has a meaningful midpoint.
 	/// </summary>
-	private static void ValidateMemberInterpolation(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMemberInterpolation(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element)
 	{
-		if (member.Interpolation is Interpolation.None)
+		if (carrier.Interpolation is Interpolation.None)
 		{
 			return;
 		}
 
-		if (!member.Type.IsNumeric && !IsVector(member.Type))
+		if (!type.IsNumeric && !IsVector(type))
 		{
-			Report(issues, path, member, $"A {member.Type.TypeName} member has no meaningful value between two states, so it cannot be interpolated.");
+			Report(issues, path, element, $"A {type.TypeName} member has no meaningful value between two states, so it cannot be interpolated.");
 			return;
 		}
 
 		// Stepping is a scheduling decision, not a geometric one, so it is the one mode that
 		// makes sense without an arc.
-		if (member.Interpolation is Interpolation.Spherical && member.Range is { Wrap: false } && !IsVector(member.Type))
+		if (carrier.Interpolation is Interpolation.Spherical && carrier.Range is { Wrap: false } && !IsVector(type))
 		{
-			Report(issues, path, member, "Spherical interpolation takes the shortest arc, which needs a cyclic member: give the range wrap = true, or use linear interpolation.", SchemaValidationSeverity.Warning);
+			Report(issues, path, element, "Spherical interpolation takes the shortest arc, which needs a cyclic member: give the range wrap = true, or use linear interpolation.", SchemaValidationSeverity.Warning);
 		}
 	}
 
 	/// <summary>
 	/// A quantisation step has to be a step.
 	/// </summary>
-	private static void ValidateMemberNetwork(Collection<SchemaValidationIssue> issues, SchemaMember member, string path)
+	private static void ValidateMemberNetwork(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element)
 	{
-		if (member.Network is null)
+		if (carrier.Network is null)
 		{
 			return;
 		}
 
-		if (member.Network.Quantise < 0.0)
+		if (carrier.Network.Quantise < 0.0)
 		{
-			Report(issues, path, member, $"A quantisation step must not be negative, but this one is {Number(member.Network.Quantise)}.");
+			Report(issues, path, element, $"A quantisation step must not be negative, but this one is {Number(carrier.Network.Quantise)}.");
 		}
 
-		if (member.Network.IsQuantised && !member.Type.IsNumeric && !IsVector(member.Type))
+		if (carrier.Network.IsQuantised && !type.IsNumeric && !IsVector(type))
 		{
-			Report(issues, path, member, $"A {member.Type.TypeName} member has no numeric value to quantise.");
+			Report(issues, path, element, $"A {type.TypeName} member has no numeric value to quantise.");
 		}
 
 		// Quantising more coarsely than the whole range leaves one representable value.
-		if (member.Network.IsQuantised && member.Range is { } bounds && bounds.IsWellFormed &&
-			member.Network.Quantise > bounds.Maximum - bounds.Minimum)
+		if (carrier.Network.IsQuantised && carrier.Range is { } bounds && bounds.IsWellFormed &&
+			carrier.Network.Quantise > bounds.Maximum - bounds.Minimum)
 		{
-			Report(issues, path, member, $"The quantisation step {Number(member.Network.Quantise)} is wider than the member's whole range {bounds}, so every value would encode the same.", SchemaValidationSeverity.Warning);
+			Report(issues, path, element, $"The quantisation step {Number(carrier.Network.Quantise)} is wider than the member's whole range {bounds}, so every value would encode the same.", SchemaValidationSeverity.Warning);
 		}
 	}
 
@@ -363,6 +367,171 @@ public partial class Schema
 		}
 	}
 
+	/// <summary>
+	/// Checks the semantic types: what they shim, that the chain of refinement terminates, and
+	/// that their metadata makes sense for what they are represented as.
+	/// </summary>
+	private void ValidateSemanticTypes(Collection<SchemaValidationIssue> issues)
+	{
+		foreach (SchemaSemanticType semanticType in SemanticTypesInternal)
+		{
+			string path = PathSegment(semanticType.Name);
+			ValidateNameNotEmpty(issues, semanticType.Name, "Semantic type", path, semanticType);
+			ValidateUnderlyingType(issues, semanticType, path);
+			ValidateMetadata(issues, semanticType, semanticType.Representation(), path, semanticType, "semantic type");
+		}
+	}
+
+	/// <summary>
+	/// A semantic type is a distinct name for something already representable. That is only
+	/// meaningful over a type whose values would otherwise be interchangeable.
+	/// </summary>
+	private void ValidateUnderlyingType(Collection<SchemaValidationIssue> issues, SchemaSemanticType semanticType, string path)
+	{
+		switch (semanticType.UnderlyingType)
+		{
+			case None:
+				Report(issues, path, semanticType, "Semantic type has no underlying type chosen.");
+				return;
+
+			// A class, an interface and an enum are already distinct types: naming one again
+			// buys nothing and leaves it ambiguous which conversions apply.
+			case Object or Interface or Types.Enum:
+				Report(issues, path, semanticType, $"Semantic type is declared over a {semanticType.UnderlyingType.TypeName}, which is already a distinct type. A semantic type distinguishes values that share a representation.");
+				return;
+
+			// Wrapping a wrapper crosses two orthogonal axes: Span, Handle, Result and Optional
+			// describe how a value travels, not what it means.
+			case Array or WrapperType or Types.Void:
+				Report(issues, path, semanticType, $"Semantic type is declared over a {semanticType.UnderlyingType.TypeName}, which describes how a value is carried rather than what it is.");
+				return;
+
+			case Semantic semantic:
+				ValidateRefinement(issues, semanticType, semantic, path);
+				return;
+
+			default:
+				return;
+		}
+	}
+
+	/// <summary>
+	/// A semantic type may refine another, but the chain has to terminate somewhere real.
+	/// </summary>
+	private void ValidateRefinement(Collection<SchemaValidationIssue> issues, SchemaSemanticType semanticType, Semantic reference, string path)
+	{
+		if (string.IsNullOrEmpty(reference.SemanticTypeName))
+		{
+			Report(issues, path, semanticType, "Semantic type refines a semantic type but does not name it.");
+			return;
+		}
+
+		if (!TryGetSemanticType(reference.SemanticTypeName, out _))
+		{
+			Report(issues, path, semanticType, $"Semantic type refines '{reference.SemanticTypeName}', which this schema does not declare.");
+			return;
+		}
+
+		// Refines() stops at the first type it has already seen, so a cycle shows up as a chain
+		// that never reaches a non-semantic type rather than as a hang.
+		if (!semanticType.Refines().Any(refined => refined.UnderlyingType is not Semantic))
+		{
+			Report(issues, path, semanticType, $"Semantic type '{semanticType.Name}' refines itself, directly or through a cycle, so it is represented as nothing.");
+		}
+	}
+
+	/// <summary>
+	/// Checks the interfaces: names, and that every signature is one a generator can emit.
+	/// </summary>
+	private void ValidateInterfaces(Collection<SchemaValidationIssue> issues)
+	{
+		foreach (SchemaInterface schemaInterface in InterfacesInternal)
+		{
+			string interfacePath = PathSegment(schemaInterface.Name);
+			ValidateNameNotEmpty(issues, schemaInterface.Name, "Interface", interfacePath, schemaInterface);
+
+			ReportDuplicates(
+				issues,
+				schemaInterface.Functions.Select(f => $"{schemaInterface.Name}.{f.Name}"),
+				"function");
+
+			foreach (SchemaFunction function in schemaInterface.Functions)
+			{
+				ValidateFunction(issues, function, $"{interfacePath}.{PathSegment(function.Name)}");
+			}
+		}
+	}
+
+	/// <summary>
+	/// Checks one function's return type and parameters.
+	/// </summary>
+	private void ValidateFunction(Collection<SchemaValidationIssue> issues, SchemaFunction function, string path)
+	{
+		ValidateNameNotEmpty(issues, function.Name, "Function", path, function);
+		ValidateReturnType(issues, function, path);
+
+		ReportDuplicates(
+			issues,
+			function.Parameters.Select(p => $"{path}.{p.Name}"),
+			"parameter");
+
+		foreach (SchemaParameter parameter in function.Parameters)
+		{
+			ValidateParameter(issues, parameter, $"{path}({PathSegment(parameter.Name)})", function);
+		}
+	}
+
+	private void ValidateReturnType(Collection<SchemaValidationIssue> issues, SchemaFunction function, string path)
+	{
+		switch (function.ReturnType)
+		{
+			case None:
+				Report(issues, path, function, "Function has no return type chosen. Use Void for a function that returns nothing.");
+				return;
+
+			// Result<Void> is the honest spelling of "can fail, produces nothing", so the
+			// element of a Result is exempt from the Void check the parameters get.
+			case Result { ElementType: None }:
+				Report(issues, path, function, "Function returns Result with no value type chosen. Use Result<Void> for a call that can fail and produces nothing.");
+				return;
+
+			default:
+				ValidateType(issues, function.ReturnType, path, function);
+				return;
+		}
+	}
+
+	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
+	{
+		switch (parameter.Type)
+		{
+			case None:
+				Report(issues, path, element, "Parameter has no type chosen.");
+				return;
+
+			case Void:
+				Report(issues, path, element, "Parameter is Void, which carries no value. Remove it.");
+				return;
+
+			// Fallibility describes the call, not an argument to it.
+			case Result:
+				Report(issues, path, element, "Parameter is a Result. Only a return type may be fallible.");
+				return;
+
+			// An Array is a collection a class owns; a sequence crossing a boundary is a Span,
+			// which is a borrow valid for the call. Allowing an Array here would be the first
+			// place ownership became ambiguous, which is the thing the conventions exist to
+			// prevent.
+			case Array:
+				Report(issues, path, element, "Parameter is an Array, which is an owned collection. Pass a Span to borrow a sequence for the call.");
+				return;
+
+			default:
+				ValidateType(issues, parameter.Type, path, element);
+				return;
+		}
+	}
+
 	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element)
 	{
 		switch (type)
@@ -379,8 +548,32 @@ public partial class Schema
 				ValidateArray(issues, arrayType, path, element);
 				break;
 
+			case Interface interfaceType:
+				ValidateInterfaceReference(issues, interfaceType, path, element);
+				break;
+
+			// Every wrapper resolves to whatever it wraps, so a class named inside a Span,
+			// Handle, Result or Optional is checked exactly as one named directly is.
+			case WrapperType wrapper:
+				ValidateType(issues, wrapper.ElementType, path, element);
+				break;
+
 			default:
 				break;
+		}
+	}
+
+	private void ValidateInterfaceReference(Collection<SchemaValidationIssue> issues, Interface interfaceType, string path, ISchemaElement? element)
+	{
+		if (string.IsNullOrEmpty(interfaceType.InterfaceName))
+		{
+			Report(issues, path, element!, "Interface type does not specify an interface name.");
+			return;
+		}
+
+		if (!TryGetInterface(interfaceType.InterfaceName, out _))
+		{
+			Report(issues, path, element!, $"Interface type references '{interfaceType.InterfaceName}', which this schema does not declare.");
 		}
 	}
 

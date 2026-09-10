@@ -32,16 +32,61 @@ The type system uses polymorphic JSON serialization with `System.Text.Json`:
 SchemaChild<TName> (base for named elements)
 ├── SchemaClass : SchemaChild<ClassName>
 ├── SchemaEnum : SchemaChild<EnumName>
+├── SchemaInterface : SchemaChild<InterfaceName>
+├── SchemaSemanticType : SchemaChild<SemanticTypeName>
 ├── DataSource : SchemaChild<DataSourceName>
 ├── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
-└── SchemaClassChild<TName> : SchemaChild<TName>
-    └── SchemaMember : SchemaClassChild<MemberName>
+├── SchemaClassChild<TName> : SchemaChild<TName>
+│   └── SchemaMember : SchemaClassChild<MemberName>
+├── SchemaInterfaceChild<TName> : SchemaChild<TName>
+│   └── SchemaFunction : SchemaInterfaceChild<FunctionName>
+└── SchemaFunctionChild<TName> : SchemaChild<TName>
+    └── SchemaParameter : SchemaFunctionChild<ParameterName>
 
 BaseType (types, in ktsu.Schema.Models.Types)
 ├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
 ├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
-└── Complex: Array, Object, Enum, None
+├── Complex: Array, Object, Enum, Interface, Semantic, None, Void
+└── Wrappers: Span, Handle, Result, Optional
 ```
+
+### Semantic types
+
+An entity id is a number, and so is a texture id, and adding one to the other is nonsense that
+compiles. `SchemaSemanticType` is how the schema says they are different things: both stored as a
+`Long`, neither interchangeable with the other or with a bare number. Refer to one with the
+`Semantic` type.
+
+Two conventions, held by the schema rather than restated per declaration: crossing into or out of
+the underlying type is always **explicit**, and a semantic type refining another **widens
+implicitly and narrows explicitly** (a `Weight` is a `ForceMagnitude`; not every force is a weight).
+
+A semantic type may only shim something whose values would otherwise be interchangeable. An
+`Object`, `Interface` or `Enum` is already a distinct type, and an `Array`, `Span`, `Handle`,
+`Result` or `Optional` describes how a value is carried rather than what it is; both are refused,
+as are refinement cycles.
+
+`ISchemaMetadataCarrier` is the shared shape for the six semantic properties. A member carries them
+because a use is often where a unit or range is decided; a semantic type carries them because for
+some values those facts belong to the type (`Metres` is metres everywhere). The rules are identical
+either way, so validation reads the interface rather than each carrier growing its own copy.
+
+### Declaring behaviour
+
+A class says what data is; an interface says what the program can do. `SchemaInterface` holds
+`SchemaFunction`s, each holding ordered `SchemaParameter`s and a return type, and a generator turns
+one into the header an implementation is written against.
+
+A signature carries no ownership, lifetime or error annotations because four conventions carry that
+weight globally instead: fallibility is `Result` in the return type, something the caller may keep
+is a `Handle`, a borrow valid for the call is a `Span`, and const-ness is
+`SchemaParameter.Direction`. Every interface language that let signatures answer those individually
+grew annotations until it was a worse version of the language it described; keeping them global is
+what stops that. `Schema.Validation.cs` enforces the corollaries - no `Array`, `Result` or `Void`
+parameters, no `None` anywhere generatable.
+
+On a `Span`, direction describes the **elements**, not the view: `In Span<Velocity>` is
+`std::span<const Velocity>` and `Out Span<Position>` is `std::span<Position>`.
 
 A type is not a named child of the schema: it has no name or description of its own and exists only
 as the type of the member holding it. `BaseType.TypeName` reports which type it is, and is the same

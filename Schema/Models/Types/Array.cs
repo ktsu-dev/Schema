@@ -80,6 +80,16 @@ public class Array : BaseType
 	}
 
 	/// <inheritdoc />
+	/// <remarks>
+	/// Passes the association down for the same reason as the member overload.
+	/// </remarks>
+	public override void AssociateWith(Schema? schema)
+	{
+		base.AssociateWith(schema);
+		ElementType.AssociateWith(schema);
+	}
+
+	/// <inheritdoc />
 	protected override bool EqualsCore(BaseType other) =>
 		other is Array otherArray
 			&& ElementType.Equals(otherArray.ElementType)
