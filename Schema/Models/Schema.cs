@@ -82,6 +82,10 @@ public partial class Schema : ISchema
 	internal Collection<SchemaInterface> InterfacesInternal { get; set; } = [];
 
 	[JsonInclude]
+	[JsonPropertyName("semanticTypes")]
+	internal Collection<SchemaSemanticType> SemanticTypesInternal { get; set; } = [];
+
+	[JsonInclude]
 	[JsonPropertyName("codeGenerators")]
 	internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
 
@@ -106,6 +110,12 @@ public partial class Schema : ISchema
 	/// </summary>
 	[JsonIgnore]
 	public IReadOnlyCollection<SchemaInterface> Interfaces => InterfacesInternal;
+
+	/// <summary>
+	/// Gets the semantic types the schema declares.
+	/// </summary>
+	[JsonIgnore]
+	public IReadOnlyCollection<SchemaSemanticType> SemanticTypes => SemanticTypesInternal;
 
 	/// <summary>
 	/// Gets the collection of code generators.
@@ -136,6 +146,12 @@ public partial class Schema : ISchema
 	/// </summary>
 	[JsonIgnore]
 	public SchemaChildSet<SchemaInterface, InterfaceName> InterfaceSet => new(InterfacesInternal);
+
+	/// <summary>
+	/// Gets an order-preserving, name-unique view over the semantic types.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<SchemaSemanticType, SemanticTypeName> SemanticTypeSet => new(SemanticTypesInternal);
 
 	/// <summary>
 	/// Gets the schema's data sources as a name-indexed, order-preserving set.
@@ -211,6 +227,12 @@ public partial class Schema : ISchema
 		{
 			schemaInterface.AssociateWith(this);
 			schemaInterface.Reassociate();
+		}
+
+		foreach (SchemaSemanticType semanticType in SemanticTypesInternal)
+		{
+			semanticType.AssociateWith(this);
+			semanticType.UnderlyingType.AssociateWith(this);
 		}
 
 		foreach (DataSource dataSource in DataSourcesInternal)
@@ -300,6 +322,14 @@ public partial class Schema : ISchema
 	public bool TryGetInterface(InterfaceName name, out SchemaInterface? schemaInterface) => TryGetChild(name, InterfacesInternal, out schemaInterface);
 
 	/// <summary>
+	/// Tries to get a semantic type by name.
+	/// </summary>
+	/// <param name="name">The semantic type name.</param>
+	/// <param name="semanticType">The semantic type, when found.</param>
+	/// <returns><see langword="true"/> when a semantic type of that name exists.</returns>
+	public bool TryGetSemanticType(SemanticTypeName name, out SchemaSemanticType? semanticType) => TryGetChild(name, SemanticTypesInternal, out semanticType);
+
+	/// <summary>
 	/// Tries to get a class by name.
 	/// </summary>
 	/// <param name="name">The name of the class.</param>
@@ -320,6 +350,13 @@ public partial class Schema : ISchema
 	/// <param name="name">The interface name.</param>
 	/// <returns>The interface, or <see langword="null"/> when none of that name exists.</returns>
 	public SchemaInterface? GetInterface(InterfaceName name) => GetChild(name, InterfacesInternal);
+
+	/// <summary>
+	/// Gets a semantic type by name.
+	/// </summary>
+	/// <param name="name">The semantic type name.</param>
+	/// <returns>The semantic type, or <see langword="null"/> when none of that name exists.</returns>
+	public SchemaSemanticType? GetSemanticType(SemanticTypeName name) => GetChild(name, SemanticTypesInternal);
 
 	/// <summary>
 	/// Gets a class by name.
@@ -406,6 +443,13 @@ public partial class Schema : ISchema
 	/// <returns><see langword="true"/> when it was present and removed.</returns>
 	internal bool TryRemoveInterface(SchemaInterface schemaInterface) => TryRemoveChild(schemaInterface, InterfacesInternal);
 
+	/// <summary>
+	/// Removes a semantic type from the schema.
+	/// </summary>
+	/// <param name="semanticType">The semantic type to remove.</param>
+	/// <returns><see langword="true"/> when it was present and removed.</returns>
+	internal bool TryRemoveSemanticType(SchemaSemanticType semanticType) => TryRemoveChild(semanticType, SemanticTypesInternal);
+
 	internal bool TryRemoveClass(SchemaClass schemaClass) => TryRemoveChild(schemaClass, ClassesInternal);
 
 	internal bool TryRemoveCodeGenerator(SchemaCodeGenerator schemaCodeGenerator) => TryRemoveChild(schemaCodeGenerator, CodeGeneratorsInternal);
@@ -432,6 +476,13 @@ public partial class Schema : ISchema
 	public bool TryAddInterface(InterfaceName name) => TryAddChild(name, InterfacesInternal);
 
 	/// <summary>
+	/// Tries to add a semantic type to the schema.
+	/// </summary>
+	/// <param name="name">The semantic type name.</param>
+	/// <returns><see langword="true"/> when the name was free and the type was added.</returns>
+	public bool TryAddSemanticType(SemanticTypeName name) => TryAddChild(name, SemanticTypesInternal);
+
+	/// <summary>
 	/// Tries to add a class.
 	/// </summary>
 	/// <param name="name">The name of the class to add.</param>
@@ -451,6 +502,13 @@ public partial class Schema : ISchema
 	/// <param name="name">The interface name.</param>
 	/// <returns>The new interface, or <see langword="null"/> when the name is already taken.</returns>
 	public SchemaInterface? AddInterface(InterfaceName name) => AddChild(name, InterfacesInternal);
+
+	/// <summary>
+	/// Adds a semantic type to the schema.
+	/// </summary>
+	/// <param name="name">The semantic type name.</param>
+	/// <returns>The new semantic type, or <see langword="null"/> when the name is taken.</returns>
+	public SchemaSemanticType? AddSemanticType(SemanticTypeName name) => AddChild(name, SemanticTypesInternal);
 
 	/// <summary>
 	/// Adds a class.

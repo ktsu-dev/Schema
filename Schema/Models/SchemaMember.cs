@@ -13,7 +13,7 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a member of a schema class.
 /// </summary>
-public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember
+public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember, ISchemaMetadataCarrier
 {
 	/// <summary>
 	/// Gets the type of the schema member.

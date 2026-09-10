@@ -15,6 +15,7 @@ lose information.
   "formatVersion": 3,
   "classes": [],
   "enums": [],
+  "semanticTypes": [],
   "interfaces": [],
   "codeGenerators": [],
   "dataSources": []
@@ -26,11 +27,12 @@ lose information.
 | `formatVersion` | integer | The format version. Written first so a reader can find it without scanning the document. See [Versioning](#versioning). |
 | `classes` | array of [class](#class) | The classes the schema defines. |
 | `enums` | array of [enum](#enum) | The enumerations the schema defines. |
+| `semanticTypes` | array of [semantic type](#semantic-type) | The semantic types the schema defines. |
 | `interfaces` | array of [interface](#interface) | The interfaces the schema defines. See [Declaring behaviour](#declaring-behaviour). |
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
 
-All five collections are always written, empty or not.
+All six collections are always written, empty or not.
 
 Every named element also carries a `description`, a free-text string that is always written even
 when empty. It is the natural source for a doc comment in generated code.
@@ -143,6 +145,68 @@ C++ are all-zero bytes, which is rarely what a schema means by "the default".
 
 Both are advisory: a codec that ignores them is still correct, just larger. A quantised round
 trip is accurate to half the step and no better.
+
+## Semantic type
+
+An entity id is a number. So is a texture id. Adding one to the other is nonsense that compiles.
+
+A semantic type is how the schema says the two are different things: both are stored as a `Long`,
+and neither is interchangeable with the other or with a bare number.
+
+```json
+{
+  "underlyingType": { "TypeName": "Float" },
+  "unit": "m",
+  "interpolation": "Linear",
+  "name": "Metres",
+  "description": "A distance in metres"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `underlyingType` | [type](#types) | What values of this type are represented as. |
+| `name` | string | The type name. Unique among semantic types. |
+| `description` | string | Free text. |
+| `unit`, `range`, `defaultValue`, `interpolation`, `network`, `editor` | see [Member](#member) | The same six properties a member may carry, for the cases where they belong to the *type* rather than to a use of it. |
+
+Refer to one with the [`Semantic`](#semantic---a-reference-to-a-semantic-type-in-this-schema) type.
+
+### What it refuses
+
+The point of a semantic type is what it will not let you do, and those rules are conventions of the
+schema rather than per-declaration settings:
+
+- **Crossing into or out of the underlying type is always explicit.** A bare number never becomes
+  an `EntityId` by accident, and getting the number back out is a named call, never an implicit
+  conversion.
+- **A semantic type may refine another**, in which case the narrower widens to the broader
+  implicitly and narrows back explicitly. A `Weight` is a `ForceMagnitude`; not every force is a
+  weight.
+
+### What may be shimmed
+
+| Underlying type | Allowed | Why |
+| --- | --- | --- |
+| Primitives, vectors, colours | yes | Their values would otherwise be interchangeable. That is the case a semantic type exists for. |
+| Another semantic type | yes | Refinement. |
+| `Object`, `Interface`, `Enum` | **no** | Already distinct types. Naming one again buys nothing and leaves it ambiguous which conversions apply. |
+| `Array`, `Span`, `Handle`, `Result`, `Optional`, `Void` | **no** | These describe how a value is *carried*, not what it *is*. Shimming one crosses two unrelated axes. |
+| `None` | **no** | No type was chosen; not generatable. |
+
+A refinement cycle - `A` refines `B` refines `A` - is reported, because it is represented as
+nothing.
+
+### Where metadata belongs
+
+Some of the six properties belong to a type and some to a use of it. A `Metres` is metres
+everywhere it appears, so declaring the unit once on the type is what stops every member restating
+it. A range is more often contextual - one mass is bounded `[0.001, 1e6]` and another is not - so it
+usually belongs on the member.
+
+The rules for whether a given combination makes sense are identical either way, and are applied
+identically: a unit on something that measures nothing is refused whether it was declared on a
+member or on a semantic type.
 
 ## Declaring behaviour
 
@@ -335,6 +399,14 @@ library, so unlike `Object` they carry no class reference.
 
 `className` must name a class in `classes`.
 
+### `Semantic` - a reference to a semantic type in this schema
+
+```json
+{ "TypeName": "Semantic", "semanticTypeName": "EntityId" }
+```
+
+`semanticTypeName` must name a semantic type in `semanticTypes`.
+
 ### `Interface` - a reference to an interface in this schema
 
 ```json
@@ -467,7 +539,7 @@ needs to know about.
 | *(absent)* | - | Any file written before versioning. Read as version 0 and migrated on load. |
 | `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
 | `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
-| `3` | Interfaces | The root gains `interfaces`, and the type vocabulary gains `Void`, `Interface`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with no interfaces. |
+| `3` | Interfaces and semantic types | The root gains `interfaces` and `semanticTypes`, and the type vocabulary gains `Void`, `Interface`, `Semantic`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with neither. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
@@ -608,7 +680,7 @@ What a release may do to this format:
 | --- | --- |
 | Adding an optional property that older readers can ignore | patch or minor |
 | Adding a new `TypeName` | minor - older readers will fail to read files that use it, so `formatVersion` increases with it |
-| Adding a top-level collection (as `interfaces` was) | minor, with a `formatVersion` increase - additive, so an older file loads with the collection empty |
+| Adding a top-level collection (as `interfaces` and `semanticTypes` were) | minor, with a `formatVersion` increase - additive, so an older file loads with the collection empty |
 | Adding a container name to the known vocabulary | patch or minor - the vocabulary is open, so an unknown name is only a warning |
 | Renaming or removing a property, or changing the meaning of an existing one | major, with a migration step and a `formatVersion` increase |
 | Changing the discriminator property name (`TypeName`) | major |

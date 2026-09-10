@@ -33,6 +33,7 @@ SchemaChild<TName> (base for named elements)
 ├── SchemaClass : SchemaChild<ClassName>
 ├── SchemaEnum : SchemaChild<EnumName>
 ├── SchemaInterface : SchemaChild<InterfaceName>
+├── SchemaSemanticType : SchemaChild<SemanticTypeName>
 ├── DataSource : SchemaChild<DataSourceName>
 ├── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 ├── SchemaClassChild<TName> : SchemaChild<TName>
@@ -45,9 +46,30 @@ SchemaChild<TName> (base for named elements)
 BaseType (types, in ktsu.Schema.Models.Types)
 ├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
 ├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
-├── Complex: Array, Object, Enum, Interface, None, Void
+├── Complex: Array, Object, Enum, Interface, Semantic, None, Void
 └── Wrappers: Span, Handle, Result, Optional
 ```
+
+### Semantic types
+
+An entity id is a number, and so is a texture id, and adding one to the other is nonsense that
+compiles. `SchemaSemanticType` is how the schema says they are different things: both stored as a
+`Long`, neither interchangeable with the other or with a bare number. Refer to one with the
+`Semantic` type.
+
+Two conventions, held by the schema rather than restated per declaration: crossing into or out of
+the underlying type is always **explicit**, and a semantic type refining another **widens
+implicitly and narrows explicitly** (a `Weight` is a `ForceMagnitude`; not every force is a weight).
+
+A semantic type may only shim something whose values would otherwise be interchangeable. An
+`Object`, `Interface` or `Enum` is already a distinct type, and an `Array`, `Span`, `Handle`,
+`Result` or `Optional` describes how a value is carried rather than what it is; both are refused,
+as are refinement cycles.
+
+`ISchemaMetadataCarrier` is the shared shape for the six semantic properties. A member carries them
+because a use is often where a unit or range is decided; a semantic type carries them because for
+some values those facts belong to the type (`Metres` is metres everywhere). The rules are identical
+either way, so validation reads the interface rather than each carrier growing its own copy.
 
 ### Declaring behaviour
 
