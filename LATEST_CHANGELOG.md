@@ -1,8 +1,7 @@
-## v1.18.0 (minor)
+## v1.19.0 (minor)
 
-Changes since v1.17.0:
+Changes since v1.18.0:
 
-- Say what the assertions are actually asserting ([@Claude](https://github.com/Claude))
-- A type can be a distinct name for something already representable ([@Claude](https://github.com/Claude))
-- [minor] A schema can declare behaviour, not just data ([@Claude](https://github.com/Claude))
+- Filter the property list rather than the loop body ([@Claude](https://github.com/Claude))
+- [minor] Say what a vector is a vector of ([@Claude](https://github.com/Claude))
 
