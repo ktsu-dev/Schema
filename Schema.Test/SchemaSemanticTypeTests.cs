@@ -68,7 +68,7 @@ public sealed class SchemaSemanticTypeTests
 		SchemaSemanticType weight = schema.AddSemanticType("Weight".As<SemanticTypeName>())!;
 		weight.SetUnderlyingType(new Semantic { SemanticTypeName = "ForceMagnitude".As<SemanticTypeName>() });
 
-		CollectionAssert.AreEqual(
+		Assert.AreSequenceEqual(
 			ExpectedRefinementChain,
 			weight.Refines().Select(t => t.Name.ToString()).ToArray());
 		Assert.IsInstanceOfType<Float>(weight.Representation());
@@ -101,7 +101,7 @@ public sealed class SchemaSemanticTypeTests
 		name.SetUnderlyingType(new Models.Types.String());
 		name.Unit = "m".As<UnitSymbol>();
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("meaningless", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("meaningless", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -145,7 +145,7 @@ public sealed class SchemaSemanticTypeTests
 		SchemaSemanticType shim = schema.AddSemanticType("Placement".As<SemanticTypeName>())!;
 		shim.SetUnderlyingType(new Object { ClassName = "Transform".As<ClassName>() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("already a distinct type", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("already a distinct type", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -159,7 +159,7 @@ public sealed class SchemaSemanticTypeTests
 		SchemaSemanticType shim = schema.AddSemanticType("Samples".As<SemanticTypeName>())!;
 		shim.SetUnderlyingType(new Span { ElementType = new Float() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("how a value is carried", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("how a value is carried", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -174,7 +174,7 @@ public sealed class SchemaSemanticTypeTests
 		a.SetUnderlyingType(new Semantic { SemanticTypeName = "B".As<SemanticTypeName>() });
 		b.SetUnderlyingType(new Semantic { SemanticTypeName = "A".As<SemanticTypeName>() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("refines itself", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("refines itself", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -187,7 +187,7 @@ public sealed class SchemaSemanticTypeTests
 		SchemaSemanticType weight = schema.AddSemanticType("Weight".As<SemanticTypeName>())!;
 		weight.SetUnderlyingType(new Semantic { SemanticTypeName = "ForceMagnitude".As<SemanticTypeName>() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("does not declare", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("does not declare", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -199,6 +199,6 @@ public sealed class SchemaSemanticTypeTests
 		Schema schema = new();
 		schema.AddSemanticType("Undecided".As<SemanticTypeName>());
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("no underlying type chosen", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("no underlying type chosen", StringComparison.Ordinal), schema.Validate());
 	}
 }

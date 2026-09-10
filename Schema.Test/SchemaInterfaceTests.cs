@@ -28,7 +28,7 @@ public sealed class SchemaInterfaceTests
 		function.AddParameter("second".As<ParameterName>());
 		function.AddParameter("third".As<ParameterName>());
 
-		CollectionAssert.AreEqual(
+		Assert.AreSequenceEqual(
 			ExpectedParameterOrder,
 			function.Parameters.Select(p => p.Name.ToString()).ToArray());
 	}
@@ -130,7 +130,7 @@ public sealed class SchemaInterfaceTests
 		Assert.IsInstanceOfType<Result>(loadedLoad!.ReturnType);
 		Assert.IsInstanceOfType<Handle>(((Result)loadedLoad.ReturnType).ElementType);
 
-		Assert.AreEqual(2, loadedLoad.Parameters.Count);
+		Assert.HasCount(2, loadedLoad.Parameters);
 		Assert.AreEqual("path", loadedLoad.Parameters[0].Name.ToString());
 		Assert.AreEqual(ParameterDirection.In, loadedLoad.Parameters[0].Direction);
 		Assert.AreEqual("pixels", loadedLoad.Parameters[1].Name.ToString());
@@ -188,7 +188,7 @@ public sealed class SchemaInterfaceTests
 		upload.AddParameter("vertices".As<ParameterName>())!
 			.SetType(new Array { ElementType = new Float() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("Span", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("Span", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -203,7 +203,7 @@ public sealed class SchemaInterfaceTests
 		load.AddParameter("outcome".As<ParameterName>())!
 			.SetType(new Result { ElementType = new Int() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("fallible", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("fallible", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -222,8 +222,8 @@ public sealed class SchemaInterfaceTests
 		SchemaFunction write = logger.AddFunction("Write".As<FunctionName>())!;
 		write.SetReturnType(new Void());
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("no return type chosen", StringComparison.Ordinal)));
-		Assert.IsFalse(schema.Validate().Any(i => i.Path.Contains("Write", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("no return type chosen", StringComparison.Ordinal), schema.Validate());
+		Assert.DoesNotContain(i => i.Path.Contains("Write", StringComparison.Ordinal), schema.Validate());
 	}
 
 	/// <summary>
@@ -237,7 +237,7 @@ public sealed class SchemaInterfaceTests
 		SchemaFunction audio = engine.AddFunction("Audio".As<FunctionName>())!;
 		audio.SetReturnType(new Interface { InterfaceName = "AudioDevice".As<InterfaceName>() });
 
-		Assert.IsTrue(schema.Validate().Any(i => i.Message.Contains("does not declare", StringComparison.Ordinal)));
+		Assert.Contains(i => i.Message.Contains("does not declare", StringComparison.Ordinal), schema.Validate());
 	}
 
 	private static readonly string[] ExpectedParameterOrder = ["first", "second", "third"];
