@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Hexa.NET.ImGui" Version="2.2.9" />
+    <PackageVersion Include="ktsu.Coder" Version="3.5.0" />
     <PackageVersion Include="ktsu.CodeBlocker" Version="2.0.4" />
     <PackageVersion Include="ktsu.DeepClone" Version="2.0.30" />
     <PackageVersion Include="ktsu.Extensions" Version="1.6.9" />

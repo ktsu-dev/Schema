@@ -10,6 +10,8 @@
 namespace ktsu.SchemaTool;
 
 using ktsu.Schema.Cli;
+using ktsu.Schema.Cpp;
+using ktsu.Schema.Generation;
 
 /// <summary>
 /// A command line entry point for validating schemas and running their code generators, so
@@ -21,5 +23,18 @@ using ktsu.Schema.Cli;
 /// </remarks>
 internal static class Program
 {
-	private static int Main(string[] args) => SchemaCommandLine.Run(args, Console.Out, Console.Error);
+	private static int Main(string[] args)
+	{
+		// The C++ generator cannot ship inside the library - it is built on an AST that publishes
+		// no net8.0 assembly and the library does - so a host is what makes it findable by the
+		// language a schema names. This is that host.
+		//
+		// With no options it emits standard C++ and nothing else: a schema reaching for a vector,
+		// a handle, a fallible return or a date is refused by name rather than handed a header
+		// that will not compile. A target with its own vocabulary for those hosts the generator
+		// itself and hands it a CppGeneratorOptions saying how it spells them.
+		SchemaGenerator.Register(new CppCodeGenerator());
+
+		return SchemaCommandLine.Run(args, Console.Out, Console.Error);
+	}
 }

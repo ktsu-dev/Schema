@@ -75,5 +75,6 @@ public partial class Schema
 	{
 		string? directory = Path.GetDirectoryName((string)schemaFilePath);
 		SourceDirectory = string.IsNullOrEmpty(directory) ? new() : directory.As<AbsoluteDirectoryPath>();
+		SourceFileName = Path.GetFileName((string)schemaFilePath);
 	}
 }

@@ -85,6 +85,19 @@ public partial class Schema : ISchema
 	public AbsoluteDirectoryPath SourceDirectory { get; internal set; } = new();
 
 	/// <summary>
+	/// Gets the name of the file this schema was read from, without its directory.
+	/// </summary>
+	/// <remarks>
+	/// Empty for a schema built in memory. Kept beside <see cref="SourceDirectory"/> rather than
+	/// derived from it, because the directory is the anchor relative paths resolve against and
+	/// this is the name a generated file cites so a reader knows what to edit instead. Not
+	/// serialized, for the same reason the directory is not: where the file is is a property of
+	/// where it is, not of what is in it.
+	/// </remarks>
+	[JsonIgnore]
+	public string SourceFileName { get; internal set; } = string.Empty;
+
+	/// <summary>
 	/// Gets or sets the enum a failed <see cref="Types.Result"/> carries.
 	/// </summary>
 	/// <remarks>

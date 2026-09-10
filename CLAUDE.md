@@ -4,10 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Schema is a C# library for defining and managing data structure schemas. It consists of five projects:
+Schema is a C# library for defining and managing data structure schemas. It consists of seven projects:
 
 - **Schema** - Core library providing schema definition types (classes, enums, members, types)
 - **Schema.Test** - MSTest unit tests for the core library
+- **Schema.Cpp** - The C++ generator, in its own project because `ktsu.Coder` ships no `net8.0`
+- **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document
 - **SchemaEditor** - ImGui-based visual editor application for creating and editing `.schema.json` files
 - **SchemaEditor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
 - **SchemaTool** - Command line entry point for validating schemas and running their code generators
@@ -138,6 +140,30 @@ A type is not a named child of the schema: it has no name or description of its 
 as the type of the member holding it. `BaseType.TypeName` reports which type it is, and is the same
 value written as the file's `TypeName` discriminator.
 
+### The C++ generator
+
+`Schema.Cpp` turns a schema into a `ktsu.Coder` AST and hands that to `CppGenerator`, which owns
+every question about how C++ is spelled. Nothing in `Schema.Cpp` writes a brace.
+
+It lives outside the core library because it cannot ship there: this library publishes `net8.0` and
+`ktsu.Coder` does not, which is the whole reason `SchemaGenerator.Register` exists.
+`SchemaTool/Program.cs` is the worked example of a host registering it.
+
+`CppGeneratorOptions` is what a target says that its schema cannot. Almost everything comes from the
+schema - a unit is a semantic type and the generator emits the class, a class is a struct, and the
+standard library spells a string, a sequence, a view and an absent value. What is left is the short
+list a program supplies for itself: a fixed-shape numeric vector, a colour, an identifier with a
+generation, a fallible return, a calendar date. A target that has them says how it spells them and
+which header they come from; a target that has not is **refused those schema types by name**, with
+the option to set, rather than handed a header that will not compile. `ExistingTypes` is the other
+direction - a semantic type the target already hand-wrote is named rather than generated a second
+time.
+
+One file per element, and **an enum goes to namespace scope in a header of its own** rather than
+nested in the class that names it. Holotype's target document nests it, which was right when an enum
+belonged to the component that declared it; here an enum is a top-level element any class may name,
+so nesting it in the one class using it today would move the type the moment a second class used it.
+
 ### Contracts
 
 `ktsu.Schema.Contracts` is the abstraction seam the models implement: `Schema : ISchema`,
@@ -222,6 +248,7 @@ own delegate does.
 - **ktsu.ImGui.App/Widgets/Popups** - ImGui application framework (editor only)
 - **ktsu.AppDataStorage** - Persistent settings storage (editor only)
 - **Polyfill** - .NET compatibility shims for multi-targeting
+- **ktsu.Coder** - The language-agnostic AST and the C++ writer (`Schema.Cpp` only)
 
 ## Schema Files
 

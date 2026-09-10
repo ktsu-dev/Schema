@@ -1,0 +1,30 @@
+<Project>
+  <Sdk Name="MSTest.Sdk" />
+  <Import Project="Sdk.props" Sdk="ktsu.Sdk" />
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Schema.Cpp\Schema.Cpp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
+      <VersionOverride>18.8.0</VersionOverride>
+    </PackageReference>
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="ktsu.Sdk" />
+
+  <!-- The same override Schema.Test needs, for the same reason: ktsu.Sdk pins a test project to
+       one framework, and this suite has to run on every framework Schema.Cpp publishes. Two
+       rather than three - see the note in Schema.Cpp.csproj. Placed after the explicit
+       Sdk.targets import so the project, not the SDK, has the last word. -->
+  <PropertyGroup>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net10.0;net9.0</TargetFrameworks>
+  </PropertyGroup>
+
+</Project>

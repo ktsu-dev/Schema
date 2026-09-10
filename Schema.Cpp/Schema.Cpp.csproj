@@ -1,0 +1,27 @@
+<Project>
+  <Sdk Name="Microsoft.NET.Sdk" />
+  <Sdk Name="ktsu.Sdk" />
+
+  <PropertyGroup>
+    <!-- One framework short of the library this extends. ktsu.Coder ships no net8.0 assembly, and
+         the C++ generator is built on its AST, so this is the framework floor the dependency sets
+         rather than a choice. Keeping the generator here is what lets ktsu.Schema go on publishing
+         net8.0 for everyone who only defines and reads schemas, and is why SchemaGenerator.Register
+         exists. -->
+    <TargetFrameworks>net10.0;net9.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Schema\Schema.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ktsu.Coder" />
+    <!-- The name types a schema element carries are semantic strings, so reading one is a direct
+         use of the package that declares them rather than an incidental one. -->
+    <PackageReference Include="ktsu.Semantics.Strings" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" PrivateAssets="All" />
+  </ItemGroup>
+</Project>

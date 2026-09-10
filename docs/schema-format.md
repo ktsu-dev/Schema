@@ -673,6 +673,20 @@ that compiles into something the schema does not describe - and the resulting er
 generated code instead of at the schema mistake behind it. Warnings do not refuse: an incomplete
 schema is a legitimate work in progress.
 
+### Generators that are not built in
+
+`SchemaGenerator.Register` adds one, or replaces the one registered for its language. Not every
+generator can live in this library: it publishes `net8.0`, and the `cpp` generator is built on an
+AST that does not, so it ships as `ktsu.Schema.Cpp` and a host registers it.
+
+```csharp
+SchemaGenerator.Register(new CppCodeGenerator(options));
+```
+
+`CppGeneratorOptions` carries what the schema cannot: how the target spells a fixed-shape vector, a
+colour, a handle, a fallible return and a date, and which semantic types it already declares by hand.
+Anything a target has said nothing about is refused by name rather than emitted as a guess.
+
 The built-in `csharp` generator emits one file per class and per enum, named `<Name>.g.cs`.
 Descriptions become XML doc comments, which is what descriptions are for.
 
