@@ -90,6 +90,27 @@ because a use is often where a unit or range is decided; a semantic type carries
 some values those facts belong to the type (`Metres` is metres everywhere). The rules are identical
 either way, so validation reads the interface rather than each carrier growing its own copy.
 
+### What a class promises about its representation
+
+`SchemaClass.TravelsAsBytes` says an instance is copied whole - across a language boundary, into a
+save file, onto the wire - without anyone reading a field on the way. That makes member order
+load-bearing rather than merely meaningful, and it constrains the members: a `String`, an `Array`, a
+`Span`, an `Optional`, a `Result`, an `Interface` or an `Object` naming a class that makes no such
+promise are all refused. A `Handle` is accepted, because an index and a generation is bytes whatever
+it identifies.
+
+`Schema.Validation.cs` reads the flag off a named class rather than walking into it, so two classes
+holding each other validates rather than hanging the validator. It is off by default and omitted
+from the file when it is, so a class that says nothing about how it travels is what a class has
+always been.
+
+Nothing about a CLR type says this, so generated C# carries `SchemaTravelsAsBytesAttribute` and
+`ClrTypeImporter` reads it back - the same arrangement the member metadata uses, and covered by the
+same generate-compile-reimport test. The attribute records the promise rather than enforcing it:
+emitting a sequential-layout `struct` would enforce it and would also change every generated
+component from a class to a value type, which is a decision about the C# API rather than about the
+schema.
+
 ### Declaring behaviour
 
 A class says what data is; an interface says what the program can do. `SchemaInterface` holds
@@ -103,6 +124,12 @@ is a `Handle`, a borrow valid for the call is a `Span`, and const-ness is
 grew annotations until it was a worse version of the language it described; keeping them global is
 what stops that. `Schema.Validation.cs` enforces the corollaries - no `Array`, `Result` or `Void`
 parameters, no `None` anywhere generatable.
+
+What a failure *says* is global for the same reason: `Schema.ErrorType` names the enum a failed
+`Result` carries, once, rather than every fallible signature choosing its own. An enum rather than
+any type, because an error is one of a closed set of reasons. A schema that never returns a `Result`
+needs none; one that does is reported at the signature, which is the declaration whose meaning is
+incomplete.
 
 On a `Span`, direction describes the **elements**, not the view: `In Span<Velocity>` is
 `std::span<const Velocity>` and `Out Span<Position>` is `std::span<Position>`.

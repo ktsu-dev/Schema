@@ -74,6 +74,12 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		WriteHeader(code, codeNamespace);
 
 		WriteDocComment(code, schemaClass.Description);
+
+		if (schemaClass.TravelsAsBytes)
+		{
+			code.WriteLine("[ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
+		}
+
 		code.WriteLine($"public class {schemaClass.Name}");
 		using (new Scope(code))
 		{

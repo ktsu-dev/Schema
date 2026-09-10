@@ -20,7 +20,7 @@ using SchemaTypes = Models.Types;
 [TestClass]
 public class CodeGenerationTests
 {
-	private static readonly string[] ExpectedFiles = ["Role.g.cs", "Item.g.cs", "User.g.cs"];
+	private static readonly string[] ExpectedFiles = ["Role.g.cs", "Item.g.cs", "Packet.g.cs", "User.g.cs"];
 
 	internal static SchemaCodeGenerator ConfigureGenerator(Schema schema, string codeNamespace = "Generated")
 	{
@@ -46,6 +46,13 @@ public class CodeGenerationTests
 
 		SchemaClass item = schema.AddClass("Item".As<ClassName>())!;
 		item.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.String());
+
+		// A class that promises how it travels, so the round trip has one to carry. Fixed-size
+		// members only, which is what the promise constrains it to.
+		SchemaClass packet = schema.AddClass("Packet".As<ClassName>())!;
+		packet.TravelsAsBytes = true;
+		packet.AddMember("Sequence".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		packet.AddMember("Elapsed".As<MemberName>())!.SetType(new SchemaTypes.Float());
 
 		SchemaClass user = schema.AddClass("User".As<ClassName>())!;
 		user.Description = "A person with an account".As<SchemaChildDescription>();

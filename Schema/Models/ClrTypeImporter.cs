@@ -42,6 +42,8 @@ internal static class ClrTypeImporter
 			return null;
 		}
 
+		schemaClass.TravelsAsBytes = type.GetCustomAttribute<Runtime.SchemaTravelsAsBytesAttribute>() is not null;
+
 		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
 		{
 			ImportMember(schema, schemaClass, property, property.PropertyType);

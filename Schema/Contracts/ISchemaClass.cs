@@ -19,6 +19,12 @@ public interface ISchemaClass : ISchemaChild<ClassName>
 	public ISchemaChildSet<ISchemaMember, MemberName> Members { get; }
 
 	/// <summary>
+	/// Gets a value indicating whether an instance of this class travels as raw bytes, so that
+	/// member order is part of what the class means.
+	/// </summary>
+	public bool TravelsAsBytes { get; }
+
+	/// <summary>
 	/// Adds a member to the schema class.
 	/// </summary>
 	/// <param name="name">The name of the member to add.</param>

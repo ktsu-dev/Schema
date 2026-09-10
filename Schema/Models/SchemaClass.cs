@@ -47,6 +47,35 @@ public class SchemaClass : SchemaChild<ClassName>, ISchemaClass
 	public bool RemoveMember(MemberName name) => Members.RemoveByName(name);
 
 	/// <summary>
+	/// Gets or sets a value indicating whether an instance of this class travels as raw bytes.
+	/// </summary>
+	/// <remarks>
+	/// A promise about representation rather than about content: instances are copied whole - across
+	/// a language boundary, into a save file, onto the wire - without anyone reading a field on the
+	/// way, and the offset of each member is therefore part of what the class means rather than an
+	/// implementation detail. A generated type says this in whatever way its language can; C++ can
+	/// assert it and does.
+	/// <para>
+	/// The promise constrains the members: a class travelling as bytes may only hold members that
+	/// travel the same way, so a <see cref="Types.String"/>, an <see cref="Types.Array"/>, anything
+	/// carried by a wrapper and any class making no such promise are all refused by
+	/// <see cref="Schema.Validate"/>. It is off by default, because a class that says nothing about
+	/// how it travels is the ordinary case and nothing about it is refused.
+	/// </para>
+	/// <para>
+	/// Member order already round-trips and is already the declaration order generated code uses.
+	/// This is what says that order is load-bearing, so reordering members is a change to the
+	/// class rather than a tidy-up.
+	/// </para>
+	/// <para>
+	/// Omitted from the file when it is false, which is what a class that says nothing about how
+	/// it travels has always been - so no existing file grows a line for it.
+	/// </para>
+	/// </remarks>
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+	public bool TravelsAsBytes { get; set; }
+
+	/// <summary>
 	/// Gets a summary of the schema class.
 	/// </summary>
 	[JsonIgnore]

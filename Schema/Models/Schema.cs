@@ -41,8 +41,16 @@ public partial class Schema : ISchema
 	/// would load a <c>Vec3</c> of a semantic type, drop what it is three of, and write it back
 	/// as three bare floats.
 	/// </para>
+	/// <para>
+	/// Version 5 added two things a schema could not say about the code it describes: that a class
+	/// travels as raw bytes, so its member order is load-bearing rather than cosmetic, and which
+	/// enum a failed <see cref="Types.Result"/> carries. Both are additive and the first is
+	/// omitted when it is false, but a version 4 reader would drop either and go on generating -
+	/// a type that quietly stopped promising its layout, or a fallible call with nothing to say
+	/// when it fails.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 4;
+	public const int CurrentFormatVersion = 5;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.
@@ -75,6 +83,25 @@ public partial class Schema : ISchema
 	/// </remarks>
 	[JsonIgnore]
 	public AbsoluteDirectoryPath SourceDirectory { get; internal set; } = new();
+
+	/// <summary>
+	/// Gets or sets the enum a failed <see cref="Types.Result"/> carries.
+	/// </summary>
+	/// <remarks>
+	/// Held once by the schema rather than restated on every fallible signature, for the same
+	/// reason the other four conventions are: a signature that could choose its own error type
+	/// would be a signature that has to be read to find out, and every interface language that
+	/// allowed that grew per-declaration annotations until it was a worse version of the language
+	/// it described. A <see cref="Types.Result"/> says a call can fail; this says what a failure
+	/// tells you, everywhere.
+	/// <para>
+	/// An enum rather than any type, because an error is one of a closed set of reasons - which is
+	/// what an enum is - and a caller that has to switch on the reason needs the set to be
+	/// enumerable. Empty until a schema declares one, which <see cref="Validate"/> reports only
+	/// when something actually returns a <see cref="Types.Result"/>.
+	/// </para>
+	/// </remarks>
+	public EnumName ErrorType { get; set; } = new();
 
 	[JsonInclude]
 	[JsonPropertyName("classes")]
