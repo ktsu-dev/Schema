@@ -1,0 +1,92 @@
+// Copyright (c) 2023-2026 ktsu-dev contributors
+
+namespace ktsu.Schema.Cpp;
+
+using ktsu.Coder.Ast;
+using ktsu.Coder.Languages;
+using ktsu.Schema.Generation;
+using ktsu.Schema.Models;
+
+/// <summary>
+/// Emits C++ headers for a schema's classes, enums, semantic types and interfaces.
+/// </summary>
+/// <remarks>
+/// The schema is turned into a <c>ktsu.Coder</c> AST and that AST is handed to
+/// <see cref="CppGenerator"/>, which owns every question about how C++ is spelled. Nothing in this
+/// project writes a brace, and the acceptance tests are what say the two halves agree.
+/// <para>
+/// This generator lives outside <c>ktsu.Schema</c> because the AST it builds on publishes no
+/// <c>net8.0</c> assembly and the schema library does. <see cref="SchemaGenerator.Register"/> is
+/// how it is found by the language a schema names; see <c>Register(this)</c> in a host's start-up.
+/// </para>
+/// </remarks>
+/// <param name="options">What the target says about the types this generator cannot invent.</param>
+public sealed class CppCodeGenerator(CppGeneratorOptions options) : ISchemaCodeGenerator
+{
+	/// <summary>
+	/// The language id this generator answers to.
+	/// </summary>
+	public const string LanguageId = "cpp";
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="CppCodeGenerator"/> class with a target that
+	/// supplies nothing beyond the standard library.
+	/// </summary>
+	/// <remarks>
+	/// Useful for a schema of plain data. A schema using a vector, a handle, a result or a date is
+	/// refused by name, because standard C++ has no type for any of them.
+	/// </remarks>
+	public CppCodeGenerator()
+		: this(new CppGeneratorOptions())
+	{
+	}
+
+	/// <inheritdoc />
+	public string Language => LanguageId;
+
+	/// <summary>
+	/// Gets what the target says about the types this generator cannot invent.
+	/// </summary>
+	public CppGeneratorOptions Options { get; } = options;
+
+	/// <inheritdoc />
+	/// <exception cref="CppGenerationException">The schema says something the target cannot express.</exception>
+	public IReadOnlyDictionary<string, string> Generate(Models.Schema schema, SchemaCodeGenerator configuration)
+	{
+		Ensure.NotNull(schema);
+		Ensure.NotNull(configuration);
+
+		Dictionary<string, string> files = [];
+		CppFileBuilder builder = new(schema, configuration, Options);
+
+		foreach (SchemaEnum schemaEnum in schema.Enums)
+		{
+			Emit(files, builder.Enum(schemaEnum));
+		}
+
+		foreach (SchemaSemanticType semanticType in schema.SemanticTypes)
+		{
+			// A type the target already declares by hand is named where it is used and not
+			// generated beside the one that exists.
+			if (!Options.ExistingTypes.ContainsKey(semanticType.Name.ToString()))
+			{
+				Emit(files, builder.SemanticType(semanticType));
+			}
+		}
+
+		foreach (SchemaClass schemaClass in schema.Classes)
+		{
+			Emit(files, builder.Class(schemaClass));
+		}
+
+		foreach (SchemaInterface schemaInterface in schema.Interfaces)
+		{
+			Emit(files, builder.Interface(schemaInterface));
+		}
+
+		return files;
+	}
+
+	private void Emit(Dictionary<string, string> files, SourceFile file) =>
+		files[$"{file.Name}{Options.HeaderExtension}"] = new CppGenerator().Generate(file);
+}
