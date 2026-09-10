@@ -12,9 +12,10 @@ lose information.
 
 ```json
 {
-  "formatVersion": 1,
+  "formatVersion": 3,
   "classes": [],
   "enums": [],
+  "interfaces": [],
   "codeGenerators": [],
   "dataSources": []
 }
@@ -25,10 +26,11 @@ lose information.
 | `formatVersion` | integer | The format version. Written first so a reader can find it without scanning the document. See [Versioning](#versioning). |
 | `classes` | array of [class](#class) | The classes the schema defines. |
 | `enums` | array of [enum](#enum) | The enumerations the schema defines. |
+| `interfaces` | array of [interface](#interface) | The interfaces the schema defines. See [Declaring behaviour](#declaring-behaviour). |
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
 
-All four collections are always written, empty or not.
+All five collections are always written, empty or not.
 
 Every named element also carries a `description`, a free-text string that is always written even
 when empty. It is the natural source for a doc comment in generated code.
@@ -142,6 +144,109 @@ C++ are all-zero bytes, which is rarely what a schema means by "the default".
 Both are advisory: a codec that ignores them is still correct, just larger. A quantised round
 trip is accurate to half the step and no better.
 
+## Declaring behaviour
+
+A class says what data *is*. An interface says what the program can *do*: a named set of
+functions, which a generator turns into the header an implementation is written against — an
+abstract type in C++, an interface in C#. The declaration is the contract, so an implementation
+cannot drift from it without failing to compile.
+
+### The four conventions
+
+A signature carries no ownership, lifetime, or error annotations, and does not need them. Four
+conventions carry that weight instead, and each one is a rule the *program* keeps rather than a
+fact every signature restates:
+
+| Question | Answered by | Not by |
+| --- | --- | --- |
+| Can this call fail? | The return type is [`Result`](#result). | a `throws` clause |
+| May the callee keep this? | [`Handle`](#handle) yes, [`Span`](#span) no. | an ownership annotation |
+| Who frees it? | Nobody: a handle is an identifier, a span is a borrow. | a lifetime annotation |
+| Is this argument read-only? | `direction`. | `const` |
+
+This is deliberate. Every interface language that let signatures answer these individually grew
+annotations until it was a worse version of the language it described. Making them global
+conventions keeps the declaration small, and the cost is that a program which wants two error
+conventions cannot express the second — which is the point.
+
+## Interface
+
+```json
+{
+  "functions": [ ... ],
+  "name": "Renderer",
+  "description": "Submits work to the GPU"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `functions` | array of [function](#function) | The interface's functions, **in declaration order**. |
+| `name` | string | The interface name. Unique among interfaces. |
+| `description` | string | Free text. |
+
+Order is preserved, for the same reason member order is: a generated header that reorders itself
+between runs produces a diff nobody can review.
+
+## Function
+
+```json
+{
+  "parameters": [ ... ],
+  "returnType": { "TypeName": "Result", "elementType": { "TypeName": "Void" } },
+  "name": "Present",
+  "description": "Presents the completed frame"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `parameters` | array of [parameter](#parameter) | The parameters, **in declaration order**. Order is the signature. |
+| `returnType` | [type](#types) | What the function returns. `Void` for nothing; never `None`. |
+| `name` | string | The function name, unique within its interface. |
+| `description` | string | Free text. |
+
+**There is no overloading.** A name identifies a function within its interface. Two functions
+differing only in their parameters are one name in some target languages and two in others, so the
+schema refuses the case rather than generating something different per language.
+
+## Parameter
+
+```json
+{
+  "type": { "TypeName": "Span", "elementType": { "TypeName": "Float" } },
+  "direction": "Out",
+  "name": "samples",
+  "description": "Filled with the captured audio"
+}
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `type` | [type](#types) | The parameter's type. |
+| `direction` | string | `In`, `Out` or `InOut`. Absent means `In`. |
+| `name` | string | The parameter name, unique within its function. |
+| `description` | string | Free text. |
+
+`direction` replaces const-ness, which is one language's spelling of a parameter rather than a
+property of the call. A C++ generator emits `In` as a const reference or a by-value copy; a C#
+generator emits `in`, `out` and `ref`.
+
+**On a `Span`, direction describes the elements, not the view.** A span is always a borrow the
+callee may not retain; `In` makes its elements read-only and `Out` or `InOut` makes them writable.
+So `In Span<Velocity>` is `std::span<const Velocity>` and `Out Span<Position>` is
+`std::span<Position>` — which is exactly the shape of a system that reads one component and writes
+another.
+
+Some things are refused in a signature, and the refusals are what keep the conventions honest:
+
+| Refused | Why |
+| --- | --- |
+| An `Array` parameter | An array is a collection a class owns. A borrowed sequence is a `Span`. |
+| A `Result` parameter | Fallibility describes the call, not an argument to it. |
+| A `Void` parameter | It carries no value. |
+| A `None` return or parameter | No type was chosen; not generatable. Use `Void` to mean "returns nothing". |
+
 ## Enum
 
 ```json
@@ -203,6 +308,7 @@ it is the polymorphic discriminator, not a data property.
 | `TypeName` | Meaning |
 | --- | --- |
 | `None` | No type chosen yet. A valid intermediate editing state, not a generatable one. |
+| `Void` | Returns nothing. A decision, unlike `None`. Only valid as a return type, or inside a `Result`. |
 | `Bool` | Boolean. |
 | `Int` | 32-bit signed integer. |
 | `Long` | 64-bit signed integer. |
@@ -228,6 +334,35 @@ library, so unlike `Object` they carry no class reference.
 ```
 
 `className` must name a class in `classes`.
+
+### `Interface` - a reference to an interface in this schema
+
+```json
+{ "TypeName": "Interface", "interfaceName": "AudioDevice" }
+```
+
+`interfaceName` must name an interface in `interfaces`. The counterpart of `Object` for a class.
+
+### Wrappers - types that wrap one other type
+
+Each holds an `elementType` and differs only in what the wrapping *means*:
+
+```json
+{ "TypeName": "Span",     "elementType": { "TypeName": "Float" } }
+{ "TypeName": "Handle",   "elementType": { "TypeName": "Object", "className": "Texture" } }
+{ "TypeName": "Result",   "elementType": { "TypeName": "Int" } }
+{ "TypeName": "Optional", "elementType": { "TypeName": "String" } }
+```
+
+| `TypeName` | Means |
+| --- | --- |
+| `Span` | A **borrowed** view over a contiguous sequence, valid for the call and not retained. Contrast `Array`, which is a stored collection a class owns: a span is never a member's type and an array is never a parameter's. |
+| `Handle` | An opaque, generation-counted reference to a resource the engine owns. The caller may keep it indefinitely and has nothing to free; a stale handle is detectable rather than undefined. |
+| `Result` | The outcome of a call that can fail: the element, or an error. Valid only as a return type. `Result<Void>` is a call that can fail and produces nothing. |
+| `Optional` | A value that may be absent. **Absence is not failure** — `Optional` is a lookup that found nothing, `Result` is a call that did not succeed. Using one for the other turns "not found" into an error path, or an error into a silent nothing. |
+
+A reference inside a wrapper resolves exactly as one named directly does, so `Span<Transform>`
+finds its class.
 
 ### `Enum` - a reference to an enum in this schema
 
@@ -332,6 +467,7 @@ needs to know about.
 | *(absent)* | - | Any file written before versioning. Read as version 0 and migrated on load. |
 | `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
 | `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
+| `3` | Interfaces | The root gains `interfaces`, and the type vocabulary gains `Void`, `Interface`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with no interfaces. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
@@ -472,6 +608,7 @@ What a release may do to this format:
 | --- | --- |
 | Adding an optional property that older readers can ignore | patch or minor |
 | Adding a new `TypeName` | minor - older readers will fail to read files that use it, so `formatVersion` increases with it |
+| Adding a top-level collection (as `interfaces` was) | minor, with a `formatVersion` increase - additive, so an older file loads with the collection empty |
 | Adding a container name to the known vocabulary | patch or minor - the vocabulary is open, so an unknown name is only a warning |
 | Renaming or removing a property, or changing the meaning of an existing one | major, with a migration step and a `formatVersion` increase |
 | Changing the discriminator property name (`TypeName`) | major |

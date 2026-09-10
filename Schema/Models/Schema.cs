@@ -35,7 +35,7 @@ public partial class Schema : ISchema
 	/// the honest outcome.
 	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 2;
+	public const int CurrentFormatVersion = 3;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.
@@ -78,6 +78,10 @@ public partial class Schema : ISchema
 	internal Collection<SchemaEnum> EnumsInternal { get; set; } = [];
 
 	[JsonInclude]
+	[JsonPropertyName("interfaces")]
+	internal Collection<SchemaInterface> InterfacesInternal { get; set; } = [];
+
+	[JsonInclude]
 	[JsonPropertyName("codeGenerators")]
 	internal Collection<SchemaCodeGenerator> CodeGeneratorsInternal { get; set; } = [];
 
@@ -96,6 +100,12 @@ public partial class Schema : ISchema
 	/// </summary>
 	[JsonIgnore]
 	public IReadOnlyCollection<SchemaEnum> Enums => EnumsInternal;
+
+	/// <summary>
+	/// Gets the interfaces the schema declares.
+	/// </summary>
+	[JsonIgnore]
+	public IReadOnlyCollection<SchemaInterface> Interfaces => InterfacesInternal;
 
 	/// <summary>
 	/// Gets the collection of code generators.
@@ -120,6 +130,12 @@ public partial class Schema : ISchema
 	/// </summary>
 	[JsonIgnore]
 	public SchemaChildSet<SchemaEnum, EnumName> EnumSet => new(EnumsInternal);
+
+	/// <summary>
+	/// Gets an order-preserving, name-unique view over the interfaces.
+	/// </summary>
+	[JsonIgnore]
+	public SchemaChildSet<SchemaInterface, InterfaceName> InterfaceSet => new(InterfacesInternal);
 
 	/// <summary>
 	/// Gets the schema's data sources as a name-indexed, order-preserving set.
@@ -189,6 +205,12 @@ public partial class Schema : ISchema
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
 		{
 			schemaEnum.AssociateWith(this);
+		}
+
+		foreach (SchemaInterface schemaInterface in InterfacesInternal)
+		{
+			schemaInterface.AssociateWith(this);
+			schemaInterface.Reassociate();
 		}
 
 		foreach (DataSource dataSource in DataSourcesInternal)
@@ -270,6 +292,14 @@ public partial class Schema : ISchema
 	public bool TryGetEnum(EnumName name, out SchemaEnum? schemaEnum) => TryGetChild(name, EnumsInternal, out schemaEnum);
 
 	/// <summary>
+	/// Tries to get an interface by name.
+	/// </summary>
+	/// <param name="name">The interface name.</param>
+	/// <param name="schemaInterface">The interface, when found.</param>
+	/// <returns><see langword="true"/> when an interface of that name exists.</returns>
+	public bool TryGetInterface(InterfaceName name, out SchemaInterface? schemaInterface) => TryGetChild(name, InterfacesInternal, out schemaInterface);
+
+	/// <summary>
 	/// Tries to get a class by name.
 	/// </summary>
 	/// <param name="name">The name of the class.</param>
@@ -283,6 +313,13 @@ public partial class Schema : ISchema
 	/// <param name="name">The name of the enum.</param>
 	/// <returns>The enum if found, null otherwise.</returns>
 	public SchemaEnum? GetEnum(EnumName name) => GetChild(name, EnumsInternal);
+
+	/// <summary>
+	/// Gets an interface by name.
+	/// </summary>
+	/// <param name="name">The interface name.</param>
+	/// <returns>The interface, or <see langword="null"/> when none of that name exists.</returns>
+	public SchemaInterface? GetInterface(InterfaceName name) => GetChild(name, InterfacesInternal);
 
 	/// <summary>
 	/// Gets a class by name.
@@ -362,6 +399,13 @@ public partial class Schema : ISchema
 
 	internal bool TryRemoveEnum(SchemaEnum schemaEnum) => TryRemoveChild(schemaEnum, EnumsInternal);
 
+	/// <summary>
+	/// Removes an interface from the schema.
+	/// </summary>
+	/// <param name="schemaInterface">The interface to remove.</param>
+	/// <returns><see langword="true"/> when it was present and removed.</returns>
+	internal bool TryRemoveInterface(SchemaInterface schemaInterface) => TryRemoveChild(schemaInterface, InterfacesInternal);
+
 	internal bool TryRemoveClass(SchemaClass schemaClass) => TryRemoveChild(schemaClass, ClassesInternal);
 
 	internal bool TryRemoveCodeGenerator(SchemaCodeGenerator schemaCodeGenerator) => TryRemoveChild(schemaCodeGenerator, CodeGeneratorsInternal);
@@ -381,6 +425,13 @@ public partial class Schema : ISchema
 	public bool TryAddEnum(EnumName name) => TryAddChild(name, EnumsInternal);
 
 	/// <summary>
+	/// Tries to add an interface to the schema.
+	/// </summary>
+	/// <param name="name">The interface name.</param>
+	/// <returns><see langword="true"/> when the name was free and the interface was added.</returns>
+	public bool TryAddInterface(InterfaceName name) => TryAddChild(name, InterfacesInternal);
+
+	/// <summary>
 	/// Tries to add a class.
 	/// </summary>
 	/// <param name="name">The name of the class to add.</param>
@@ -393,6 +444,13 @@ public partial class Schema : ISchema
 	/// <param name="name">The name of the enum to add.</param>
 	/// <returns>The added enum if successful, null otherwise.</returns>
 	public SchemaEnum? AddEnum(EnumName name) => AddChild(name, EnumsInternal);
+
+	/// <summary>
+	/// Adds an interface to the schema.
+	/// </summary>
+	/// <param name="name">The interface name.</param>
+	/// <returns>The new interface, or <see langword="null"/> when the name is already taken.</returns>
+	public SchemaInterface? AddInterface(InterfaceName name) => AddChild(name, InterfacesInternal);
 
 	/// <summary>
 	/// Adds a class.

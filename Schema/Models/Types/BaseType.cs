@@ -30,6 +30,12 @@ using ktsu.Semantics.Strings;
 [JsonDerivedType(typeof(ColorRGB), nameof(ColorRGB))]
 [JsonDerivedType(typeof(ColorRGBA), nameof(ColorRGBA))]
 [JsonDerivedType(typeof(Object), nameof(Object))]
+[JsonDerivedType(typeof(Interface), nameof(Interface))]
+[JsonDerivedType(typeof(Void), nameof(Void))]
+[JsonDerivedType(typeof(Span), nameof(Span))]
+[JsonDerivedType(typeof(Handle), nameof(Handle))]
+[JsonDerivedType(typeof(Result), nameof(Result))]
+[JsonDerivedType(typeof(Optional), nameof(Optional))]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "TypeName")]
 public abstract class BaseType : IEquatable<BaseType?>, ISchemaType
 {
@@ -38,6 +44,19 @@ public abstract class BaseType : IEquatable<BaseType?>, ISchemaType
 	/// </summary>
 	[JsonIgnore]
 	public SchemaMember? ParentMember { get; private set; }
+
+	/// <summary>
+	/// Gets the schema this type belongs to, whether it is a member's type or a type in a
+	/// function signature.
+	/// </summary>
+	/// <remarks>
+	/// Set by either <see cref="AssociateWith(SchemaMember)"/> or
+	/// <see cref="AssociateWith(Schema)"/>, so a type reaches the schema the same way regardless
+	/// of what owns it. Reference-resolving types read this rather than walking
+	/// <see cref="ParentMember"/>, which is null for everything in a signature.
+	/// </remarks>
+	[JsonIgnore]
+	public Schema? ParentSchema { get; private set; }
 
 	/// <summary>
 	/// Gets the name identifying which type this is.
@@ -66,7 +85,27 @@ public abstract class BaseType : IEquatable<BaseType?>, ISchemaType
 	/// resolve to nothing for anything nested inside an array.
 	/// </remarks>
 	/// <param name="schemaMember">The schema member to associate with.</param>
-	public virtual void AssociateWith(SchemaMember schemaMember) => ParentMember = schemaMember;
+	public virtual void AssociateWith(SchemaMember schemaMember)
+	{
+		Ensure.NotNull(schemaMember);
+		ParentMember = schemaMember;
+		AssociateWith(schemaMember.ParentSchema);
+	}
+
+	/// <summary>
+	/// Associates this type with the schema directly, for a type that is not a member's type.
+	/// </summary>
+	/// <remarks>
+	/// A type in a function signature — a parameter's type, or a return type — belongs to no
+	/// member, so it cannot reach the schema the way a member's type does. It still has to:
+	/// <see cref="Object.Class"/> resolves its class by looking it up in the owning schema, and a
+	/// function taking an object parameter is exactly as entitled to that as a member is. This is
+	/// the association it uses instead. Virtual for the same reason as the member overload: a
+	/// type that contains another passes the association on.
+	/// </remarks>
+	/// <param name="schema">The schema to associate with, or <see langword="null"/> when the
+	/// owning element is not itself associated yet.</param>
+	public virtual void AssociateWith(Schema? schema) => ParentSchema = schema;
 
 	/// <summary>
 	/// Determines whether the specified type is equal to the current type.

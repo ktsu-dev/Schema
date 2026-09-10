@@ -32,16 +32,39 @@ The type system uses polymorphic JSON serialization with `System.Text.Json`:
 SchemaChild<TName> (base for named elements)
 ├── SchemaClass : SchemaChild<ClassName>
 ├── SchemaEnum : SchemaChild<EnumName>
+├── SchemaInterface : SchemaChild<InterfaceName>
 ├── DataSource : SchemaChild<DataSourceName>
 ├── SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
-└── SchemaClassChild<TName> : SchemaChild<TName>
-    └── SchemaMember : SchemaClassChild<MemberName>
+├── SchemaClassChild<TName> : SchemaChild<TName>
+│   └── SchemaMember : SchemaClassChild<MemberName>
+├── SchemaInterfaceChild<TName> : SchemaChild<TName>
+│   └── SchemaFunction : SchemaInterfaceChild<FunctionName>
+└── SchemaFunctionChild<TName> : SchemaChild<TName>
+    └── SchemaParameter : SchemaFunctionChild<ParameterName>
 
 BaseType (types, in ktsu.Schema.Models.Types)
 ├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
 ├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
-└── Complex: Array, Object, Enum, None
+├── Complex: Array, Object, Enum, Interface, None, Void
+└── Wrappers: Span, Handle, Result, Optional
 ```
+
+### Declaring behaviour
+
+A class says what data is; an interface says what the program can do. `SchemaInterface` holds
+`SchemaFunction`s, each holding ordered `SchemaParameter`s and a return type, and a generator turns
+one into the header an implementation is written against.
+
+A signature carries no ownership, lifetime or error annotations because four conventions carry that
+weight globally instead: fallibility is `Result` in the return type, something the caller may keep
+is a `Handle`, a borrow valid for the call is a `Span`, and const-ness is
+`SchemaParameter.Direction`. Every interface language that let signatures answer those individually
+grew annotations until it was a worse version of the language it described; keeping them global is
+what stops that. `Schema.Validation.cs` enforces the corollaries - no `Array`, `Result` or `Void`
+parameters, no `None` anywhere generatable.
+
+On a `Span`, direction describes the **elements**, not the view: `In Span<Velocity>` is
+`std::span<const Velocity>` and `Out Span<Position>` is `std::span<Position>`.
 
 A type is not a named child of the schema: it has no name or description of its own and exists only
 as the type of the member holding it. `BaseType.TypeName` reports which type it is, and is the same

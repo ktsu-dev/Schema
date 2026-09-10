@@ -30,6 +30,7 @@ public partial class Schema
 		ValidateUniqueNames(issues);
 		ValidateClasses(issues);
 		ValidateEnums(issues);
+		ValidateInterfaces(issues);
 		ValidateDataSources(issues);
 		ValidateCodeGenerators(issues);
 
@@ -40,6 +41,7 @@ public partial class Schema
 	{
 		ReportDuplicates(issues, ClassesInternal.Select(c => c.Name.ToString()), "class");
 		ReportDuplicates(issues, EnumsInternal.Select(e => e.Name.ToString()), "enum");
+		ReportDuplicates(issues, InterfacesInternal.Select(i => i.Name.ToString()), "interface");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
 	}
@@ -363,6 +365,98 @@ public partial class Schema
 		}
 	}
 
+	/// <summary>
+	/// Checks the interfaces: names, and that every signature is one a generator can emit.
+	/// </summary>
+	private void ValidateInterfaces(Collection<SchemaValidationIssue> issues)
+	{
+		foreach (SchemaInterface schemaInterface in InterfacesInternal)
+		{
+			string interfacePath = PathSegment(schemaInterface.Name);
+			ValidateNameNotEmpty(issues, schemaInterface.Name, "Interface", interfacePath, schemaInterface);
+
+			ReportDuplicates(
+				issues,
+				schemaInterface.Functions.Select(f => $"{schemaInterface.Name}.{f.Name}"),
+				"function");
+
+			foreach (SchemaFunction function in schemaInterface.Functions)
+			{
+				ValidateFunction(issues, function, $"{interfacePath}.{PathSegment(function.Name)}");
+			}
+		}
+	}
+
+	/// <summary>
+	/// Checks one function's return type and parameters.
+	/// </summary>
+	private void ValidateFunction(Collection<SchemaValidationIssue> issues, SchemaFunction function, string path)
+	{
+		ValidateNameNotEmpty(issues, function.Name, "Function", path, function);
+		ValidateReturnType(issues, function, path);
+
+		ReportDuplicates(
+			issues,
+			function.Parameters.Select(p => $"{path}.{p.Name}"),
+			"parameter");
+
+		foreach (SchemaParameter parameter in function.Parameters)
+		{
+			ValidateParameter(issues, parameter, $"{path}({PathSegment(parameter.Name)})", function);
+		}
+	}
+
+	private void ValidateReturnType(Collection<SchemaValidationIssue> issues, SchemaFunction function, string path)
+	{
+		switch (function.ReturnType)
+		{
+			case None:
+				Report(issues, path, function, "Function has no return type chosen. Use Void for a function that returns nothing.");
+				return;
+
+			// Result<Void> is the honest spelling of "can fail, produces nothing", so the
+			// element of a Result is exempt from the Void check the parameters get.
+			case Result { ElementType: None }:
+				Report(issues, path, function, "Function returns Result with no value type chosen. Use Result<Void> for a call that can fail and produces nothing.");
+				return;
+
+			default:
+				ValidateType(issues, function.ReturnType, path, function);
+				return;
+		}
+	}
+
+	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
+	{
+		switch (parameter.Type)
+		{
+			case None:
+				Report(issues, path, element, "Parameter has no type chosen.");
+				return;
+
+			case Void:
+				Report(issues, path, element, "Parameter is Void, which carries no value. Remove it.");
+				return;
+
+			// Fallibility describes the call, not an argument to it.
+			case Result:
+				Report(issues, path, element, "Parameter is a Result. Only a return type may be fallible.");
+				return;
+
+			// An Array is a collection a class owns; a sequence crossing a boundary is a Span,
+			// which is a borrow valid for the call. Allowing an Array here would be the first
+			// place ownership became ambiguous, which is the thing the conventions exist to
+			// prevent.
+			case Array:
+				Report(issues, path, element, "Parameter is an Array, which is an owned collection. Pass a Span to borrow a sequence for the call.");
+				return;
+
+			default:
+				ValidateType(issues, parameter.Type, path, element);
+				return;
+		}
+	}
+
 	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element)
 	{
 		switch (type)
@@ -379,8 +473,32 @@ public partial class Schema
 				ValidateArray(issues, arrayType, path, element);
 				break;
 
+			case Interface interfaceType:
+				ValidateInterfaceReference(issues, interfaceType, path, element);
+				break;
+
+			// Every wrapper resolves to whatever it wraps, so a class named inside a Span,
+			// Handle, Result or Optional is checked exactly as one named directly is.
+			case WrapperType wrapper:
+				ValidateType(issues, wrapper.ElementType, path, element);
+				break;
+
 			default:
 				break;
+		}
+	}
+
+	private void ValidateInterfaceReference(Collection<SchemaValidationIssue> issues, Interface interfaceType, string path, ISchemaElement? element)
+	{
+		if (string.IsNullOrEmpty(interfaceType.InterfaceName))
+		{
+			Report(issues, path, element!, "Interface type does not specify an interface name.");
+			return;
+		}
+
+		if (!TryGetInterface(interfaceType.InterfaceName, out _))
+		{
+			Report(issues, path, element!, $"Interface type references '{interfaceType.InterfaceName}', which this schema does not declare.");
 		}
 	}
 
