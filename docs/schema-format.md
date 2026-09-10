@@ -12,13 +12,14 @@ lose information.
 
 ```json
 {
-  "formatVersion": 4,
+  "formatVersion": 5,
   "classes": [],
   "enums": [],
   "semanticTypes": [],
   "interfaces": [],
   "codeGenerators": [],
-  "dataSources": []
+  "dataSources": [],
+  "errorType": "ErrorCode"
 }
 ```
 
@@ -31,6 +32,7 @@ lose information.
 | `interfaces` | array of [interface](#interface) | The interfaces the schema defines. See [Declaring behaviour](#declaring-behaviour). |
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
+| `errorType` | string | The enum a failed [`Result`](#result) carries. See [The four conventions](#the-four-conventions). Empty until a schema declares one. |
 
 All six collections are always written, empty or not.
 
@@ -50,11 +52,44 @@ when empty. It is the natural source for a doc comment in generated code.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `members` | array of [member](#member) | The class's members, **in declaration order**. |
+| `travelsAsBytes` | bool | Whether an instance is copied whole, without anyone reading a field on the way. Omitted when false. See below. |
 | `name` | string | The class name. Unique among classes. |
 | `description` | string | Free text. |
 
 Member order is meaningful: it is preserved through a round trip and is the order generated code
 will declare members in.
+
+### `travelsAsBytes` - a promise about representation
+
+```json
+{ "members": [ ... ], "travelsAsBytes": true, "name": "RigidBody" }
+```
+
+A class that travels as bytes is copied whole - across a language boundary, into a save file, onto
+the wire - without anyone reading a field on the way. Two things follow. Its member order stops
+being merely meaningful and becomes **load-bearing**: reordering members changes the binary layout
+of every saved instance and every packet carrying one, so it is a change to the class rather than a
+tidy-up. And a generated type says the promise in whatever way its language can; C++ can assert it
+at compile time and does.
+
+The promise constrains the members. A class that travels as bytes may only hold members that travel
+the same way, so validation refuses:
+
+| Member type | Why |
+| --- | --- |
+| `String` | text is held elsewhere and reached by reference |
+| `Array` | a collection's elements are held elsewhere |
+| `Span` | a view onto memory the class does not own |
+| `Optional`, `Result` | trivially copyable in some languages and not others, and in none of them is the position of what it wraps something the schema can promise |
+| `Interface` | a reference to whatever implements it |
+| `Object` naming a class that makes no such promise | it would arrive with the same problem one level down |
+
+A `Handle` is accepted: an index and the generation its slot had is bytes whatever it identifies,
+which is the whole reason a component holds one rather than a reference. A `Vector` is accepted when
+its components are, and a `Semantic` when what it is represented as is.
+
+The check reads the flag off a named class rather than walking into it, so two classes holding each
+other is a schema that validates rather than one that hangs the validator.
 
 ## Member
 
@@ -232,6 +267,21 @@ This is deliberate. Every interface language that let signatures answer these in
 annotations until it was a worse version of the language it described. Making them global
 conventions keeps the declaration small, and the cost is that a program which wants two error
 conventions cannot express the second — which is the point.
+
+**What a failure says is global too.** A `Result` says a call can fail; the root's `errorType` names
+the enum it carries, once, for every fallible signature in the schema:
+
+```json
+{ "errorType": "ErrorCode", "enums": [ { "name": "ErrorCode", "values": [ "NotFound", "OutOfCapacity" ] } ] }
+```
+
+An enum rather than any type, because an error is one of a closed set of reasons — which is what an
+enum is — and a caller switching on the reason needs the set to be enumerable.
+
+A schema that never returns a `Result` needs no `errorType`, and declaring none is not a mistake in
+itself. A schema that does returns an error from validation, reported **at the signature** rather
+than at the root: that is the declaration whose meaning is incomplete, since a generator reaching it
+has a `Result` to emit and nothing to put in its error position.
 
 ## Interface
 
@@ -566,6 +616,7 @@ needs to know about.
 | `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
 | `3` | Interfaces and semantic types | The root gains `interfaces` and `semanticTypes`, and the type vocabulary gains `Void`, `Interface`, `Semantic`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with neither. |
 | `4` | Vector component types | `Vector2`, `Vector3` and `Vector4` gain an `elementType`. Omitted when it is `Float`, so a file whose vectors are vectors of floats is unchanged. |
+| `5` | Layout promises and the error type | A class may declare that it `travelsAsBytes`, and the root may name the `errorType` a failed `Result` carries. Additive; the class flag is omitted when false. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader

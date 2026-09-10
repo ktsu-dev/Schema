@@ -44,9 +44,11 @@ public class CodeGenerationRoundTripTests
 
 		Schema reimported = new();
 		reimported.AddClass(assembly.GetType("Generated.Item", throwOnError: true)!);
+		reimported.AddClass(assembly.GetType("Generated.Packet", throwOnError: true)!);
 		reimported.AddClass(assembly.GetType("Generated.User", throwOnError: true)!);
 
 		AssertClassesMatch(original, reimported, "Item");
+		AssertClassesMatch(original, reimported, "Packet");
 		AssertClassesMatch(original, reimported, "User");
 
 		// The enum came back too, discovered through User.Role.
@@ -66,6 +68,13 @@ public class CodeGenerationRoundTripTests
 			expectedClass.Members.Select(m => m.Name.ToString()).ToArray(),
 			actualClass.Members.Select(m => m.Name.ToString()).ToArray(),
 			$"Members of '{className}' differ after the round trip.");
+
+		// Nothing about a CLR type says this, so it survives only because the generator writes an
+		// attribute and the importer reads it - the two halves this test exists to keep in step.
+		Assert.AreEqual(
+			expectedClass.TravelsAsBytes,
+			actualClass.TravelsAsBytes,
+			$"'{className}' came back {(actualClass.TravelsAsBytes ? "promising" : "not promising")} to travel as bytes.");
 
 		foreach (SchemaMember expectedMember in expectedClass.Members)
 		{

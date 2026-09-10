@@ -32,6 +32,7 @@ public partial class Schema
 		ValidateEnums(issues);
 		ValidateInterfaces(issues);
 		ValidateSemanticTypes(issues);
+		ValidateErrorType(issues);
 		ValidateDataSources(issues);
 		ValidateCodeGenerators(issues);
 
@@ -112,9 +113,98 @@ public partial class Schema
 
 				ValidateType(issues, member.Type, memberPath, member);
 				ValidateMetadata(issues, member, member.Type, memberPath, member, "member");
+				ValidateTravelsAsBytes(issues, schemaClass, member, memberPath);
 			}
 		}
 	}
+
+	/// <summary>
+	/// A class that travels as raw bytes may only hold members that travel the same way.
+	/// </summary>
+	/// <remarks>
+	/// The promise is that an instance is copied whole without anyone reading a field on the way,
+	/// so a member holding a reference to something elsewhere - text, a collection, a view, a
+	/// class that makes no such promise - would arrive as an address that means nothing where it
+	/// landed. Reported against the member rather than the class, because the member is what the
+	/// author changes.
+	/// </remarks>
+	private void ValidateTravelsAsBytes(Collection<SchemaValidationIssue> issues, SchemaClass schemaClass, SchemaMember member, string path)
+	{
+		// A member with no type is already reported as one; saying it cannot travel as bytes as
+		// well would be two issues for the same unfinished edit.
+		if (!schemaClass.TravelsAsBytes || member.Type is None)
+		{
+			return;
+		}
+
+		string? reason = WhyItCannotTravelAsBytes(member.Type);
+		if (reason is not null)
+		{
+			Report(issues, path, member, $"Class '{schemaClass.Name}' travels as bytes, but member '{member.Name}' {reason}.");
+		}
+	}
+
+	/// <summary>
+	/// Says why a type cannot be copied whole, or nothing when it can.
+	/// </summary>
+	/// <remarks>
+	/// One level deep by design where a class is named: a class either makes the promise or does
+	/// not, and it makes it for its own members in turn. So this reads a flag rather than walking
+	/// a graph, and two classes holding each other cannot hang it.
+	/// </remarks>
+	private string? WhyItCannotTravelAsBytes(BaseType type) => type switch
+	{
+		Types.String => "is text, which is held elsewhere and reached by reference",
+
+		Array => "is a collection, whose elements are held elsewhere",
+
+		Span => "is a view onto memory the class does not own",
+
+		// Trivially copyable in some languages and not in others, and in none of them is the
+		// position of what it wraps something the schema can promise.
+		Optional or Result => $"is carried by a {type.TypeName}, whose layout is the target language's to choose",
+
+		Interface => "is an interface, which is a reference to whatever implements it",
+
+		Types.Void => "carries no value",
+
+		// A handle is an identifier the holder does not own - an index and a generation - so it
+		// travels as bytes whatever it identifies.
+		Handle => null,
+
+		Vector vectorType => WhyItCannotTravelAsBytes(vectorType.ElementType),
+
+		Semantic { Declaration: SchemaSemanticType declaration } => WhyARepresentationCannotTravelAsBytes(declaration.Representation()),
+
+		Types.Object objectType => WhyANamedClassCannotTravelAsBytes(objectType.ClassName),
+
+		_ => null,
+	};
+
+	/// <summary>
+	/// Says why what a semantic type is represented as cannot travel as bytes, or nothing when it
+	/// can.
+	/// </summary>
+	/// <remarks>
+	/// A representation that is still semantic means the chain of refinement never reached
+	/// anything real - a cycle, or a name that does not resolve - both of which
+	/// <see cref="ValidateUnderlyingType"/> already reports. Stopping here is what keeps a cycle a
+	/// reported error rather than a recursion with no bottom.
+	/// </remarks>
+	private string? WhyARepresentationCannotTravelAsBytes(BaseType representation) =>
+		representation is Semantic ? null : WhyItCannotTravelAsBytes(representation);
+
+	/// <summary>
+	/// Says why a named class cannot be held by one that travels as bytes, or nothing when it can.
+	/// </summary>
+	/// <remarks>
+	/// A class that does not resolve is already reported by <see cref="ValidateClassReference"/>,
+	/// and is not refused again here.
+	/// </remarks>
+	private string? WhyANamedClassCannotTravelAsBytes(Names.ClassName className) =>
+		TryGetClass(className, out SchemaClass? referenced) && referenced?.TravelsAsBytes == false
+			? $"is a '{className}', which does not travel as bytes"
+			: null;
 
 	/// <summary>
 	/// Checks the semantic metadata on a member: its unit, range, default, interpolation and
@@ -561,6 +651,13 @@ public partial class Schema
 				ValidateVectorElement(issues, vectorType, path, element);
 				break;
 
+			// Before the wrapper arm below, which would otherwise swallow it: a Result says a
+			// call can fail, and what a failure says is the schema's to declare.
+			case Result result:
+				ValidateResultHasAnErrorType(issues, path, element);
+				ValidateType(issues, result.ElementType, path, element);
+				break;
+
 			// Every wrapper resolves to whatever it wraps, so a class named inside a Span,
 			// Handle, Result or Optional is checked exactly as one named directly is.
 			case WrapperType wrapper:
@@ -569,6 +666,43 @@ public partial class Schema
 
 			default:
 				break;
+		}
+	}
+
+	/// <summary>
+	/// The enum a failure carries has to be one the schema declares.
+	/// </summary>
+	/// <remarks>
+	/// Only checked when one is named. A schema that declares none is reported at the
+	/// <see cref="Result"/> that needed it, which is where an author can see what to do about it,
+	/// rather than at a root property they may never have set.
+	/// </remarks>
+	private void ValidateErrorType(Collection<SchemaValidationIssue> issues)
+	{
+		if (!string.IsNullOrEmpty(ErrorType) && !TryGetEnum(ErrorType, out _))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = ErrorType.ToString(),
+				Message = $"The schema's error type names '{ErrorType}', which it does not declare as an enum.",
+			});
+		}
+	}
+
+	/// <summary>
+	/// A call that can fail has to be able to say why.
+	/// </summary>
+	/// <remarks>
+	/// Reported at the signature rather than at the schema root, because that is the declaration
+	/// whose meaning is incomplete: a generator reaching this has a <c>Result</c> to emit and
+	/// nothing to put in its error position.
+	/// </remarks>
+	private void ValidateResultHasAnErrorType(Collection<SchemaValidationIssue> issues, string path, ISchemaElement? element)
+	{
+		if (string.IsNullOrEmpty(ErrorType))
+		{
+			Report(issues, path, element!, "This can fail, but the schema declares no error type, so a failure has nothing to say. Set the schema's error type to an enum it declares.");
 		}
 	}
 

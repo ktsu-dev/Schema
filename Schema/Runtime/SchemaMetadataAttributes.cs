@@ -141,3 +141,24 @@ public sealed class SchemaEditorHintAttribute(string hint) : Attribute
 	/// </summary>
 	public string Hint { get; } = hint;
 }
+
+/// <summary>
+/// Records that instances of a generated type travel as raw bytes, so its member order is part of
+/// what it means.
+/// </summary>
+/// <remarks>
+/// Here for the same reason the rest of this file is: nothing about a CLR type says whether it is
+/// copied whole without anyone reading a field on the way, so reimporting generated code would give
+/// back a schema whose classes had quietly stopped promising it. A class attribute rather than a
+/// member one, because the promise is the type's.
+/// <para>
+/// It records the promise rather than enforcing it. Emitting a <c>struct</c> with a sequential
+/// layout would enforce it in C#, and would also change the shape of every generated component
+/// from a class to a value type - a decision about the C# API rather than about the schema, and
+/// not one this attribute is entitled to make.
+/// </para>
+/// </remarks>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+public sealed class SchemaTravelsAsBytesAttribute : Attribute
+{
+}
