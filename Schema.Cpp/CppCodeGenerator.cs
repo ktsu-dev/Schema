@@ -64,14 +64,14 @@ public sealed class CppCodeGenerator(CppGeneratorOptions options) : ISchemaCodeG
 			Emit(files, builder.Enum(schemaEnum));
 		}
 
-		foreach (SchemaSemanticType semanticType in schema.SemanticTypes)
+		// A type the target already declares by hand is named where it is used and not generated
+		// beside the one that exists.
+		IEnumerable<SchemaSemanticType> toGenerate = schema.SemanticTypes
+			.Where(semanticType => !Options.ExistingTypes.ContainsKey(semanticType.Name.ToString()));
+
+		foreach (SchemaSemanticType semanticType in toGenerate)
 		{
-			// A type the target already declares by hand is named where it is used and not
-			// generated beside the one that exists.
-			if (!Options.ExistingTypes.ContainsKey(semanticType.Name.ToString()))
-			{
-				Emit(files, builder.SemanticType(semanticType));
-			}
+			Emit(files, builder.SemanticType(semanticType));
 		}
 
 		foreach (SchemaClass schemaClass in schema.Classes)

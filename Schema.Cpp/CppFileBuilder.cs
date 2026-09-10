@@ -29,6 +29,25 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	private const string TypeTraitsHeader = "<type_traits>";
 
 	/// <summary>
+	/// What a semantic type calls the type it is represented as.
+	/// </summary>
+	/// <remarks>
+	/// An alias rather than the representation spelled out at each use, so the shim reads the same
+	/// whatever it is over, and changing what it is over is one line.
+	/// </remarks>
+	private const string UnderlyingAlias = "underlying";
+
+	/// <summary>The member a semantic type holds its value in, and the parameter that fills it.</summary>
+	/// <remarks>
+	/// Trailing underscore because it is private and the accessor beside it is called
+	/// <c>value()</c>: the two would otherwise be the same name.
+	/// </remarks>
+	private const string ValueField = "value_";
+
+	/// <summary>What both the accessor and the parameter that reaches it are called.</summary>
+	private const string ValueName = "value";
+
+	/// <summary>
 	/// Builds the header for an enum.
 	/// </summary>
 	/// <remarks>
@@ -99,7 +118,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			declaration.Documentation.Add(line);
 		}
 
-		declaration.Members.Add(new UsingAlias("underlying", mapper.Map(semanticType.Representation())));
+		declaration.Members.Add(new UsingAlias(UnderlyingAlias, mapper.Map(semanticType.Representation())));
 
 		SchemaSemanticType? refined = semanticType.Refines().FirstOrDefault();
 		if (refined is not null)
@@ -129,7 +148,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		declaration.Members.Add(Comparison(name, "==", "bool"));
 		declaration.Members.Add(Comparison(name, "<=>", "auto"));
-		declaration.Members.Add(new FieldDeclaration("value_", "underlying") { Visibility = Visibility.Private });
+		declaration.Members.Add(new FieldDeclaration(ValueField, UnderlyingAlias) { Visibility = Visibility.Private });
 
 		List<AstNode> members = [declaration];
 		members.AddRange(Assertions(name, "it appears in components", mapper));
@@ -320,16 +339,16 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		};
 
 		constructor.Documentation.Add($"Explicit: a bare value never becomes {Article(name)} {name} by accident.");
-		constructor.Parameters.Add(new Parameter("value", "underlying"));
-		constructor.Initialisers.Add(new MemberInitialiser("value_", new VariableReference("value")));
+		constructor.Parameters.Add(new Parameter(ValueName, UnderlyingAlias));
+		constructor.Initialisers.Add(new MemberInitialiser(ValueField, new VariableReference(ValueName)));
 		return constructor;
 	}
 
 	private static FunctionDeclaration Accessor()
 	{
-		FunctionDeclaration accessor = new("value")
+		FunctionDeclaration accessor = new(ValueName)
 		{
-			ReturnType = "underlying",
+			ReturnType = UnderlyingAlias,
 			IsPure = true,
 			IsCompileTimeEvaluable = true,
 			IsReadOnly = true,
@@ -337,7 +356,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		};
 
 		accessor.Documentation.Add("Named, because getting the value back out is a decision too.");
-		accessor.Body.Add(new ReturnStatement(new VariableReference("value_")));
+		accessor.Body.Add(new ReturnStatement(new VariableReference(ValueField)));
 		return accessor;
 	}
 
@@ -355,7 +374,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		widening.Documentation.Add($"Widening is implicit: this is {Article(broader)} {broader}.");
 		widening.Body.Add(new ReturnStatement(
-			new ConstructionExpression(broader) { Arguments = { new VariableReference("value_") } }));
+			new ConstructionExpression(broader) { Arguments = { new VariableReference(ValueField) } }));
 
 		return widening;
 	}
@@ -372,10 +391,10 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		};
 
 		narrowing.Documentation.Add($"Narrowing is explicit and named: not every {broader} is {Article(name)} {name}.");
-		narrowing.Parameters.Add(new Parameter("value", broader));
+		narrowing.Parameters.Add(new Parameter(ValueName, broader));
 		narrowing.Body.Add(new ReturnStatement(new ConstructionExpression(name)
 		{
-			Arguments = { new VariableReference("value.value()") },
+			Arguments = { new VariableReference($"{ValueName}.{ValueName}()") },
 		}));
 
 		return narrowing;
