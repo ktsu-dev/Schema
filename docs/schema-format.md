@@ -12,7 +12,7 @@ lose information.
 
 ```json
 {
-  "formatVersion": 3,
+  "formatVersion": 4,
   "classes": [],
   "enums": [],
   "semanticTypes": [],
@@ -381,7 +381,7 @@ it is the polymorphic discriminator, not a data property.
 | `String` | Text. |
 | `DateTime` | A date and time. |
 | `TimeSpan` | A duration. |
-| `Vector2`, `Vector3`, `Vector4` | Fixed-shape numeric vectors. |
+| `Vector2`, `Vector3`, `Vector4` | Fixed-shape numeric vectors. Carry an optional `elementType`; see below. |
 | `ColorRGB`, `ColorRGBA` | Colors. |
 
 ```json
@@ -390,6 +390,31 @@ it is the polymorphic discriminator, not a data property.
 
 The vector and color types are structured but built in: their shape is fixed and known to the
 library, so unlike `Object` they carry no class reference.
+
+#### A vector's components
+
+A vector says how many components it has. `elementType` says what each one is:
+
+```json
+{
+  "TypeName": "Vector3",
+  "elementType": { "TypeName": "Semantic", "semanticTypeName": "MetresPerSecond" }
+}
+```
+
+A velocity is three metres per second and a position is three metres, and a schema that says only
+"three floats" leaves the one fact worth knowing about either of them to a comment. This is the
+argument `Semantic` makes for a single value, applied to three of them.
+
+`elementType` is optional and omitted when it is `Float`, which is what a vector has always been -
+so a file whose vectors are vectors of floats is written exactly as it was before the property
+existed.
+
+The component must be a number - `Int`, `Long`, `Float` or `Double` - or a `Semantic` that is
+represented as one. A vector of anything else is a collection of things rather than one value with
+components, which is what `Array` is for. `ColorRGB` and `ColorRGBA` are vectors too, but their
+components are the channels, which every consumer of a colour reads as floats: an `elementType`
+other than `Float` on one is refused.
 
 ### `Object` - a reference to a class in this schema
 
@@ -540,6 +565,7 @@ needs to know about.
 | `1` | The version field itself | A member's description moved from `memberDescription` to the `description` every element shares. |
 | `2` | Semantic member metadata | A member may carry `unit`, `range`, `defaultValue`, `interpolation`, `network` and `editor`. All optional and omitted when absent. |
 | `3` | Interfaces and semantic types | The root gains `interfaces` and `semanticTypes`, and the type vocabulary gains `Void`, `Interface`, `Semantic`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with neither. |
+| `4` | Vector component types | `Vector2`, `Vector3` and `Vector4` gain an `elementType`. Omitted when it is `Float`, so a file whose vectors are vectors of floats is unchanged. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
@@ -611,7 +637,7 @@ Descriptions become XML doc comments, which is what descriptions are for.
 | `String` | `string` |
 | `DateTime` | `System.DateTime` |
 | `TimeSpan` | `System.TimeSpan` |
-| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4` |
+| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4`, when the components are floats - those types hold nothing else. A vector of anything else is emitted as `object?`, as every type the generator cannot yet say is. |
 | `ColorRGB` / `ColorRGBA` | `ktsu.Schema.Runtime.ColorRgb` / `ColorRgba` |
 | `Enum` | the generated enum |
 | `Object` | the generated class |

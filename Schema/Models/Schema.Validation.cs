@@ -552,6 +552,15 @@ public partial class Schema
 				ValidateInterfaceReference(issues, interfaceType, path, element);
 				break;
 
+			case Semantic semanticReference:
+				ValidateSemanticReference(issues, semanticReference, path, element);
+				break;
+
+			// A vector's components are a type in their own right, checked as one.
+			case Vector vectorType:
+				ValidateVectorElement(issues, vectorType, path, element);
+				break;
+
 			// Every wrapper resolves to whatever it wraps, so a class named inside a Span,
 			// Handle, Result or Optional is checked exactly as one named directly is.
 			case WrapperType wrapper:
@@ -560,6 +569,65 @@ public partial class Schema
 
 			default:
 				break;
+		}
+	}
+
+	/// <summary>
+	/// A named semantic type has to be one the schema declares, exactly as a named class or
+	/// interface does.
+	/// </summary>
+	private void ValidateSemanticReference(Collection<SchemaValidationIssue> issues, Semantic reference, string path, ISchemaElement? element)
+	{
+		if (string.IsNullOrEmpty(reference.SemanticTypeName))
+		{
+			Report(issues, path, element!, "Semantic type reference does not name a semantic type.");
+			return;
+		}
+
+		if (!TryGetSemanticType(reference.SemanticTypeName, out _))
+		{
+			Report(issues, path, element!, $"Semantic type reference names '{reference.SemanticTypeName}', which this schema does not declare.");
+		}
+	}
+
+	/// <summary>
+	/// A vector is so many of something, and that something has to be a number.
+	/// </summary>
+	/// <remarks>
+	/// Directly, or a semantic type that is represented as one - a <c>Vec3&lt;MetresPerSecond&gt;</c>
+	/// is three numbers whatever the name says. Anything else is a collection of things rather
+	/// than one value with components, which is what <see cref="Array"/> is for.
+	/// </remarks>
+	private void ValidateVectorElement(Collection<SchemaValidationIssue> issues, Vector vectorType, string path, ISchemaElement? element)
+	{
+		ValidateType(issues, vectorType.ElementType, path, element);
+
+		// A colour's components are the channels, and every consumer of one - a picker, a
+		// shader, a serialiser - reads them as floats. A colour of anything else is a Vector.
+		if (vectorType is ColorRGB or ColorRGBA)
+		{
+			if (vectorType.ElementType is not Float)
+			{
+				Report(issues, path, element!, $"{vectorType.TypeName} has {vectorType.ElementType.DisplayName} components. A colour's channels are floats; use a vector for anything else.");
+			}
+
+			return;
+		}
+
+		BaseType component = vectorType.ElementType is Semantic semantic && semantic.Declaration is SchemaSemanticType declaration
+			? declaration.Representation()
+			: vectorType.ElementType;
+
+		// An unresolved reference is already reported above; saying the components are not
+		// numbers as well would be two issues for one mistake.
+		if (vectorType.ElementType is Semantic && component is Semantic)
+		{
+			return;
+		}
+
+		if (!component.IsNumeric)
+		{
+			Report(issues, path, element!, $"{vectorType.TypeName} has {vectorType.ElementType.DisplayName} components. A vector's components are numbers, or a semantic type over one.");
 		}
 	}
 

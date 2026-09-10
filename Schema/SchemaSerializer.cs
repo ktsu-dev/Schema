@@ -4,6 +4,7 @@ namespace ktsu.Schema.Models;
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using ktsu.RoundTripStringJsonConverter;
 using ktsu.Semantics.Paths;
 
@@ -18,7 +19,37 @@ public static class SchemaSerializer
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 		Converters = { new RoundTripStringJsonConverterFactory() },
+		TypeInfoResolver = new DefaultJsonTypeInfoResolver
+		{
+			Modifiers = { OmitDefaultVectorElement },
+		},
 	};
+
+	/// <summary>
+	/// Leaves a vector's component type out of the file when it is the default.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Types.Vector.ElementType"/> is not nullable, so no ignore condition describes
+	/// "the same as saying nothing". Writing it regardless would put four lines of
+	/// <c>{ "TypeName": "Float" }</c> under every vector in every file, and change every file
+	/// written before vectors had a component type. The property reads either way, so what is
+	/// omitted here still loads.
+	/// </remarks>
+	private static void OmitDefaultVectorElement(JsonTypeInfo typeInfo)
+	{
+		if (!typeof(Types.Vector).IsAssignableFrom(typeInfo.Type))
+		{
+			return;
+		}
+
+		foreach (JsonPropertyInfo property in typeInfo.Properties)
+		{
+			if (string.Equals(property.Name, "elementType", StringComparison.OrdinalIgnoreCase))
+			{
+				property.ShouldSerialize = static (_, value) => value is not Types.Float;
+			}
+		}
+	}
 
 	/// <summary>
 	/// Serializes a Schema to a JSON string.
@@ -195,6 +226,11 @@ public static class SchemaSerializer
 	/// shares with every other element. <see cref="SchemaMember"/> reads the old property into
 	/// the new one as it deserializes, so nothing further is needed here; the step exists so the
 	/// version is stamped and the path is documented.
+	///
+	/// Every step since has been additive - a property or a collection that an older file simply
+	/// does not have, which loads as absent or as its default. The version moves anyway, because
+	/// an older reader would silently drop what it does not recognise; see
+	/// <c>docs/schema-format.md</c>. Nothing further is needed here for those steps either.
 	/// </remarks>
 	/// <param name="schema">The schema to migrate in place.</param>
 	/// <param name="fromVersion">The version the file declared.</param>

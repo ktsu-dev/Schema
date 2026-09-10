@@ -50,6 +50,25 @@ BaseType (types, in ktsu.Schema.Models.Types)
 └── Wrappers: Span, Handle, Result, Optional
 ```
 
+### Vector components
+
+A vector says how many components it has; `Vector.ElementType` says what each one is. A velocity is
+three metres per second and a position is three metres, and a schema that says only "three floats"
+leaves the one fact worth knowing about either of them to a comment - which is the argument
+`Semantic` makes for a single value, applied to three of them.
+
+The component must be a number or a `Semantic` over one; anything else is a collection of things
+rather than one value with components, which is what `Array` is for. It defaults to `Float` and is
+omitted from the file when it is, so a file whose vectors are vectors of floats is written exactly
+as it was before the property existed - the omission is `SchemaSerializer.OmitDefaultVectorElement`,
+because a non-nullable property has no ignore condition that means "the same as saying nothing".
+`ColorRGB` and `ColorRGBA` inherit the property because they derive from `Vector3` and `Vector4`,
+and validation holds them to `Float`: a colour's components are its channels.
+
+The editor's type picker does not offer a component yet, for the same reason it does not offer a
+`Semantic`, a `Span` or a `Handle` - `Schema.GetSelectableElementTypes` still lists only the
+built-ins, the enums and the classes.
+
 ### Semantic types
 
 An entity id is a number, and so is a texture id, and adding one to the other is nonsense that

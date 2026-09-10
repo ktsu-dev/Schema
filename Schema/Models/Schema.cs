@@ -34,8 +34,15 @@ public partial class Schema : ISchema
 	/// round-trip contract in <c>docs/schema-format.md</c> forbids. Refusing to read it is
 	/// the honest outcome.
 	/// </para>
+	/// <para>
+	/// Version 4 gave a vector a component type. It is omitted when it is the default, so a file
+	/// whose vectors are vectors of floats is byte-identical to the version 3 file it would have
+	/// been; the version moves for the same reason version 2 did, because a version 3 reader
+	/// would load a <c>Vec3</c> of a semantic type, drop what it is three of, and write it back
+	/// as three bare floats.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 3;
+	public const int CurrentFormatVersion = 4;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.

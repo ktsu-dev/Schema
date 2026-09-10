@@ -256,9 +256,14 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// The colours before their vector bases: ColorRGB derives from Vector3.
 		ColorRGB => "ktsu.Schema.Runtime.ColorRgb",
 		ColorRGBA => "ktsu.Schema.Runtime.ColorRgba",
-		Vector2 => "System.Numerics.Vector2",
-		Vector3 => "System.Numerics.Vector3",
-		Vector4 => "System.Numerics.Vector4",
+
+		// System.Numerics vectors hold floats and nothing else, so they represent a vector of
+		// floats and only that. A vector of anything else falls through to the same object? every
+		// other type this generator cannot yet say does, rather than being emitted as a type it
+		// is not.
+		Vector2 { ElementType: Float } => "System.Numerics.Vector2",
+		Vector3 { ElementType: Float } => "System.Numerics.Vector3",
+		Vector4 { ElementType: Float } => "System.Numerics.Vector4",
 
 		Models.Types.Enum enumType => enumType.EnumName,
 		Models.Types.Object objectType => objectType.ClassName,
