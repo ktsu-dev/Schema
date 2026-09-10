@@ -72,7 +72,7 @@ public sealed class GeneratorRegistryTests
 		configuration.Language = "fake-replaced".As<LanguageName>();
 
 		Assert.AreEqual("// second", SchemaGenerator.Generate(schema, configuration).Files["fake.txt"]);
-		Assert.AreEqual(1, SchemaGenerator.SupportedLanguages.Count(l => string.Equals(l, "fake-replaced", StringComparison.OrdinalIgnoreCase)));
+		Assert.ContainsSingle(l => string.Equals(l, "fake-replaced", StringComparison.OrdinalIgnoreCase), SchemaGenerator.SupportedLanguages);
 	}
 
 	/// <summary>
