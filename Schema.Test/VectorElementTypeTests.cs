@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Tests;
 
+using System.Collections.ObjectModel;
+
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
@@ -92,9 +94,9 @@ public sealed class VectorElementTypeTests
 	[TestMethod]
 	public void ANumericComponentValidates()
 	{
-		Schema schema = BuildSchemaWithVelocity();
+		Collection<SchemaValidationIssue> issues = BuildSchemaWithVelocity().Validate();
 
-		Assert.AreEqual(0, schema.Validate().Count);
+		Assert.IsEmpty(issues, string.Join("; ", issues));
 	}
 
 	/// <summary>
