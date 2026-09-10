@@ -1,7 +1,6 @@
-## v1.20.0 (minor)
+## v1.20.1 (patch)
 
-Changes since v1.19.0:
+Changes since v1.20.0:
 
-- Assert the issue list is empty, and say what is in it when it is not ([@Claude](https://github.com/Claude))
-- Let a generator that cannot ship here register itself ([@Claude](https://github.com/Claude))
+- Assert there is exactly one, rather than counting to one ([@Claude](https://github.com/Claude))
 
