@@ -42,12 +42,12 @@ public static class SchemaSerializer
 			return;
 		}
 
-		foreach (JsonPropertyInfo property in typeInfo.Properties)
+		IEnumerable<JsonPropertyInfo> componentProperties = typeInfo.Properties
+			.Where(property => string.Equals(property.Name, "elementType", StringComparison.OrdinalIgnoreCase));
+
+		foreach (JsonPropertyInfo property in componentProperties)
 		{
-			if (string.Equals(property.Name, "elementType", StringComparison.OrdinalIgnoreCase))
-			{
-				property.ShouldSerialize = static (_, value) => value is not Types.Float;
-			}
+			property.ShouldSerialize = static (_, value) => value is not Types.Float;
 		}
 	}
 
