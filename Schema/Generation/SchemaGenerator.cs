@@ -30,6 +30,42 @@ public static class SchemaGenerator
 	public static IReadOnlyCollection<string> SupportedLanguages => [.. Generators.Keys];
 
 	/// <summary>
+	/// Adds a generator, or replaces the one already registered for its language.
+	/// </summary>
+	/// <param name="generator">The generator to register.</param>
+	/// <exception cref="ArgumentException"><paramref name="generator"/> names no language.</exception>
+	/// <remarks>
+	/// This library targets frameworks that some generators' own dependencies do not, so a generator
+	/// cannot always live beside the ones built in — the C++ generator is one, because the AST it
+	/// builds on ships no <c>net8.0</c> assembly. Registration is what lets one live in its own
+	/// project and still be found by language the way a schema names it.
+	/// <para>
+	/// Meant to be called once while a program starts, before anything generates. It is not
+	/// synchronised, and registering while another thread generates is a race the caller has to
+	/// avoid.
+	/// </para>
+	/// </remarks>
+	public static void Register(ISchemaCodeGenerator generator)
+	{
+		Ensure.NotNull(generator);
+
+		if (string.IsNullOrEmpty(generator.Language))
+		{
+			throw new ArgumentException("A generator must name the language it emits.", nameof(generator));
+		}
+
+		Generators[generator.Language] = generator;
+	}
+
+	/// <summary>
+	/// Reports whether a language has a generator registered for it.
+	/// </summary>
+	/// <param name="language">The language to look for, matched case-insensitively.</param>
+	/// <returns>True when one is registered.</returns>
+	public static bool IsRegistered(string language) =>
+		!string.IsNullOrEmpty(language) && Generators.ContainsKey(language);
+
+	/// <summary>
 	/// Generates source for one of a schema's code generators.
 	/// </summary>
 	/// <param name="schema">The schema to generate from.</param>
