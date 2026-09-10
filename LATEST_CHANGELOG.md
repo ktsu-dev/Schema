@@ -1,7 +1,7 @@
-## v1.19.0 (minor)
+## v1.20.0 (minor)
 
-Changes since v1.18.0:
+Changes since v1.19.0:
 
-- Filter the property list rather than the loop body ([@Claude](https://github.com/Claude))
-- [minor] Say what a vector is a vector of ([@Claude](https://github.com/Claude))
+- Assert the issue list is empty, and say what is in it when it is not ([@Claude](https://github.com/Claude))
+- Let a generator that cannot ship here register itself ([@Claude](https://github.com/Claude))
 
