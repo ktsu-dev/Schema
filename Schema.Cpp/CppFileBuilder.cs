@@ -66,12 +66,12 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		// a class holding one has the same layout everywhere.
 		mapper.Require("<cstdint>");
 
-		EnumDeclaration declaration = new(schemaEnum.Name.ToString()) { UnderlyingType = "std::uint8_t" };
+		EnumDeclaration declaration = new(CppNaming.Type(schemaEnum.Name.ToString(), "Enum")) { UnderlyingType = "std::uint8_t" };
 		Describe(declaration, schemaEnum.Description);
 
 		foreach (EnumValueName value in schemaEnum.Values)
 		{
-			declaration.Members.Add(new EnumMember(value.ToString()));
+			declaration.Members.Add(new EnumMember(CppNaming.Type(value.ToString(), "Enum value")));
 		}
 
 		return File(schemaEnum.Name.ToString(), mapper, declaration);
@@ -86,7 +86,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	{
 		CppTypeMapper mapper = new(schema, options);
 
-		ClassDeclaration declaration = new(schemaClass.Name.ToString()) { Kind = TypeDeclarationKind.Struct };
+		ClassDeclaration declaration = new(CppNaming.Type(schemaClass.Name.ToString(), "Class")) { Kind = TypeDeclarationKind.Struct };
 		Describe(declaration, schemaClass.Description);
 
 		foreach (SchemaMember member in schemaClass.Members)
@@ -109,7 +109,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	public SourceFile SemanticType(SchemaSemanticType semanticType)
 	{
 		CppTypeMapper mapper = new(schema, options);
-		string name = semanticType.Name.ToString();
+		string name = CppNaming.Type(semanticType.Name.ToString(), "Semantic type");
 
 		ClassDeclaration declaration = new(name);
 		Describe(declaration, semanticType.Description);
@@ -165,7 +165,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	public SourceFile Interface(SchemaInterface schemaInterface)
 	{
 		CppTypeMapper mapper = new(schema, options);
-		string name = schemaInterface.Name.ToString();
+		string name = CppNaming.Type(schemaInterface.Name.ToString(), "Interface");
 
 		ClassDeclaration declaration = new(name) { Kind = TypeDeclarationKind.Interface };
 		Describe(declaration, schemaInterface.Description);
@@ -212,7 +212,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 	private FunctionDeclaration Method(SchemaFunction function, CppTypeMapper mapper)
 	{
-		FunctionDeclaration method = new(CppNaming.Member(function.Name.ToString(), options.MemberNaming))
+		FunctionDeclaration method = new(CppNaming.Member(function.Name.ToString(), options.MemberNaming, "Function"))
 		{
 			ReturnType = mapper.Map(function.ReturnType),
 			IsAbstract = true,
@@ -230,7 +230,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		foreach (SchemaParameter parameter in function.Parameters)
 		{
-			method.Parameters.Add(new Parameter(CppNaming.Member(parameter.Name.ToString(), options.MemberNaming))
+			method.Parameters.Add(new Parameter(CppNaming.Member(parameter.Name.ToString(), options.MemberNaming, "Parameter"))
 			{
 				Type = mapper.MapParameter(parameter),
 			});
@@ -242,7 +242,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	private FieldDeclaration Field(SchemaMember member, CppTypeMapper mapper)
 	{
 		FieldDeclaration field = new(
-			CppNaming.Member(member.Name.ToString(), options.MemberNaming),
+			CppNaming.Member(member.Name.ToString(), options.MemberNaming, "Member"),
 			mapper.Map(member.Type));
 
 		foreach (string line in CppMemberDocumentation.For(member))
@@ -279,7 +279,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		}
 
 		BaseType represented = Represented(member.Type);
-		string literal = Literal(member.DefaultValue!, represented);
+		string literal = Literal(member, member.DefaultValue!, represented);
 
 		// Written verbatim rather than as a typed literal node, because a typed node would reformat
 		// it - losing the float suffix that stops a braced initialiser refusing the value for
@@ -297,10 +297,55 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	/// int and <c>1.0</c> is a double, and a braced initialiser refuses either for narrowing, which
 	/// is the whole reason to brace it. Everything else is the text the schema holds.
 	/// </remarks>
-	private static string Literal(MemberDefault value, BaseType represented) =>
-		represented is Float && value is NumberDefault number
-			? $"{number.Value.ToString("0.0###############", CultureInfo.InvariantCulture)}f"
-			: value.ToString();
+	/// <param name="member">The member the default belongs to, named if it cannot be written.</param>
+	/// <param name="value">The default.</param>
+	/// <param name="represented">What the member is stored as, once semantic types are followed.</param>
+	/// <returns>The literal.</returns>
+	private static string Literal(SchemaMember member, MemberDefault value, BaseType represented)
+	{
+		if (value is not NumberDefault number)
+		{
+			return value.ToString();
+		}
+
+		// A default is held as a double whatever the member is, and two of the values a double can
+		// hold have no C++ literal at all. <limits> has names for them, but a generated header that
+		// quietly reaches for a new include to write a default someone almost certainly did not mean
+		// is worse than being told: JSON cannot write either of these, so one can only arrive from a
+		// CLR type whose initialiser held it.
+		if (!double.IsFinite(number.Value))
+		{
+			throw new CppGenerationException(
+				$"Member '{member.Name}' defaults to {number.Value}, which C++ has no literal for. "
+				+ "Give it a finite default, or none.");
+		}
+
+		return represented is Float ? $"{FloatText(number.Value)}f" : value.ToString();
+	}
+
+	/// <summary>
+	/// Writes a number so that reading it back gives the number that was written.
+	/// </summary>
+	/// <remarks>
+	/// Round-trip rather than a fixed number of decimal places. A format with fifteen places after
+	/// the point measures from the point rather than from the first digit that matters, so it
+	/// rounds a small value to fewer significant digits than a <c>float</c> holds - 1.2345678e-12
+	/// was written as 0.0000000000012346 - and anything below about 1e-17 to zero outright, which
+	/// turns a quantisation step into no quantisation at all.
+	/// <para>
+	/// The point or the exponent then has to be there: the round-trip form of a whole number has
+	/// neither, and <c>3f</c> is not a float literal in C++ - it is an integer with a suffix no
+	/// integer takes.
+	/// </para>
+	/// </remarks>
+	/// <param name="value">The value to write.</param>
+	/// <returns>The text.</returns>
+	private static string FloatText(double value)
+	{
+		string text = value.ToString("R", CultureInfo.InvariantCulture);
+
+		return text.AsSpan().IndexOfAny('.', 'e', 'E') >= 0 ? text : $"{text}.0";
+	}
 
 	/// <summary>
 	/// Follows a semantic type down to what it is stored as, which is what decides how a literal

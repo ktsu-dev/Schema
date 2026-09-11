@@ -22,8 +22,24 @@ internal static class CppNaming
 	/// <param name="name">The name as the schema writes it.</param>
 	/// <param name="convention">The target's convention.</param>
 	/// <returns>The name as the target writes it.</returns>
-	public static string Member(string name, CppMemberNaming convention) =>
-		convention == CppMemberNaming.SnakeCase ? SnakeCase(name) : name;
+	/// <param name="kind">What the schema calls the element, for a message naming it.</param>
+	public static string Member(string name, CppMemberNaming convention, string kind) =>
+		CppKeywords.Check(
+			convention == CppMemberNaming.SnakeCase ? SnakeCase(name) : name,
+			kind,
+			name);
+
+	/// <summary>
+	/// Spells a type's name, which is the schema's own spelling.
+	/// </summary>
+	/// <param name="name">The name as the schema writes it.</param>
+	/// <param name="kind">What the schema calls the element, for a message naming it.</param>
+	/// <returns>The name as the target writes it.</returns>
+	/// <remarks>
+	/// A type keeps its name because it is the same word in both places, so the only thing to do
+	/// here is refuse the handful of words C++ will not accept as one.
+	/// </remarks>
+	public static string Type(string name, string kind) => CppKeywords.Check(name, kind, name);
 
 	/// <summary>
 	/// Turns a name written in the schema's style into <c>snake_case</c>.
