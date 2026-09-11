@@ -133,6 +133,12 @@ any type, because an error is one of a closed set of reasons. A schema that neve
 needs none; one that does is reported at the signature, which is the declaration whose meaning is
 incomplete.
 
+Whether a call changes the thing it is called on is the fifth, and the one the other four left
+out. `SchemaFunction.IsQuery` says a query answers rather than acts, held per function rather than
+globally because unlike the others it differs from one signature to the next - it is a property of
+what the call does rather than a rule the program keeps. C++ writes it as a trailing `const`. A
+query returning `Void` cannot be observed at all, which validation reports as a warning.
+
 On a `Span`, direction describes the **elements**, not the view: `In Span<Velocity>` is
 `std::span<const Velocity>` and `Out Span<Position>` is `std::span<Position>`.
 

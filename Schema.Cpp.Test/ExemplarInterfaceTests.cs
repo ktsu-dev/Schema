@@ -18,12 +18,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// carry the weight that ownership, lifetime and error annotations carry elsewhere, and each has
 /// exactly one C++ spelling. This test is what says the spelling is right.
 /// <para>
-/// Two differences from the document. It writes <c>holo::Result&lt;BodyHandle&gt;</c>, using a
-/// named alias for the handle and leaving the error type implicit; the schema spells the handle
-/// structurally and now names the error enum, so the generated return type says both. And
-/// <c>find</c> is <c>const</c> there and is not here - see
-/// <see cref="AQueryCannotYetSayItLeavesTheReceiverUnchanged"/>, which is a gap in the schema
-/// rather than in this generator.
+/// One difference from the document: it writes <c>holo::Result&lt;BodyHandle&gt;</c>, using a named
+/// alias for the handle and leaving the error type implicit. The schema spells the handle
+/// structurally and names the error enum, so the generated return type says both.
 /// </para>
 /// </remarks>
 [TestClass]
@@ -74,7 +71,7 @@ public sealed class ExemplarInterfaceTests
 		    virtual void integrate(std::span<const Velocity> velocities, std::span<Position> positions) = 0;
 
 		    /// The body for an entity, if it has one.
-		    [[nodiscard]] virtual std::optional<RigidBody> find(EntityId entity) = 0;
+		    [[nodiscard]] virtual std::optional<RigidBody> find(EntityId entity) const = 0;
 		};
 
 		}  // namespace holo
@@ -145,24 +142,24 @@ public sealed class ExemplarInterfaceTests
 	}
 
 	/// <summary>
-	/// The document writes <c>find</c> as <c>const</c>. The schema has no way to say that a call
-	/// leaves the receiver unchanged, so the generated declaration is not const.
+	/// A query leaves the receiver unchanged, which C++ spells as a trailing const - and which is
+	/// what lets a caller holding a const reference call it at all.
 	/// </summary>
 	/// <remarks>
-	/// A gap in <c>ktsu.Schema</c> rather than in this generator, and the last one §3 exposes: the
-	/// four conventions cover whether an <em>argument</em> is read-only and say nothing about the
-	/// receiver. The AST is ready for it - <c>FunctionDeclaration.IsReadOnly</c> is what emits the
-	/// trailing const - so closing it is a property on <c>SchemaFunction</c> and one line here.
-	/// This test exists so the gap is asserted rather than merely absent, and fails when it is
-	/// closed.
+	/// This was the last gap §3 exposed: the four conventions cover whether an <em>argument</em> is
+	/// read-only and said nothing about the receiver, so the document's <c>const</c> on
+	/// <c>find</c> could not be generated. <c>SchemaFunction.IsQuery</c> closed it.
 	/// </remarks>
 	[TestMethod]
-	public void AQueryCannotYetSayItLeavesTheReceiverUnchanged()
+	public void AQuerySaysItLeavesTheReceiverUnchanged()
 	{
 		string code = Generate()["IPhysicsWorld.gen.hpp"];
 
-		Assert.Contains("find(EntityId entity) = 0;", code, StringComparison.Ordinal);
-		Assert.DoesNotContain("find(EntityId entity) const", code, StringComparison.Ordinal);
+		Assert.Contains("find(EntityId entity) const = 0;", code, StringComparison.Ordinal);
+
+		// A command does not claim it: step and integrate change the world, and spawn adds to it.
+		Assert.Contains("step(Seconds dt) = 0;", code, StringComparison.Ordinal);
+		Assert.DoesNotContain("positions) const", code, StringComparison.Ordinal);
 	}
 
 	private static IReadOnlyDictionary<string, string> Generate()
@@ -228,6 +225,7 @@ public sealed class ExemplarInterfaceTests
 		SchemaFunction find = world.AddFunction("Find".As<FunctionName>())!;
 		find.Description = "The body for an entity, if it has one.".As<SchemaChildDescription>();
 		find.SetReturnType(new Optional { ElementType = Body() });
+		find.IsQuery = true;
 		find.AddParameter("entity".As<ParameterName>())!.SetType(Named("EntityId"));
 
 		return schema;
