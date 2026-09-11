@@ -16,10 +16,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The reflection vocabulary is C++ this project ships rather than generates: a template
+         parameter list and a concept are things the AST deliberately cannot say, so the file is
+         substituted rather than built. -->
+    <EmbeddedResource Include="Prelude\*.hpp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ktsu.Coder" />
     <!-- The name types a schema element carries are semantic strings, so reading one is a direct
          use of the package that declares them rather than an incidental one. -->
     <PackageReference Include="ktsu.Semantics.Strings" />
+    <!-- The dimension a reflection table carries is the unit's own, read off the registry rather
+         than restated here, which is a direct use of the package that declares units. -->
+    <PackageReference Include="ktsu.Semantics.Quantities" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" PrivateAssets="All" />
