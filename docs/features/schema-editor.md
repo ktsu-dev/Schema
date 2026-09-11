@@ -15,15 +15,15 @@ The Schema Editor provides a user-friendly way to:
 
 ### Building and Running
 
-1. Build the SchemaEditor project:
+1. Build the Schema.Editor project:
 
     ```bash
-    dotnet build SchemaEditor/SchemaEditor.csproj
+    dotnet build Schema.Editor/Schema.Editor.csproj
     ```
 
 2. Run the application:
     ```bash
-    dotnet run --project SchemaEditor
+    dotnet run --project Schema.Editor
     ```
 
 ### First Launch

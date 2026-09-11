@@ -7,11 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema", "Schema\Schema.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Test", "Schema.Test\Schema.Test.csproj", "{35FD2D0F-BDA5-40D3-892C-628CDEC14322}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaEditor", "SchemaEditor\SchemaEditor.csproj", "{F6F8D1AB-9F41-DF79-3BF3-4035BAE7FF11}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor", "Schema.Editor\Schema.Editor.csproj", "{F6F8D1AB-9F41-DF79-3BF3-4035BAE7FF11}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaTool", "SchemaTool\SchemaTool.csproj", "{1EBD8E07-A2A3-4091-8748-ECFEB1D301F0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Tool", "Schema.Tool\Schema.Tool.csproj", "{1EBD8E07-A2A3-4091-8748-ECFEB1D301F0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaEditor.Test", "SchemaEditor.Test\SchemaEditor.Test.csproj", "{31DEE39F-3542-4B65-B744-74243D28D878}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor.Test", "Schema.Editor.Test\Schema.Editor.Test.csproj", "{31DEE39F-3542-4B65-B744-74243D28D878}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Cpp", "Schema.Cpp\Schema.Cpp.csproj", "{93D1BF5F-D2C4-46C4-A783-2F6F4B7AA6B7}"
 EndProject

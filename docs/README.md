@@ -7,7 +7,7 @@ A .NET library for defining, managing, and editing data structure schemas with a
 The Schema library enables developers to:
 
 -   **Define Data Structures**: Create classes, enums, and complex types using a schema definition system
--   **Visual Editing**: Use the included SchemaEditor for graphical schema design
+-   **Visual Editing**: Use the included Schema.Editor for graphical schema design
 -   **Type Safety**: Leverage semantic string types and compile-time type checking
 -   **Serialization**: Save and load schemas as JSON with full type information
 -   **Data Sources**: Declare which data files are bound to which schema classes
@@ -62,9 +62,9 @@ if (SchemaSerializer.TryDeserialize(File.ReadAllText("user.schema.json"), out Sc
 ## Project Structure
 
 -   **[Schema](api/schema-core.md)** - Core library containing the schema definition system
--   **[SchemaEditor](features/schema-editor.md)** - Visual editor application
--   **SchemaTool** - Command line validator and code generator runner
--   **Schema.Test** / **SchemaEditor.Test** - MSTest suites for the library and the editor (see the [development guide](development/README.md))
+-   **[Schema.Editor](features/schema-editor.md)** - Visual editor application
+-   **Schema.Tool** - Command line validator and code generator runner
+-   **Schema.Test** / **Schema.Editor.Test** - MSTest suites for the library and the editor (see the [development guide](development/README.md))
 
 ## Documentation
 
@@ -83,8 +83,8 @@ This project uses the ktsu.dev ecosystem of libraries:
 -   `ktsu.Semantics.Strings` - Type-safe semantic string wrappers
 -   `ktsu.Semantics.Paths` - Type-safe file and directory path handling
 -   `ktsu.RoundTripStringJsonConverter` - JSON serialization for semantic strings
--   `ktsu.ImGui.App` / `ktsu.ImGui.Widgets` / `ktsu.ImGui.Popups` - ImGui application framework (SchemaEditor)
--   `ktsu.AppDataStorage` - Persistent settings storage (SchemaEditor)
+-   `ktsu.ImGui.App` / `ktsu.ImGui.Widgets` / `ktsu.ImGui.Popups` - ImGui application framework (Schema.Editor)
+-   `ktsu.AppDataStorage` - Persistent settings storage (Schema.Editor)
 
 ## License
 

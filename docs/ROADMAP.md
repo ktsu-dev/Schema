@@ -29,16 +29,16 @@ time. For what the library actually does, the tests in
   nested classes, `System.Numerics` vectors, and the library's colour types.
 - **Code generation** — `ISchemaCodeGenerator` plus a first-party C# generator emitting POCOs,
   enums, container mappings and XML doc comments. Generation is refused for a schema with
-  validation errors. Runnable from the editor and from `SchemaTool`.
+  validation errors. Runnable from the editor and from `Schema.Tool`.
 - **Data sources** — Relative paths resolve against the schema file's own directory, and
   `SchemaDataValidator` checks a bound data file against its class.
 - **Editor** — Tree navigation, rename with reference cascade, descriptions, member reordering,
   type and container editing, code generator configuration and a Generate action, a diagnostics
   panel with click-to-navigate, undo/redo across every edit, Save As, dirty tracking, and a
   recent-files list.
-- **CLI** — `SchemaTool` validates a schema or runs its code generators, exiting non-zero on
+- **CLI** — `Schema.Tool` validates a schema or runs its code generators, exiting non-zero on
   errors so it can gate a build.
-- **Editor tests** — `SchemaEditor.Test` drives the editor headlessly through
+- **Editor tests** — `Schema.Editor.Test` drives the editor headlessly through
   `ktsu.ImGui.App.Testing`, which rasterizes in software and injects input straight into ImGui, so
   the editor's real draw code runs on a continuous integration runner with no window or display.
 - **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL, NuGet
@@ -103,13 +103,13 @@ Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
 
 Not one of the original phases; added when the editor grew large enough to need one.
 
-`SchemaEditor.Test` ([#128](https://github.com/ktsu-dev/Schema/issues/128)) drives the editor
+`Schema.Editor.Test` ([#128](https://github.com/ktsu-dev/Schema/issues/128)) drives the editor
 headlessly. It covers the recent-files list, the commit-once text field, the unsaved-changes guard
 and the save-then-continue sequence, validation debouncing and click-to-navigate, and — by
 addressing widgets through the names the editor marks them with — the schema tree, its context
 menus, the member rows in the class panel, and the class graph.
 
-The SonarCloud coverage exclusion is now just `SchemaEditor/Program.cs`, which holds only `Main`.
+The SonarCloud coverage exclusion is now just `Schema.Editor/Program.cs`, which holds only `Main`.
 Nothing else in the editor is unmeasurable; what is left is a matter of how much each panel is
 worth testing, not of whether it can be.
 

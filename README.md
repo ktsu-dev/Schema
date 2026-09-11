@@ -20,9 +20,9 @@ The solution contains seven projects:
 - **Schema.Test** - Unit tests for the core library
 - **Schema.Cpp** - The C++ generator, published separately as [`ktsu.Schema.Cpp`](https://nuget.org/packages/ktsu.Schema.Cpp)
 - **Schema.Cpp.Test** - Its tests, including acceptance tests against a real target's document
-- **SchemaEditor** - ImGui-based desktop application for visual schema editing
-- **SchemaEditor.Test** - Headless UI tests that drive the editor with no window or display
-- **SchemaTool** - Command line entry point for validating schemas and running their code generators
+- **Schema.Editor** - ImGui-based desktop application for visual schema editing
+- **Schema.Editor.Test** - Headless UI tests that drive the editor with no window or display
+- **Schema.Tool** - Command line entry point for validating schemas and running their code generators
 
 `Schema.Cpp` is a separate package rather than part of the library because the AST it builds on
 publishes no `net8.0` assembly and this library does. Defining and reading a schema stays available
@@ -231,12 +231,12 @@ Use `SchemaSerializer` for JSON serialization with `System.Text.Json`. The seria
 
 ## Schema Editor
 
-The **SchemaEditor** is an ImGui-based desktop application for visually creating and editing `.schema.json` files.
+The **Schema.Editor** is an ImGui-based desktop application for visually creating and editing `.schema.json` files.
 
 ### Running the Editor
 
 ```shell
-dotnet run --project SchemaEditor
+dotnet run --project Schema.Editor
 ```
 
 ### Features

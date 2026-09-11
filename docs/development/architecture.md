@@ -34,7 +34,7 @@ This document provides a high-level overview of the Schema library architecture,
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Schema.Test   │    │  SchemaEditor   │    │  Client Apps    │
+│   Schema.Test   │    │ Schema.Editor   │    │  Client Apps    │
 │   (Unit Tests)  │    │  (ImGui App)    │    │  (Consumers)    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │

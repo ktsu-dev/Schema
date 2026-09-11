@@ -40,7 +40,7 @@ using ktsu.Schema.Generation;
 SchemaGenerator.Register(new CppCodeGenerator());
 ```
 
-A schema names the language as `cpp` in its code generator element; `Register` is how that name finds this implementation. `SchemaTool/Program.cs` in the repository is the worked example of a host doing it.
+A schema names the language as `cpp` in its code generator element; `Register` is how that name finds this implementation. `Schema.Tool/Program.cs` in the repository is the worked example of a host doing it.
 
 ## Telling the generator what your program already has
 
