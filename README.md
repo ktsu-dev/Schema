@@ -14,13 +14,20 @@ A C# library for defining, managing, and editing data structure schemas with a r
 
 **ktsu.Schema** lets you define structured data models programmatically or visually, then serialize them to `.schema.json` files (documented in the [schema file format reference](docs/schema-format.md)). It provides a foundation for code generation, data validation, and tooling that needs to understand your data structures at a metadata level.
 
-The solution contains five projects:
+The solution contains seven projects:
 
 - **Schema** - Core library with schema definition types, a rich type system, and JSON serialization
 - **Schema.Test** - Unit tests for the core library
+- **Schema.Cpp** - The C++ generator, published separately as [`ktsu.Schema.Cpp`](https://nuget.org/packages/ktsu.Schema.Cpp)
+- **Schema.Cpp.Test** - Its tests, including acceptance tests against a real target's document
 - **SchemaEditor** - ImGui-based desktop application for visual schema editing
 - **SchemaEditor.Test** - Headless UI tests that drive the editor with no window or display
 - **SchemaTool** - Command line entry point for validating schemas and running their code generators
+
+`Schema.Cpp` is a separate package rather than part of the library because the AST it builds on
+publishes no `net8.0` assembly and this library does. Defining and reading a schema stays available
+to `net8.0`; only generating C++ from one does not. See
+[Schema.Cpp/README.md](Schema.Cpp/README.md).
 
 ## Installation
 
