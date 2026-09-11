@@ -220,6 +220,10 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			// Ignoring a value that may be a failure, or a value that was the only reason to call,
 			// is a mistake worth a diagnostic rather than a convention nobody reads.
 			MustUseResult = function.ReturnType is not SchemaTypes.Void,
+
+			// A query leaves the receiver unchanged, which C++ spells as a trailing const. It is
+			// what lets a caller holding a const reference call it at all.
+			IsReadOnly = function.IsQuery,
 		};
 
 		Describe(method, function.Description);

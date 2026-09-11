@@ -45,6 +45,30 @@ public class SchemaFunction : SchemaInterfaceChild<FunctionName>
 	public BaseType ReturnType { get; private set; } = new Void();
 
 	/// <summary>
+	/// Gets or sets a value indicating whether calling this leaves the thing it is called on
+	/// unchanged.
+	/// </summary>
+	/// <remarks>
+	/// The fifth convention, and the one the other four left out. They say whether a call can
+	/// fail, whether the callee may keep an argument, who frees what, and whether an
+	/// <em>argument</em> is read-only - and nothing about the receiver. So a schema could describe
+	/// an interface whose every method might change the world, and a generator had no way to say
+	/// otherwise.
+	/// <para>
+	/// A query answers; a command acts. Held per function rather than globally, because unlike the
+	/// other four this genuinely differs from one signature to the next - it is a property of what
+	/// the call does rather than a rule the program keeps.
+	/// </para>
+	/// <para>
+	/// False by default and omitted from the file when it is, so every function a schema already
+	/// declares goes on generating exactly as it did. A generated declaration says it in whatever
+	/// way its language can: C++ writes a trailing <c>const</c>.
+	/// </para>
+	/// </remarks>
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+	public bool IsQuery { get; set; }
+
+	/// <summary>
 	/// Sets the type the function returns.
 	/// </summary>
 	/// <param name="type">The return type to set.</param>

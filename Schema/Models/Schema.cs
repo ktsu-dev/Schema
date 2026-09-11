@@ -49,8 +49,13 @@ public partial class Schema : ISchema
 	/// a type that quietly stopped promising its layout, or a fallible call with nothing to say
 	/// when it fails.
 	/// </para>
+	/// <para>
+	/// Version 6 let a function say a call leaves the receiver unchanged. Additive and omitted
+	/// when false, and the version moves for the reason the others did: a version 5 reader would
+	/// drop it and generate a signature that promises less than the schema does.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 5;
+	public const int CurrentFormatVersion = 6;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.

@@ -559,6 +559,7 @@ public partial class Schema
 	{
 		ValidateNameNotEmpty(issues, function.Name, "Function", path, function);
 		ValidateReturnType(issues, function, path);
+		ValidateQueryAnswers(issues, function, path);
 
 		ReportDuplicates(
 			issues,
@@ -568,6 +569,29 @@ public partial class Schema
 		foreach (SchemaParameter parameter in function.Parameters)
 		{
 			ValidateParameter(issues, parameter, $"{path}({PathSegment(parameter.Name)})", function);
+		}
+	}
+
+	/// <summary>
+	/// A query answers. One that returns nothing changes nothing and says nothing, so calling it
+	/// cannot be observed at all.
+	/// </summary>
+	/// <remarks>
+	/// A warning rather than an error, because it is a signature someone is part way through
+	/// writing as often as it is one they meant - the return type is usually the half that is
+	/// missing. <c>Result&lt;Void&gt;</c> is exempt: it answers whether the call succeeded, which
+	/// is something.
+	/// </remarks>
+	private static void ValidateQueryAnswers(Collection<SchemaValidationIssue> issues, SchemaFunction function, string path)
+	{
+		if (function.IsQuery && function.ReturnType is Types.Void)
+		{
+			Report(
+				issues,
+				path,
+				function,
+				$"Function '{function.Name}' is a query but returns nothing, so calling it cannot be observed. Give it a return type, or let it be a command.",
+				SchemaValidationSeverity.Warning);
 		}
 	}
 

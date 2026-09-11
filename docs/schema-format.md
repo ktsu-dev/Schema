@@ -12,7 +12,7 @@ lose information.
 
 ```json
 {
-  "formatVersion": 5,
+  "formatVersion": 6,
   "classes": [],
   "enums": [],
   "semanticTypes": [],
@@ -262,6 +262,7 @@ fact every signature restates:
 | May the callee keep this? | [`Handle`](#handle) yes, [`Span`](#span) no. | an ownership annotation |
 | Who frees it? | Nobody: a handle is an identifier, a span is a borrow. | a lifetime annotation |
 | Is this argument read-only? | `direction`. | `const` |
+| Does the call change the receiver? | [`isQuery`](#isquery---a-call-that-answers-rather-than-acts). | `const` written by hand |
 
 This is deliberate. Every interface language that let signatures answer these individually grew
 annotations until it was a worse version of the language it described. Making them global
@@ -317,8 +318,28 @@ between runs produces a diff nobody can review.
 | --- | --- | --- |
 | `parameters` | array of [parameter](#parameter) | The parameters, **in declaration order**. Order is the signature. |
 | `returnType` | [type](#types) | What the function returns. `Void` for nothing; never `None`. |
+| `isQuery` | bool | Whether calling it leaves the receiver unchanged. Omitted when false. See below. |
 | `name` | string | The function name, unique within its interface. |
 | `description` | string | Free text. |
+
+### `isQuery` - a call that answers rather than acts
+
+```json
+{ "returnType": { "TypeName": "Optional", "elementType": { "TypeName": "Object", "className": "RigidBody" } }, "isQuery": true, "name": "Find" }
+```
+
+A query answers; a command acts. This is the fifth convention and the one the other four left out:
+they say whether a call can fail, whether the callee may keep an argument, who frees what, and
+whether an *argument* is read-only — and nothing about the receiver.
+
+Held per function rather than globally, because unlike the other four it genuinely differs from one
+signature to the next: it is a property of what the call does rather than a rule the program keeps.
+A generated declaration says it in whatever way its language can; C++ writes a trailing `const`.
+
+A query that returns `Void` changes nothing and answers nothing, so calling it cannot be observed.
+Validation reports that as a **warning** rather than an error, because it is as often a signature
+someone is part way through writing as one they meant. `Result<Void>` is exempt: it answers whether
+the call succeeded.
 
 **There is no overloading.** A name identifies a function within its interface. Two functions
 differing only in their parameters are one name in some target languages and two in others, so the
@@ -617,6 +638,7 @@ needs to know about.
 | `3` | Interfaces and semantic types | The root gains `interfaces` and `semanticTypes`, and the type vocabulary gains `Void`, `Interface`, `Semantic`, `Span`, `Handle`, `Result` and `Optional`. Additive: a version 2 file loads as a schema with neither. |
 | `4` | Vector component types | `Vector2`, `Vector3` and `Vector4` gain an `elementType`. Omitted when it is `Float`, so a file whose vectors are vectors of floats is unchanged. |
 | `5` | Layout promises and the error type | A class may declare that it `travelsAsBytes`, and the root may name the `errorType` a failed `Result` carries. Additive; the class flag is omitted when false. |
+| `6` | Query functions | A function may declare `isQuery`, saying a call leaves the receiver unchanged. Omitted when false. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
