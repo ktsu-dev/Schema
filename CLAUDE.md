@@ -102,13 +102,18 @@ because a use is often where a unit or range is decided; a semantic type carries
 some values those facts belong to the type (`Metres` is metres everywhere). The rules are identical
 either way, so validation reads the interface rather than each carrier growing its own copy.
 
-**One asymmetry in that is a bug rather than a design.** `ValidateMetadata` is handed `member.Type`
-raw, and `Semantic` is not `IsNumeric`, so a member typed `Semantic(Kilograms)` is told that a unit,
-a range and a default are all "meaningless" on it - while the *semantic type* is validated against
-its resolved `Representation()` and accepts all three. A semantic type over a `Float` is a number,
-and the model currently says it is not. The fix is to resolve a `Semantic` to its representation for
-metadata purposes, which is also what lets a unit live on the type (stated once) while the bounds
-and default stay on the member (facts about that field, not about kilograms).
+Both sides read the **representation** rather than the declared type, through `Represented` in
+`Schema.Validation.cs`. A semantic type is a distinct name for something already representable, so
+a member typed `Semantic(Kilograms)` over a `Float` holds a number and a unit, a range and a default
+are as meaningful on it as on the bare `Float`. This is what lets a unit live on the type, stated
+once, while the bounds and the default stay on the member, where they are facts about that field
+rather than about kilograms.
+
+A chain that reaches nothing real - a name that does not resolve, or a refinement cycle - leaves
+`Represented` returning the `Semantic` it was given, and every caller treats that as "already
+reported elsewhere" rather than walking further. That is what keeps a cycle a reported error instead
+of a recursion with no bottom, and it is why an unresolved semantic type is one message rather than
+one per property hanging off it.
 
 ### What a class promises about its representation
 

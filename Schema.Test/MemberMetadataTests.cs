@@ -410,4 +410,139 @@ public class MemberMetadataTests
 		Assert.AreEqual(Interpolation.None, member.Interpolation);
 		Assert.AreEqual(0, Errors(schema).Count);
 	}
+
+	// ------------------------------------------- metadata through a semantic type
+
+	/// <summary>
+	/// Declares a semantic type over <paramref name="underlying"/> and a member of it.
+	/// </summary>
+	private static SchemaMember MemberOfSemanticType(string name, SchemaTypes.BaseType underlying, out Schema schema)
+	{
+		Schema built = new();
+		built.AddSemanticType(name.As<SemanticTypeName>())!.SetUnderlyingType(underlying);
+
+		SchemaClass owner = built.AddClass("Body".As<ClassName>())!;
+		SchemaMember member = owner.AddMember("Value".As<MemberName>())!;
+		member.SetType(new SchemaTypes.Semantic { SemanticTypeName = name.As<SemanticTypeName>() });
+
+		schema = built;
+		return member;
+	}
+
+	/// <summary>
+	/// The case the whole fix is about, and the one Holotype's target document specifies: a mass
+	/// in kilograms, bounded, with a default.
+	/// </summary>
+	/// <remarks>
+	/// A semantic type over a <c>Float</c> is a number. Before this, all three of these were
+	/// reported "meaningless on a Semantic member" - while the identical metadata on
+	/// <c>Kilograms</c> itself was accepted, because semantic types were already validated
+	/// against their representation.
+	/// </remarks>
+	[TestMethod]
+	public void MetadataOnASemanticMemberIsJudgedByItsRepresentation()
+	{
+		SchemaMember member = MemberOfSemanticType("Kilograms", new SchemaTypes.Float(), out Schema schema);
+		member.Unit = "kg".As<UnitSymbol>();
+		member.Range = new MemberRange { Minimum = 0.001, Maximum = 1000000 };
+		member.DefaultValue = new NumberDefault { Value = 1.0 };
+		member.Interpolation = Interpolation.Linear;
+		member.Network = new MemberNetwork { Quantise = 0.01, Delta = true };
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(0, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+	}
+
+	/// <summary>
+	/// A semantic type over a vector is still a vector, which is the shape a dimensional 3D
+	/// value takes: <c>Semantic("Velocity3D")</c> rather than a <c>Vector3</c> of a speed.
+	/// </summary>
+	[TestMethod]
+	public void MetadataIsJudgedThroughASemanticTypeOverAVector()
+	{
+		SchemaMember member = MemberOfSemanticType(
+			"Velocity3D",
+			new SchemaTypes.Vector3 { ElementType = new SchemaTypes.Float() },
+			out Schema schema);
+		member.Unit = "m/s".As<UnitSymbol>();
+		member.Interpolation = Interpolation.Linear;
+		member.Network = new MemberNetwork { Quantise = 0.01, Delta = true };
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(0, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+	}
+
+	/// <summary>
+	/// Resolution follows the whole chain, not just the first link.
+	/// </summary>
+	[TestMethod]
+	public void MetadataIsJudgedThroughAChainOfRefinement()
+	{
+		Schema schema = new();
+		schema.AddSemanticType("ForceMagnitude".As<SemanticTypeName>())!.SetUnderlyingType(new SchemaTypes.Float());
+		schema.AddSemanticType("Weight".As<SemanticTypeName>())!
+			.SetUnderlyingType(new SchemaTypes.Semantic { SemanticTypeName = "ForceMagnitude".As<SemanticTypeName>() });
+
+		SchemaClass owner = schema.AddClass("Body".As<ClassName>())!;
+		SchemaMember member = owner.AddMember("Value".As<MemberName>())!;
+		member.SetType(new SchemaTypes.Semantic { SemanticTypeName = "Weight".As<SemanticTypeName>() });
+		member.Unit = "N".As<UnitSymbol>();
+		member.Range = new MemberRange { Minimum = 0, Maximum = 1000 };
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(0, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+	}
+
+	/// <summary>
+	/// Resolving is not the same as permitting: a semantic type over something with no magnitude
+	/// still cannot carry a unit, and the message names the representation, which is the fact
+	/// that decides it.
+	/// </summary>
+	[TestMethod]
+	public void ASemanticTypeOverAStringStillCannotCarryAUnit()
+	{
+		SchemaMember member = MemberOfSemanticType("PlayerName", new SchemaTypes.String(), out Schema schema);
+		member.Unit = "kg".As<UnitSymbol>();
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(1, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+		AssertMentions(errors, "String");
+	}
+
+	/// <summary>
+	/// A default still has to be of the representation's kind.
+	/// </summary>
+	[TestMethod]
+	public void AWholeNumberIsStillRequiredThroughASemanticTypeOverAnInt()
+	{
+		SchemaMember member = MemberOfSemanticType("EntityId", new SchemaTypes.Int(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1.5 };
+
+		AssertMentions(Errors(schema), "not a whole number");
+	}
+
+	/// <summary>
+	/// A name that does not resolve is one mistake, so it gets one message rather than one for
+	/// the reference and another for every property hanging off it.
+	/// </summary>
+	[TestMethod]
+	public void AnUnresolvedSemanticTypeIsReportedOnceRatherThanPerProperty()
+	{
+		Schema schema = new();
+		SchemaClass owner = schema.AddClass("Body".As<ClassName>())!;
+		SchemaMember member = owner.AddMember("Value".As<MemberName>())!;
+		member.SetType(new SchemaTypes.Semantic { SemanticTypeName = "Nowhere".As<SemanticTypeName>() });
+		member.Unit = "kg".As<UnitSymbol>();
+		member.Range = new MemberRange { Minimum = 0, Maximum = 1 };
+		member.DefaultValue = new NumberDefault { Value = 0.5 };
+
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+
+		Assert.AreEqual(1, errors.Count, string.Join(" | ", errors.Select(issue => issue.Message)));
+		AssertMentions(errors, "does not declare");
+	}
 }
