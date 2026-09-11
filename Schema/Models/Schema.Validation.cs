@@ -215,15 +215,53 @@ public partial class Schema
 	/// only wrong in combination — a default is out of range only relative to a range, a wrap
 	/// flag means nothing without one — and a schema being edited passes through inconsistent
 	/// states that it would be unhelpful to reject one keystroke at a time.
+	/// <para>
+	/// Every check below reads the <em>representation</em> rather than the declared type. A
+	/// member typed <c>Semantic(Kilograms)</c> over a <c>Float</c> holds a number, so a unit, a
+	/// range and a default are exactly as meaningful on it as on the bare <c>Float</c> — and the
+	/// same metadata on <c>Kilograms</c> itself was already accepted, because
+	/// <see cref="ValidateSemanticTypes"/> resolved before it asked. Judging the declared type
+	/// here made a member disagree with its own type about what could be said of it.
+	/// </para>
 	/// </remarks>
 	private static void ValidateMetadata(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
-		ValidateMemberUnit(issues, carrier, type, path, element, kind);
-		ValidateMemberRange(issues, carrier, type, path, element, kind);
-		ValidateMemberDefault(issues, carrier, type, path, element, kind);
-		ValidateMemberInterpolation(issues, carrier, type, path, element);
-		ValidateMemberNetwork(issues, carrier, type, path, element);
+		BaseType represented = Represented(type);
+
+		// A chain that never reached anything real - a name that does not resolve, or a cycle -
+		// is already reported by ValidateSemanticReference and ValidateUnderlyingType. Refusing
+		// its metadata as well would be two messages for one mistake, and there is nothing left
+		// to judge the metadata against anyway.
+		if (represented is Semantic)
+		{
+			return;
+		}
+
+		ValidateMemberUnit(issues, carrier, represented, path, element, kind);
+		ValidateMemberRange(issues, carrier, represented, path, element, kind);
+		ValidateMemberDefault(issues, carrier, represented, path, element, kind);
+		ValidateMemberInterpolation(issues, carrier, represented, path, element);
+		ValidateMemberNetwork(issues, carrier, represented, path, element);
 	}
+
+	/// <summary>
+	/// The type a value is ultimately represented as, following a semantic type down to it.
+	/// </summary>
+	/// <remarks>
+	/// A semantic type is a distinct name for something already representable, so what can be
+	/// said about its values is what can be said about the representation. Everything that reads
+	/// a type to decide what a value *is* rather than what it is *called* asks this first.
+	/// </remarks>
+	/// <param name="type">The declared type.</param>
+	/// <returns>
+	/// The representation, or the <see cref="Semantic"/> itself when the chain never reached
+	/// anything real. Callers treat that as "already reported elsewhere" rather than recursing:
+	/// it is what keeps a refinement cycle a reported error and not a walk with no bottom.
+	/// </returns>
+	private static BaseType Represented(BaseType type) =>
+		type is Semantic { Declaration: SchemaSemanticType declaration }
+			? declaration.Representation()
+			: type;
 
 	/// <summary>
 	/// A unit has to resolve, and has to be on something that can carry one.
@@ -772,13 +810,11 @@ public partial class Schema
 			return;
 		}
 
-		BaseType component = vectorType.ElementType is Semantic semantic && semantic.Declaration is SchemaSemanticType declaration
-			? declaration.Representation()
-			: vectorType.ElementType;
+		BaseType component = Represented(vectorType.ElementType);
 
 		// An unresolved reference is already reported above; saying the components are not
 		// numbers as well would be two issues for one mistake.
-		if (vectorType.ElementType is Semantic && component is Semantic)
+		if (component is Semantic)
 		{
 			return;
 		}

@@ -42,6 +42,14 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// rather than anything the schema or the AST decides - Holotype's own <c>.clang-format</c>
 /// converts it on the way past.
 /// </para>
+/// <para>
+/// <b>The heading's unit is written <c>Radian</c> where the document writes <c>rad</c></b>, and
+/// this one is the document being wrong rather than a difference of spelling. <c>rad</c> is the
+/// symbol of both <c>Rad</c>, an absorbed radiation dose, and <c>Radian</c>; <c>UnitRegistry</c>
+/// refuses an ambiguous symbol rather than picking one, so a schema written the document's way
+/// does not validate. <c>UnitRegistry.PreferredText</c> answers <c>Radian</c> here, which is what
+/// a picker would write, and what the generated comment therefore carries.
+/// </para>
 /// </remarks>
 [TestClass]
 public sealed class ExemplarComponentTests
@@ -80,7 +88,7 @@ public sealed class ExemplarComponentTests
 		    /// range: [0.001, 1000000]
 		    holo::Kilograms mass = holo::Kilograms{ 1.0f };
 
-		    /// unit: rad
+		    /// unit: Radian
 		    /// range: [0, 6.2831853] (wraps)
 		    /// network: quantised to 0.001
 		    /// editor: dial
@@ -183,6 +191,25 @@ public sealed class ExemplarComponentTests
 		Assert.DoesNotContain("<type_traits>", code, StringComparison.Ordinal);
 	}
 
+	/// <summary>
+	/// The schema this document specifies is a schema someone could actually write.
+	/// </summary>
+	/// <remarks>
+	/// It was not, until recently, and nothing here noticed: validation judged a member by its
+	/// declared type, so <c>Mass</c> - a <c>Semantic</c> over a <c>Float</c> - was told its unit,
+	/// its range and its default were all meaningless on it. The generator emitted the header
+	/// regardless, so the acceptance test passed while specifying something the model refused.
+	/// Asserting it here is what stops that being true again.
+	/// </remarks>
+	[TestMethod]
+	public void TheExemplarIsAValidSchema()
+	{
+		IEnumerable<SchemaValidationIssue> errors = ExemplarSchema().Validate()
+			.Where(issue => issue.Severity == SchemaValidationSeverity.Error);
+
+		Assert.IsEmpty(errors, string.Join(" | ", errors.Select(issue => $"{issue.Path}: {issue.Message}")));
+	}
+
 	private static void AssertGenerated(string file, string expected) =>
 		Assert.AreEqual(
 			expected.ReplaceLineEndings("\n").TrimEnd(),
@@ -257,7 +284,7 @@ public sealed class ExemplarComponentTests
 
 		SchemaMember heading = rigidBody.AddMember("Heading".As<MemberName>())!;
 		heading.SetType(Named("Radians"));
-		heading.Unit = "rad".As<UnitSymbol>();
+		heading.Unit = "Radian".As<UnitSymbol>();
 		heading.Range = new MemberRange { Minimum = 0, Maximum = 6.2831853, Wrap = true };
 		heading.Network = new MemberNetwork { Quantise = 0.001 };
 		heading.Editor = "dial".As<EditorHint>();
