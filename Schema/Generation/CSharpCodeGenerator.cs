@@ -364,9 +364,17 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	/// <param name="value">The value.</param>
 	/// <returns>The member's name.</returns>
-	private static string NonFinite(double value) =>
-		double.IsNaN(value) ? "NaN"
-		: double.IsPositiveInfinity(value) ? "PositiveInfinity"
-		: "NegativeInfinity";
+	/// <remarks>
+	/// Guards rather than the constant patterns this would otherwise read as, because a pattern
+	/// matches by equality and <see cref="double.NaN"/> is not equal to itself - so <c>double.NaN
+	/// =&gt; "NaN"</c> is an arm that can never be taken, and the one value most likely to reach
+	/// here would fall through to the last one.
+	/// </remarks>
+	private static string NonFinite(double value) => value switch
+	{
+		_ when double.IsNaN(value) => "NaN",
+		_ when double.IsPositiveInfinity(value) => "PositiveInfinity",
+		_ => "NegativeInfinity",
+	};
 
 }
