@@ -778,8 +778,8 @@ From the editor, select a code generator and press **Generate**.
 From the command line:
 
 ```shell
-dotnet run --project SchemaTool -- generate path/to/game.schema.json
-dotnet run --project SchemaTool -- validate path/to/game.schema.json
+dotnet run --project Schema.Tool -- generate path/to/game.schema.json
+dotnet run --project Schema.Tool -- validate path/to/game.schema.json
 ```
 
 `validate` exits non-zero when the schema has errors, so it can gate a build. Warnings do not fail

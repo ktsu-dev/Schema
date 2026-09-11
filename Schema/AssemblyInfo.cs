@@ -5,4 +5,4 @@
 // projects, and there are two of them now; which of the two a given project actually needs is not
 // what the rule is checking.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Test")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.SchemaEditor.Test")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.Test")]

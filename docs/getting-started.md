@@ -161,9 +161,9 @@ if (dataSource != null)
 
 ## Using the Schema Editor
 
-For a visual editing experience, you can use the SchemaEditor application:
+For a visual editing experience, you can use the Schema.Editor application:
 
-1. Build the SchemaEditor project
+1. Build the Schema.Editor project
 2. Run the executable
 3. Open your `.schema.json` file
 4. Edit your schema using the visual interface

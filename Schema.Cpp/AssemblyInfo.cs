@@ -4,5 +4,5 @@
 // KTSU0002 asks a non-test project to expose its internals to the repository's test projects
 // rather than to the one that happens to need them.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Test")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.SchemaEditor.Test")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.Test")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Cpp.Test")]

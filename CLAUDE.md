@@ -10,9 +10,9 @@ Schema is a C# library for defining and managing data structure schemas. It cons
 - **Schema.Test** - MSTest unit tests for the core library
 - **Schema.Cpp** - The C++ generator, in its own project because `ktsu.Coder` ships no `net8.0`
 - **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document
-- **SchemaEditor** - ImGui-based visual editor application for creating and editing `.schema.json` files
-- **SchemaEditor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
-- **SchemaTool** - Command line entry point for validating schemas and running their code generators
+- **Schema.Editor** - ImGui-based visual editor application for creating and editing `.schema.json` files
+- **Schema.Editor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
+- **Schema.Tool** - Command line entry point for validating schemas and running their code generators
 
 ## Build Commands
 
@@ -20,8 +20,8 @@ Schema is a C# library for defining and managing data structure schemas. It cons
 dotnet build              # Build entire solution
 dotnet test               # Run all tests
 dotnet test --filter "FullyQualifiedName~TestName"  # Run specific test
-dotnet run --project SchemaEditor  # Launch the visual editor
-dotnet run --project SchemaTool -- generate my.schema.json  # Run a schema's code generators
+dotnet run --project Schema.Editor  # Launch the visual editor
+dotnet run --project Schema.Tool -- generate my.schema.json  # Run a schema's code generators
 ```
 
 ## Architecture
@@ -153,7 +153,7 @@ every question about how C++ is spelled. Nothing in `Schema.Cpp` writes a brace.
 
 It lives outside the core library because it cannot ship there: this library publishes `net8.0` and
 `ktsu.Coder` does not, which is the whole reason `SchemaGenerator.Register` exists.
-`SchemaTool/Program.cs` is the worked example of a host registering it.
+`Schema.Tool/Program.cs` is the worked example of a host registering it.
 
 `CppGeneratorOptions` is what a target says that its schema cannot. Almost everything comes from the
 schema - a unit is a semantic type and the generator emits the class, a class is a struct, and the
@@ -221,14 +221,14 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `Schema/Models/ClrTypeImporter.cs` - Reads a .NET type into a schema; the exact inverse of the C# generator
 - `Schema/Runtime/SchemaMetadataAttributes.cs` - What generated code carries that its C# types cannot say
-- `SchemaEditor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
-- `SchemaEditor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
-- `SchemaEditor/MemberSemanticsPanel.cs` - The metadata behind a member's fold, and the only place that decides what a picker writes for a unit
-- `SchemaEditor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
-- `SchemaEditor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
-- `SchemaEditor/Program.cs` - The entry point, and the only file excluded from coverage measurement
-- `SchemaEditor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
-- `SchemaEditor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
+- `Schema.Editor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
+- `Schema.Editor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
+- `Schema.Editor/MemberSemanticsPanel.cs` - The metadata behind a member's fold, and the only place that decides what a picker writes for a unit
+- `Schema.Editor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
+- `Schema.Editor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
+- `Schema.Editor/Program.cs` - The entry point, and the only file excluded from coverage measurement
+- `Schema.Editor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
+- `Schema.Editor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
 
 ### Addressing the editor from a test
 
