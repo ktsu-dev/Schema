@@ -66,12 +66,12 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		// a class holding one has the same layout everywhere.
 		mapper.Require("<cstdint>");
 
-		EnumDeclaration declaration = new(schemaEnum.Name.ToString()) { UnderlyingType = "std::uint8_t" };
+		EnumDeclaration declaration = new(CppNaming.Type(schemaEnum.Name.ToString(), "Enum")) { UnderlyingType = "std::uint8_t" };
 		Describe(declaration, schemaEnum.Description);
 
 		foreach (EnumValueName value in schemaEnum.Values)
 		{
-			declaration.Members.Add(new EnumMember(value.ToString()));
+			declaration.Members.Add(new EnumMember(CppNaming.Type(value.ToString(), "Enum value")));
 		}
 
 		return File(schemaEnum.Name.ToString(), mapper, declaration);
@@ -86,7 +86,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	{
 		CppTypeMapper mapper = new(schema, options);
 
-		ClassDeclaration declaration = new(schemaClass.Name.ToString()) { Kind = TypeDeclarationKind.Struct };
+		ClassDeclaration declaration = new(CppNaming.Type(schemaClass.Name.ToString(), "Class")) { Kind = TypeDeclarationKind.Struct };
 		Describe(declaration, schemaClass.Description);
 
 		foreach (SchemaMember member in schemaClass.Members)
@@ -109,7 +109,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	public SourceFile SemanticType(SchemaSemanticType semanticType)
 	{
 		CppTypeMapper mapper = new(schema, options);
-		string name = semanticType.Name.ToString();
+		string name = CppNaming.Type(semanticType.Name.ToString(), "Semantic type");
 
 		ClassDeclaration declaration = new(name);
 		Describe(declaration, semanticType.Description);
@@ -165,7 +165,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	public SourceFile Interface(SchemaInterface schemaInterface)
 	{
 		CppTypeMapper mapper = new(schema, options);
-		string name = schemaInterface.Name.ToString();
+		string name = CppNaming.Type(schemaInterface.Name.ToString(), "Interface");
 
 		ClassDeclaration declaration = new(name) { Kind = TypeDeclarationKind.Interface };
 		Describe(declaration, schemaInterface.Description);
@@ -212,7 +212,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 	private FunctionDeclaration Method(SchemaFunction function, CppTypeMapper mapper)
 	{
-		FunctionDeclaration method = new(CppNaming.Member(function.Name.ToString(), options.MemberNaming))
+		FunctionDeclaration method = new(CppNaming.Member(function.Name.ToString(), options.MemberNaming, "Function"))
 		{
 			ReturnType = mapper.Map(function.ReturnType),
 			IsAbstract = true,
@@ -230,7 +230,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		foreach (SchemaParameter parameter in function.Parameters)
 		{
-			method.Parameters.Add(new Parameter(CppNaming.Member(parameter.Name.ToString(), options.MemberNaming))
+			method.Parameters.Add(new Parameter(CppNaming.Member(parameter.Name.ToString(), options.MemberNaming, "Parameter"))
 			{
 				Type = mapper.MapParameter(parameter),
 			});
@@ -242,7 +242,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	private FieldDeclaration Field(SchemaMember member, CppTypeMapper mapper)
 	{
 		FieldDeclaration field = new(
-			CppNaming.Member(member.Name.ToString(), options.MemberNaming),
+			CppNaming.Member(member.Name.ToString(), options.MemberNaming, "Member"),
 			mapper.Map(member.Type));
 
 		foreach (string line in CppMemberDocumentation.For(member))

@@ -56,12 +56,12 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		WriteHeader(code, codeNamespace);
 
 		WriteDocComment(code, schemaEnum.Description);
-		code.WriteLine($"public enum {schemaEnum.Name}");
+		code.WriteLine($"public enum {CSharpKeywords.Identifier(schemaEnum.Name)}");
 		using (new Scope(code))
 		{
 			foreach (EnumValueName value in schemaEnum.Values)
 			{
-				code.WriteLine($"{value},");
+				code.WriteLine($"{CSharpKeywords.Identifier(value)},");
 			}
 		}
 
@@ -80,7 +80,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			code.WriteLine("[ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
 		}
 
-		code.WriteLine($"public class {schemaClass.Name}");
+		code.WriteLine($"public class {CSharpKeywords.Identifier(schemaClass.Name)}");
 		using (new Scope(code))
 		{
 			bool first = true;
@@ -96,7 +96,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 				WriteDocComment(code, member.Description);
 				WriteSchemaKeyAttribute(code, member.Type);
 				WriteMetadataAttributes(code, member);
-				code.WriteLine($"public {MapType(member.Type)} {member.Name} {{ get; set; }}{InitialiserFor(member)}");
+				code.WriteLine($"public {MapType(member.Type)} {CSharpKeywords.Identifier(member.Name)} {{ get; set; }}{InitialiserFor(member)}");
 			}
 		}
 
@@ -271,8 +271,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		Vector3 { ElementType: Float } => "System.Numerics.Vector3",
 		Vector4 { ElementType: Float } => "System.Numerics.Vector4",
 
-		Models.Types.Enum enumType => enumType.EnumName,
-		Models.Types.Object objectType => objectType.ClassName,
+		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
+		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
 		Models.Types.Array arrayType => MapArray(arrayType),
 
 		// A member left as None is reported by validation as a warning, not an error, so
@@ -325,7 +325,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		{
 			Models.Types.String => " = string.Empty;",
 			Models.Types.Array arrayType => $" = new {MapArray(arrayType)}();",
-			Models.Types.Object objectType => $" = new {objectType.ClassName}();",
+			Models.Types.Object objectType => $" = new {CSharpKeywords.Identifier(objectType.ClassName)}();",
 			_ => string.Empty,
 		};
 
@@ -342,12 +342,31 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	{
 		(NumberDefault number, Int) => $" = {(long)number.Value};",
 		(NumberDefault number, Long) => $" = {(long)number.Value}L;",
+		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $" = float.{NonFinite(number.Value)};",
+		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $" = double.{NonFinite(number.Value)};",
 		(NumberDefault number, Float) => $" = {number.Value.ToString("R", CultureInfo.InvariantCulture)}f;",
 		(NumberDefault number, Double) => $" = {Literal(number.Value)};",
 		(BooleanDefault boolean, Bool) => $" = {(boolean.Value ? "true" : "false")};",
 		(TextDefault text, Models.Types.String) => $" = {Quote(text.Value)};",
-		(TextDefault text, Models.Types.Enum enumType) => $" = {enumType.EnumName}.{text.Value};",
+		(TextDefault text, Models.Types.Enum enumType) => $" = {CSharpKeywords.Identifier(enumType.EnumName)}.{CSharpKeywords.Identifier(text.Value)};",
 		_ => null,
 	};
+
+	/// <summary>
+	/// Names one of the two values a floating-point number can hold that has no literal.
+	/// </summary>
+	/// <remarks>
+	/// The C++ generator refuses these, because C++ can only reach them through
+	/// <c>&lt;limits&gt;</c> and a generated header quietly growing an include to write a default
+	/// nobody meant is worse than being told. C# has them as named members of the type itself, so
+	/// there is nothing to refuse: writing <c>NaNf</c>, which is what the round-trip form gave, was
+	/// the only problem.
+	/// </remarks>
+	/// <param name="value">The value.</param>
+	/// <returns>The member's name.</returns>
+	private static string NonFinite(double value) =>
+		double.IsNaN(value) ? "NaN"
+		: double.IsPositiveInfinity(value) ? "PositiveInfinity"
+		: "NegativeInfinity";
 
 }
