@@ -59,6 +59,16 @@ three metres per second and a position is three metres, and a schema that says o
 leaves the one fact worth knowing about either of them to a comment - which is the argument
 `Semantic` makes for a single value, applied to three of them.
 
+**That argument is being overtaken, and by the thing it appeals to.** A consumer generating against
+`ktsu.Semantics.Quantities` finds that library already names the 3D forms - `Velocity3D`,
+`Displacement3D`, `Force3D` - so a member holding one says `Semantic` naming that type rather than
+`Vector3` of a component. Stating it both ways is two spellings of one fact, and the second is the
+one both generators can already map: `CSharpCodeGenerator` handles `Vector3 { ElementType: Float }`
+and falls through to `object?` on a `Semantic` element, which stops being a hole the moment a
+dimensional vector is a `Semantic` in its own right. Expect `ElementType` to narrow to "which
+numeric type", with `Vector2/3/4` meaning untyped geometry, once that lands. It is documented as it
+stands rather than as it is heading, because nothing has changed yet.
+
 The component must be a number or a `Semantic` over one; anything else is a collection of things
 rather than one value with components, which is what `Array` is for. It defaults to `Float` and is
 omitted from the file when it is, so a file whose vectors are vectors of floats is written exactly
@@ -92,6 +102,14 @@ because a use is often where a unit or range is decided; a semantic type carries
 some values those facts belong to the type (`Metres` is metres everywhere). The rules are identical
 either way, so validation reads the interface rather than each carrier growing its own copy.
 
+**One asymmetry in that is a bug rather than a design.** `ValidateMetadata` is handed `member.Type`
+raw, and `Semantic` is not `IsNumeric`, so a member typed `Semantic(Kilograms)` is told that a unit,
+a range and a default are all "meaningless" on it - while the *semantic type* is validated against
+its resolved `Representation()` and accepts all three. A semantic type over a `Float` is a number,
+and the model currently says it is not. The fix is to resolve a `Semantic` to its representation for
+metadata purposes, which is also what lets a unit live on the type (stated once) while the bounds
+and default stay on the member (facts about that field, not about kilograms).
+
 ### What a class promises about its representation
 
 `SchemaClass.TravelsAsBytes` says an instance is copied whole - across a language boundary, into a
@@ -112,6 +130,15 @@ same generate-compile-reimport test. The attribute records the promise rather th
 emitting a sequential-layout `struct` would enforce it and would also change every generated
 component from a class to a value type, which is a decision about the C# API rather than about the
 schema.
+
+**That decision has been reopened and gone the other way, though nothing has changed here yet.** It
+was right while the C# API was the only consumer. It is not once a consumer needs the two languages'
+versions of a class to be the same bytes - a generated `class` can never match a C++ struct's
+layout, so a layout-equality test is impossible and the promise is recorded but unkeepable. The
+answer is narrow: `TravelsAsBytes` will mean `[StructLayout(LayoutKind.Sequential)] struct`, and
+every other class stays a class. That is not a change to the C# API in general; it is the C# API
+honouring a promise the schema already makes. `ClrTypeImporter` will need to read structs back,
+which the existing round-trip test covers.
 
 ### Declaring behaviour
 
