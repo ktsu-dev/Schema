@@ -1,7 +1,6 @@
-## v1.22.0 (minor)
+## v1.23.0 (minor)
 
-Changes since v1.21.0:
+Changes since v1.22.0:
 
-- Name the three words the shim is built from ([@Claude](https://github.com/Claude))
-- The bridge: a schema becomes C++ ([@Claude](https://github.com/Claude))
+- [minor] The fifth convention: whether a call changes what it is called on ([@Claude](https://github.com/Claude))
 
