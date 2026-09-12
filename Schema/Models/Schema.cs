@@ -556,6 +556,25 @@ public partial class Schema : ISchema
 	public SchemaInterface? AddInterface(InterfaceName name) => AddChild(name, InterfacesInternal);
 
 	/// <summary>
+	/// Adds an interface based on a .NET interface type, with a function for each of its methods.
+	/// </summary>
+	/// <remarks>
+	/// The counterpart of <see cref="AddClass(Type)"/>, and the inverse of what the C# generator
+	/// emits for an interface. A parameter's direction is read off the compiled signature rather
+	/// than an attribute, since <c>out</c>, <c>ref</c> and a by-value parameter are already three
+	/// different signatures.
+	/// </remarks>
+	/// <param name="type">The .NET interface to add.</param>
+	/// <returns>The added interface, or null when the type is not an interface or the name is
+	/// taken.</returns>
+	public SchemaInterface? AddInterface(Type type)
+	{
+		Ensure.NotNull(type);
+
+		return ClrTypeImporter.ImportDeclaration(this, type);
+	}
+
+	/// <summary>
 	/// Adds a semantic type to the schema.
 	/// </summary>
 	/// <param name="name">The semantic type name.</param>
@@ -645,25 +664,6 @@ public partial class Schema : ISchema
 	/// <param name="type">The .NET type to add as a schema class.</param>
 	/// <returns>The added class if successful, null otherwise.</returns>
 	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
-
-	/// <summary>
-	/// Adds an interface based on a .NET interface type, with a function for each of its methods.
-	/// </summary>
-	/// <remarks>
-	/// The counterpart of <see cref="AddClass(Type)"/>, and the inverse of what the C# generator
-	/// emits for an interface. A parameter's direction is read off the compiled signature rather
-	/// than an attribute, since <c>out</c>, <c>ref</c> and a by-value parameter are already three
-	/// different signatures.
-	/// </remarks>
-	/// <param name="type">The .NET interface to add.</param>
-	/// <returns>The added interface, or null when the type is not an interface or the name is
-	/// taken.</returns>
-	public SchemaInterface? AddInterface(Type type)
-	{
-		Ensure.NotNull(type);
-
-		return ClrTypeImporter.ImportDeclaration(this, type);
-	}
 
 	/// <summary>
 	/// Gets the first class in the schema.
