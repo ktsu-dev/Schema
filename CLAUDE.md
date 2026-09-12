@@ -187,9 +187,43 @@ anywhere in it, so a promising class holding all three either is bytes or the te
 C# counterpart of the `static_assert(std::is_trivially_copyable_v<T>)` the C++ generator emits
 beside the same class.
 
-What is still `object?` is a `Span`, a `Result`, an `Optional` and an `Interface` - types whose C#
-spelling is a decision about the generated API rather than a gap in the mapping, and none of which a
-promising class may hold.
+The four that were left - a `Span`, a `Result`, an `Optional` and an `Interface` - were never a gap
+in the mapping the way those three were. Each is a decision about the generated C# API, and the one
+that had to come first is that **an interface is emitted at all**: until it was, an `Interface`
+member named a type nothing produced. `Generate` now writes a file per interface as well as per
+class, enum and semantic type.
+
+- An **interface** is emitted under the name the schema gave it, with no `I` prefix. The prefix is
+  the C# convention and it is not available: the compiled name is what the importer reads back, so
+  one would have to be stripped again, and stripping cannot tell a prefix from a first letter - an
+  interface called `Item` would come back as `tem`. Same rule as the classes and the enums.
+- A **view** is a `ReadOnlySpan<T>` when its elements are `In` and a `Span<T>` otherwise, which is
+  the same reading the C++ generator gives it, where the difference is a `const` on the element
+  rather than a second type. It is spelled by `MapParameter` rather than `MapType`, because the
+  direction that decides which belongs to the parameter and a type has no route back to one. In a
+  *member* position a `Span` is still `object?` - a field of a `ref struct` is something C# forbids
+  outright, which is a language limit rather than a gap.
+- A **fallible return** is `Result<T, TError>`, or `Result<TError>` for `Result<Void>`, since C# has
+  no `void` type argument to close the value-carrying form over. The arity is what tells the two
+  apart on reimport. `TError` is the schema's error enum, read through the type's `ParentSchema`
+  the same way a `Semantic` resolves its declaration.
+- An **absent value** is `Optional<T>`. `T?` would be idiomatic and means two different things: over
+  a value type it is a type, and over a reference type it is an annotation that is not part of the
+  type at all. A generator writing it would round-trip an `Optional<Int>` and lose an
+  `Optional<Item>`, which is the one asymmetry the mapping cannot afford.
+
+Two things a signature says that C# cannot. `IsQuery` has no syntax - C++ writes a trailing `const`
+- so it is recorded with `SchemaQueryAttribute`. Direction is the parameter modifier, and `In` is no
+modifier at all, because an ordinary by-value parameter is already one the caller supplies and the
+callee does not modify; `out`, `ref` and by-value are three different compiled signatures, so all
+three read back without an attribute. `void` is spelled only as a return type, by `MapReturnType`,
+because there is no field, property or parameter of one.
+
+`Schema.AddInterface(Type)` is the counterpart of `AddClass(Type)`, and is what makes an interface
+part of the round trip rather than something emitted and never read back.
+
+What is still `object?` is a `Span` outside a signature and a `Void` outside a return type - both
+declarations C# has no member for at all, and neither one a promising class may hold.
 
 ### Declaring behaviour
 

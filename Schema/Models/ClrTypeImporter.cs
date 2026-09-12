@@ -63,6 +63,22 @@ internal static class ClrTypeImporter
 	}
 
 	/// <summary>
+	/// Reads a .NET interface into a schema, with a function for each of its methods.
+	/// </summary>
+	/// <param name="schema">The schema to add the interface to.</param>
+	/// <param name="type">The .NET interface to read.</param>
+	/// <returns>The added interface, or null when the type is not one.</returns>
+	internal static SchemaInterface? ImportDeclaration(Schema schema, Type type)
+	{
+		Ensure.NotNull(schema);
+		Ensure.NotNull(type);
+
+		return type.IsInterface && ImportInterface(schema, type) is Types.Interface reference
+			? schema.GetInterface(reference.InterfaceName)
+			: null;
+	}
+
+	/// <summary>
 	/// Reads one property or field into a member of the class being imported.
 	/// </summary>
 	/// <remarks>
@@ -93,6 +109,16 @@ internal static class ClrTypeImporter
 		ApplyMetadata(member, info);
 	}
 
+	/// <summary>
+	/// Reads a CLR type as the schema type it stands for.
+	/// </summary>
+	/// <remarks>
+	/// Ordered, and the order is the mapping: the fixed correspondences first, then a collection,
+	/// then the declarations a generator emits under a name of their own, then the generic types
+	/// that say how a value is carried, and a class last because it is the broadest test. Reading
+	/// a value type as a class is what <see cref="IsSchemaClass"/> gates, so the structs above it
+	/// are all spoken for before it is reached.
+	/// </remarks>
 	private static BaseType? GetOrCreateSchemaType(Schema schema, Type type)
 	{
 		Ensure.NotNull(type);
@@ -104,54 +130,173 @@ internal static class ClrTypeImporter
 			return create();
 		}
 
-		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) && elementType is not null && container is not null)
+		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) &&
+			elementType is not null && container is not null)
 		{
-			BaseType element = GetOrCreateSchemaType(schema, elementType) ?? new None();
-			return new Array() { ElementType = element, Container = container };
+			return new Array() { ElementType = Element(schema, elementType), Container = container };
 		}
-		else if (type.IsEnum)
+
+		if (type.IsEnum)
 		{
-			EnumName enumName = type.Name.As<EnumName>();
-			SchemaEnum? schemaEnum = schema.GetEnum(enumName) ?? schema.AddEnum(enumName);
-			if (schemaEnum is not null)
-			{
-				// Add enum values
-				foreach (string enumValue in System.Enum.GetNames(type))
-				{
-					schemaEnum.TryAddValue(enumValue.As<EnumValueName>());
-				}
-				return new Enum() { EnumName = enumName };
-			}
+			return ImportEnum(schema, type);
 		}
-		else if (type.GetCustomAttribute<Runtime.SchemaSemanticTypeAttribute>() is Runtime.SchemaSemanticTypeAttribute semantic)
+
+		if (type.GetCustomAttribute<Runtime.SchemaSemanticTypeAttribute>() is Runtime.SchemaSemanticTypeAttribute semantic)
 		{
 			return ImportSemanticType(schema, type, semantic);
 		}
-		else if (TryGetWrappedType(type, typeof(Runtime.Handle<>), out Type? handled) && handled is not null)
+
+		if (type.IsGenericType &&
+			GenericTypeMappings.TryGetValue(type.GetGenericTypeDefinition(), out Func<Schema, Type[], BaseType>? build))
 		{
-			return new Handle() { ElementType = GetOrCreateSchemaType(schema, handled) ?? new None() };
-		}
-		else if (TryGetVectorComponent(type, out Func<BaseType, BaseType>? vector, out Type? component) &&
-			vector is not null && component is not null)
-		{
-			return vector(GetOrCreateSchemaType(schema, component) ?? new None());
-		}
-		else if (IsSchemaClass(type))
-		{
-			ClassName className = type.Name.As<ClassName>();
-			SchemaClass? schemaClass = schema.GetClass(className) ?? Import(schema, type);
-			if (schemaClass is not null)
-			{
-				return new Object() { ClassName = className };
-			}
+			return build(schema, type.GetGenericArguments());
 		}
 
-		return new None();
+		if (type.IsInterface)
+		{
+			return ImportInterface(schema, type);
+		}
+
+		return IsSchemaClass(type) ? ImportClass(schema, type) : new None();
+	}
+
+	/// <summary>
+	/// Reads a CLR type as whatever it is the element of, which is <c>None</c> when it is nothing
+	/// this recognises.
+	/// </summary>
+	private static BaseType Element(Schema schema, Type type) =>
+		GetOrCreateSchemaType(schema, type) ?? new None();
+
+	/// <summary>
+	/// Reads a generated enum back into the schema, declaring it if this is the first thing to
+	/// name it.
+	/// </summary>
+	private static BaseType ImportEnum(Schema schema, Type type)
+	{
+		EnumName name = type.Name.As<EnumName>();
+		SchemaEnum? schemaEnum = schema.GetEnum(name) ?? schema.AddEnum(name);
+		if (schemaEnum is null)
+		{
+			return new None();
+		}
+
+		foreach (string value in System.Enum.GetNames(type))
+		{
+			schemaEnum.TryAddValue(value.As<EnumValueName>());
+		}
+
+		return new Enum() { EnumName = name };
+	}
+
+	/// <summary>
+	/// Reads a generated class back into the schema, declaring it if this is the first thing to
+	/// name it.
+	/// </summary>
+	private static BaseType ImportClass(Schema schema, Type type)
+	{
+		ClassName name = type.Name.As<ClassName>();
+		SchemaClass? schemaClass = schema.GetClass(name) ?? Import(schema, type);
+
+		return schemaClass is not null ? new Object() { ClassName = name } : new None();
+	}
+
+	/// <summary>
+	/// Reads a generated interface back into the schema, declaring it if this is the first thing
+	/// to name it.
+	/// </summary>
+	/// <remarks>
+	/// No attribute is needed to recognise one: a CLR interface is already distinct from a class
+	/// and a struct, which is exactly what the schema means by one. The name is taken as written,
+	/// the same as a class's, which is why the generator adds no <c>I</c> prefix - one would have
+	/// to be stripped here, and stripping cannot tell a prefix from a first letter.
+	/// </remarks>
+	private static Types.Interface ImportInterface(Schema schema, Type type)
+	{
+		InterfaceName name = type.Name.As<InterfaceName>();
+		Types.Interface reference = new() { InterfaceName = name };
+
+		if (schema.GetInterface(name) is not null)
+		{
+			return reference;
+		}
+
+		SchemaInterface? declaration = schema.AddInterface(name);
+		if (declaration is null)
+		{
+			return reference;
+		}
+
+		foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+		{
+			ImportFunction(schema, declaration, method);
+		}
+
+		return reference;
+	}
+
+	/// <summary>
+	/// Reads one method into a function of the interface being imported.
+	/// </summary>
+	private static void ImportFunction(Schema schema, SchemaInterface declaration, MethodInfo method)
+	{
+		SchemaFunction? function = declaration.AddFunction(method.Name.As<FunctionName>());
+		if (function is null)
+		{
+			return;
+		}
+
+		function.IsQuery = method.GetCustomAttribute<Runtime.SchemaQueryAttribute>() is not null;
+		function.SetReturnType(Element(schema, method.ReturnType));
+
+		foreach (ParameterInfo parameter in method.GetParameters())
+		{
+			ImportParameter(schema, function, parameter);
+		}
+	}
+
+	/// <summary>
+	/// Reads one parameter, whose direction is carried by the compiled signature rather than by an
+	/// attribute.
+	/// </summary>
+	/// <remarks>
+	/// <c>out</c>, <c>ref</c> and <c>in</c> are all by-reference, so the type is the same three
+	/// ways and what tells them apart is which of the two flags the parameter carries. An ordinary
+	/// by-value parameter is <see cref="ParameterDirection.In"/>, which is what the generator emits
+	/// for one.
+	/// </remarks>
+	private static void ImportParameter(Schema schema, SchemaFunction function, ParameterInfo parameter)
+	{
+		SchemaParameter? added = function.AddParameter((parameter.Name ?? string.Empty).As<ParameterName>());
+		if (added is null)
+		{
+			return;
+		}
+
+		Type carried = parameter.ParameterType;
+		if (carried.IsByRef)
+		{
+			carried = carried.GetElementType() ?? carried;
+			added.Direction = parameter.IsOut
+				? ParameterDirection.Out
+				: parameter.IsIn ? ParameterDirection.In : ParameterDirection.InOut;
+		}
+		else if (carried.IsGenericType && carried.GetGenericTypeDefinition() == typeof(ReadOnlySpan<>))
+		{
+			// On a view, direction describes the elements rather than the view, so the read-only
+			// one is what an In span was emitted as.
+			added.Direction = ParameterDirection.In;
+		}
+		else if (carried.IsGenericType && carried.GetGenericTypeDefinition() == typeof(System.Span<>))
+		{
+			added.Direction = ParameterDirection.Out;
+		}
+
+		added.SetType(Element(schema, carried));
 	}
 
 	/// <summary>
 	/// Reads a generated semantic type back into the schema, declaring it if this is the first
-	/// member to name it.
+	/// thing to name it.
 	/// </summary>
 	/// <remarks>
 	/// The struct holds the representation whether or not it refines another semantic type, so the
@@ -176,7 +321,7 @@ internal static class ClrTypeImporter
 		}
 
 		BaseType underlying = attribute.Refines is Type refined
-			? GetOrCreateSchemaType(schema, refined) ?? new None()
+			? Element(schema, refined)
 			: RepresentationOf(schema, type);
 
 		declaration.SetUnderlyingType(underlying);
@@ -189,41 +334,8 @@ internal static class ClrTypeImporter
 	/// </summary>
 	private static BaseType RepresentationOf(Schema schema, Type type) =>
 		type.GetProperty(SemanticValueName, BindingFlags.Public | BindingFlags.Instance) is PropertyInfo value
-			? GetOrCreateSchemaType(schema, value.PropertyType) ?? new None()
+			? Element(schema, value.PropertyType)
 			: new None();
-
-	/// <summary>
-	/// Gets the type argument of a generic type built from <paramref name="definition"/>.
-	/// </summary>
-	private static bool TryGetWrappedType(Type type, Type definition, out Type? wrapped)
-	{
-		wrapped = type.IsGenericType && type.GetGenericTypeDefinition() == definition
-			? type.GetGenericArguments()[0]
-			: null;
-
-		return wrapped is not null;
-	}
-
-	/// <summary>
-	/// Gets which vector a generic vector type is, and what its components are.
-	/// </summary>
-	/// <remarks>
-	/// Only the vectors over something other than a float arrive here: a vector of floats is a
-	/// <see cref="System.Numerics"/> one and is already in <see cref="DirectTypeMappings"/>.
-	/// </remarks>
-	private static bool TryGetVectorComponent(Type type, out Func<BaseType, BaseType>? vector, out Type? component)
-	{
-		vector = null;
-		component = null;
-
-		if (!type.IsGenericType || !GenericVectors.TryGetValue(type.GetGenericTypeDefinition(), out vector))
-		{
-			return false;
-		}
-
-		component = type.GetGenericArguments()[0];
-		return true;
-	}
 
 	/// <summary>
 	/// Says whether a CLR type is one a generated schema class would have been emitted as.
@@ -342,6 +454,7 @@ internal static class ClrTypeImporter
 		[typeof(double)] = () => new Double(),
 		[typeof(decimal)] = () => new Double(),
 		[typeof(bool)] = () => new Bool(),
+		[typeof(void)] = () => new Types.Void(),
 		[typeof(System.DateTime)] = () => new DateTime(),
 		[typeof(System.TimeSpan)] = () => new TimeSpan(),
 		[typeof(System.Numerics.Vector2)] = () => new Vector2(),
@@ -352,19 +465,32 @@ internal static class ClrTypeImporter
 	};
 
 	/// <summary>
-	/// The generic vector types and which schema vector each one is.
+	/// The generic types a generator emits, and which schema type each one is.
 	/// </summary>
 	/// <remarks>
 	/// Separate from <see cref="DirectTypeMappings"/> because these say nothing until their
-	/// component is read: a <c>Vector3&lt;double&gt;</c> and a <c>Vector3&lt;Kilograms&gt;</c> are
-	/// one entry here and two schema types, so what each one maps to is a function of its argument
+	/// argument is read: a <c>Vector3&lt;double&gt;</c> and a <c>Vector3&lt;Kilograms&gt;</c> are
+	/// one entry here and two schema types, so what each maps to is a function of its arguments
 	/// rather than a fixed answer.
+	/// <para>
+	/// Both spans are one schema <c>Span</c>, because which of the two a view is spelled as says
+	/// the parameter's direction rather than anything about the type - the direction is restored
+	/// from it in <see cref="ImportParameter"/>. Both results are one schema <c>Result</c>, and the
+	/// arity is what says whether a successful call produced anything: C# has no <c>void</c> type
+	/// argument, so a <c>Result&lt;Void&gt;</c> is the form with no value argument at all.
+	/// </para>
 	/// </remarks>
-	private static readonly Dictionary<Type, Func<BaseType, BaseType>> GenericVectors = new()
+	private static readonly Dictionary<Type, Func<Schema, Type[], BaseType>> GenericTypeMappings = new()
 	{
-		[typeof(Runtime.Vector2<>)] = element => new Vector2() { ElementType = element },
-		[typeof(Runtime.Vector3<>)] = element => new Vector3() { ElementType = element },
-		[typeof(Runtime.Vector4<>)] = element => new Vector4() { ElementType = element },
+		[typeof(Runtime.Vector2<>)] = (schema, arguments) => new Vector2() { ElementType = Element(schema, arguments[0]) },
+		[typeof(Runtime.Vector3<>)] = (schema, arguments) => new Vector3() { ElementType = Element(schema, arguments[0]) },
+		[typeof(Runtime.Vector4<>)] = (schema, arguments) => new Vector4() { ElementType = Element(schema, arguments[0]) },
+		[typeof(Runtime.Handle<>)] = (schema, arguments) => new Handle() { ElementType = Element(schema, arguments[0]) },
+		[typeof(Runtime.Optional<>)] = (schema, arguments) => new Optional() { ElementType = Element(schema, arguments[0]) },
+		[typeof(System.Span<>)] = (schema, arguments) => new Span() { ElementType = Element(schema, arguments[0]) },
+		[typeof(ReadOnlySpan<>)] = (schema, arguments) => new Span() { ElementType = Element(schema, arguments[0]) },
+		[typeof(Runtime.Result<>)] = (_, _) => new Result() { ElementType = new Types.Void() },
+		[typeof(Runtime.Result<,>)] = (schema, arguments) => new Result() { ElementType = Element(schema, arguments[0]) },
 	};
 
 	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)

@@ -220,9 +220,9 @@ public class GeneratedTypeSpellingTests
 			new SchemaTypes.Semantic { SemanticTypeName = "ForceMagnitude".As<SemanticTypeName>() },
 			weight.UnderlyingType);
 
-		CollectionAssert.AreEqual(
+		Assert.AreSequenceEqual(
 			ExpectedRefinement,
-			weight.Refines().Select(refined => refined.Name.ToString()).ToArray());
+			weight.Refines().Select(refined => refined.Name.ToString()));
 
 		Assert.AreEqual(new SchemaTypes.Float(), weight.Representation());
 	}

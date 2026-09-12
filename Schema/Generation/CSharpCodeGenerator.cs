@@ -36,6 +36,15 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	private const string UnspeakableType = "object?";
 
+	/// <summary>
+	/// The delimiters of a doc comment, named because every generated declaration carrying one
+	/// writes the same two lines around it.
+	/// </summary>
+	private const string SummaryOpen = "/// <summary>";
+
+	/// <inheritdoc cref="SummaryOpen" />
+	private const string SummaryClose = "/// </summary>";
+
 	/// <inheritdoc />
 	public string Language => LanguageId;
 
@@ -60,6 +69,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		foreach (SchemaClass schemaClass in schema.Classes)
 		{
 			files[$"{schemaClass.Name}.g.cs"] = GenerateClass(schemaClass, configuration.Namespace);
+		}
+
+		foreach (SchemaInterface schemaInterface in schema.Interfaces)
+		{
+			files[$"{schemaInterface.Name}.g.cs"] = GenerateInterface(schemaInterface, configuration.Namespace);
 		}
 
 		return files;
@@ -159,9 +173,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	{
 		string identifier = CSharpKeywords.Identifier(name);
 
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Initialises a new <see cref=\"{identifier}\"/> at the defaults the schema declared.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Initialises a new <see cref=\"{identifier}\"/> at the defaults the schema declared.");
 		code.WriteLine($"public {identifier}()");
 		code.WriteLine("{");
 		code.WriteLine("}");
@@ -207,9 +219,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 			code.WriteLine($"private {name}({underlying} value) => Value = value;");
 			code.NewLine();
-			code.WriteLine("/// <summary>");
-			code.WriteLine("/// Gets the value this is represented as.");
-			code.WriteLine("/// </summary>");
+			WriteSummary(code, "Gets the value this is represented as.");
 			code.WriteLine($"public {underlying} Value {{ get; }}");
 
 			// A representation this generator cannot spell arrives as object, which C# refuses to
@@ -231,15 +241,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	private static void WriteConversions(CodeBlocker code, string name, string underlying, SchemaSemanticType? refined)
 	{
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Explicit: a bare value never becomes a {name} by accident.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Explicit: a bare value never becomes a {name} by accident.");
 		code.WriteLine($"public static explicit operator {name}({underlying} value) => new(value);");
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine("/// Explicit in this direction too: leaving the type is a decision as well.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, "Explicit in this direction too: leaving the type is a decision as well.");
 		code.WriteLine($"public static explicit operator {underlying}({name} value) => value.Value;");
 
 		if (refined is null)
@@ -250,15 +256,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		string broader = CSharpKeywords.Identifier(refined.Name);
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Widening is implicit: this is {Article(broader)} {broader}.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Widening is implicit: this is {Article(broader)} {broader}.");
 		code.WriteLine($"public static implicit operator {broader}({name} value) => ({broader})value.Value;");
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Narrowing is explicit: not every {broader} is {Article(name)} {name}.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Narrowing is explicit: not every {broader} is {Article(name)} {name}.");
 		code.WriteLine($"public static explicit operator {name}({broader} value) => new(value.Value);");
 	}
 
@@ -267,6 +269,121 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </summary>
 	private static string Article(string name) =>
 		name.Length > 0 && "AEIOU".Contains(char.ToUpperInvariant(name[0]), StringComparison.Ordinal) ? "an" : "a";
+
+	/// <summary>
+	/// Emits an interface: the declaration an implementation is written against.
+	/// </summary>
+	/// <remarks>
+	/// Named exactly as the schema names it, with no <c>I</c> prefix. The prefix is the C#
+	/// convention and it is not available here: the compiled type's name is what
+	/// <see cref="Models.ClrTypeImporter"/> reads back, so adding one would have to be stripped
+	/// again, and stripping cannot tell a prefix from a first letter - a schema interface called
+	/// <c>Item</c> would come back as <c>tem</c>. This is the same rule the classes and the enums
+	/// follow, for the same reason.
+	/// </remarks>
+	private static string GenerateInterface(SchemaInterface schemaInterface, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		WriteDocComment(code, schemaInterface.Description);
+		code.WriteLine($"public interface {CSharpKeywords.Identifier(schemaInterface.Name)}");
+
+		using (new Scope(code))
+		{
+			bool first = true;
+			foreach (SchemaFunction function in schemaInterface.Functions)
+			{
+				if (!first)
+				{
+					code.NewLine();
+				}
+
+				first = false;
+				WriteFunction(code, function);
+			}
+		}
+
+		return code.ToString();
+	}
+
+	/// <summary>
+	/// Writes one signature.
+	/// </summary>
+	/// <remarks>
+	/// A query is recorded with an attribute rather than spelled, because C# has no way to say that
+	/// calling a method leaves the receiver alone - the one of the five conventions the language
+	/// cannot express.
+	/// </remarks>
+	private static void WriteFunction(CodeBlocker code, SchemaFunction function)
+	{
+		WriteDocComment(code, function.Description);
+
+		if (function.IsQuery)
+		{
+			code.WriteLine("[ktsu.Schema.Runtime.SchemaQuery]");
+		}
+
+		IEnumerable<string> parameters = function.Parameters.Select(MapParameter);
+		string returned = MapReturnType(function.ReturnType);
+
+		code.WriteLine($"{returned} {CSharpKeywords.Identifier(function.Name)}({string.Join(", ", parameters)});");
+	}
+
+	/// <summary>
+	/// Maps a return type, which is the one position where a function returning nothing can be
+	/// spelled.
+	/// </summary>
+	/// <remarks>
+	/// <c>void</c> is not a type C# has anywhere else - there is no field, property or parameter of
+	/// one - so <see cref="MapType"/> cannot answer this and a <c>Void</c> reaching it is a schema
+	/// that says a member carries no value, which is not a declaration C# has either.
+	/// </remarks>
+	private static string MapReturnType(BaseType type) =>
+		type is Models.Types.Void ? "void" : MapType(type);
+
+	/// <summary>
+	/// Writes a parameter, which is the one place direction changes how the type is spelled.
+	/// </summary>
+	/// <remarks>
+	/// On a <see cref="Span"/> direction describes the elements rather than the view, so an
+	/// <c>In</c> one is a <c>ReadOnlySpan</c> and the others are a <c>Span</c> - the same reading
+	/// the C++ generator gives it, where the difference is a <c>const</c> on the element.
+	/// <para>
+	/// On everything else it is the parameter modifier: <c>out</c>, <c>ref</c>, and nothing at all
+	/// for <c>In</c>, because an ordinary by-value parameter is already one the caller supplies and
+	/// the callee does not modify. Each of the three reads back off the compiled signature, which
+	/// is what keeps direction in the round trip.
+	/// </para>
+	/// </remarks>
+	private static string MapParameter(SchemaParameter parameter)
+	{
+		string name = CSharpKeywords.Identifier(parameter.Name);
+
+		// A view is spelled by the parameter rather than by MapType, because the direction that
+		// decides which of the two span types it is belongs to the parameter and a type has no
+		// route back to one.
+		if (parameter.Type is Span span)
+		{
+			string element = MapType(span.ElementType);
+			string view = parameter.Direction == ParameterDirection.In
+				? $"System.ReadOnlySpan<{element}>"
+				: $"System.Span<{element}>";
+
+			return $"{view} {name}";
+		}
+
+		string type = MapType(parameter.Type);
+
+		string modifier = parameter.Direction switch
+		{
+			ParameterDirection.Out => "out ",
+			ParameterDirection.InOut => "ref ",
+			_ => string.Empty,
+		};
+
+		return $"{modifier}{type} {name}";
+	}
 
 	private static void WriteHeader(CodeBlocker code, CodeNamespace codeNamespace)
 	{
@@ -296,13 +413,28 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			return;
 		}
 
-		code.WriteLine("/// <summary>");
+		code.WriteLine(SummaryOpen);
 		foreach (string line in description.Split('\n'))
 		{
 			code.WriteLine($"/// {Escape(line.TrimEnd('\r'))}");
 		}
 
-		code.WriteLine("/// </summary>");
+		code.WriteLine(SummaryClose);
+	}
+
+	/// <summary>
+	/// Writes a one-line doc comment on the generated declaration that follows.
+	/// </summary>
+	/// <remarks>
+	/// The counterpart of <see cref="WriteDocComment"/>, which writes what the schema said; this
+	/// writes what the generator has to say about a declaration the schema did not describe - a
+	/// conversion, an accessor, a constructor it had to add.
+	/// </remarks>
+	private static void WriteSummary(CodeBlocker code, string text)
+	{
+		code.WriteLine(SummaryOpen);
+		code.WriteLine($"/// {text}");
+		code.WriteLine(SummaryClose);
 	}
 
 	/// <summary>
@@ -453,17 +585,48 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
 		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
+		Models.Types.Interface interfaceType => CSharpKeywords.Identifier(interfaceType.InterfaceName),
 		Models.Types.Array arrayType => MapArray(arrayType),
+
+		Optional optional => $"ktsu.Schema.Runtime.Optional<{MapType(optional.ElementType)}>",
+		Models.Types.Result result => MapResult(result),
 
 		// A member left as None is reported by validation as a warning, not an error, so
 		// generation is not refused for it. object keeps the output compiling.
 		None => UnspeakableType,
 
-		// A view, a fallible value, an absent one, an interface: what is left is the types whose
-		// C# spelling is a decision about the generated API rather than a gap in the mapping. A
-		// class that travels as bytes may hold none of them, so nothing here defeats that promise.
+		// A Span outside a signature, and a Void outside a return type: both are declarations C#
+		// has no field or member for at all. A class that travels as bytes may hold neither, so
+		// neither defeats that promise.
 		_ => UnspeakableType,
 	};
+
+	/// <summary>
+	/// Maps a fallible return, whose error type is the schema's rather than this signature's.
+	/// </summary>
+	/// <remarks>
+	/// Two arities rather than one, because C# has no <c>void</c> type argument:
+	/// <c>Result&lt;Void&gt;</c> is the form carrying only an outcome, and the arity is what tells
+	/// the two apart when the generated code is read back.
+	/// <para>
+	/// A schema that returns a <c>Result</c> and names no error enum is one validation refuses, so
+	/// reaching here without one means the generator was called directly on a schema nobody
+	/// validated. It falls back rather than emitting a name that does not resolve.
+	/// </para>
+	/// </remarks>
+	private static string MapResult(Models.Types.Result result)
+	{
+		if (result.ParentSchema?.ErrorType is not EnumName error || string.IsNullOrEmpty(error))
+		{
+			return UnspeakableType;
+		}
+
+		string failure = CSharpKeywords.Identifier(error);
+
+		return result.ElementType is Models.Types.Void
+			? $"ktsu.Schema.Runtime.Result<{failure}>"
+			: $"ktsu.Schema.Runtime.Result<{MapType(result.ElementType)}, {failure}>";
+	}
 
 	private static string MapArray(Models.Types.Array arrayType)
 	{
