@@ -68,6 +68,24 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		return code.ToString();
 	}
 
+	/// <summary>
+	/// Writes a class out as the C# type that represents it.
+	/// </summary>
+	/// <remarks>
+	/// A class that promises to travel as raw bytes is emitted as a sequentially laid out
+	/// <c>struct</c>, and every other class stays a <c>class</c>. A reference type could not keep
+	/// that promise however carefully it was written - an instance is an address, its fields are
+	/// somewhere else, and the CLR is free to order them - so a consumer needing the C# and C++
+	/// versions of a class to be the same bytes had nothing to compare. Sequential layout is what
+	/// makes the schema's member order load-bearing on this side too, and it is why the promise is
+	/// narrow: it changes the shape of the classes that make it and no others.
+	/// <para>
+	/// <c>SchemaTravelsAsBytes</c> is still written. The struct is how the promise is kept and the
+	/// attribute is how it is recorded - the CLR spells layout in ways that do not survive being
+	/// read back as intent, so <see cref="Models.ClrTypeImporter"/> reads the attribute rather than
+	/// inferring the promise from the shape.
+	/// </para>
+	/// </remarks>
 	private static string GenerateClass(SchemaClass schemaClass, CodeNamespace codeNamespace)
 	{
 		using CodeBlocker code = CodeBlocker.Create();
@@ -78,12 +96,20 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		if (schemaClass.TravelsAsBytes)
 		{
 			code.WriteLine("[ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
+			code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
 		}
 
-		code.WriteLine($"public class {CSharpKeywords.Identifier(schemaClass.Name)}");
+		code.WriteLine($"public {(schemaClass.TravelsAsBytes ? "struct" : "class")} {CSharpKeywords.Identifier(schemaClass.Name)}");
 		using (new Scope(code))
 		{
 			bool first = true;
+
+			if (schemaClass.TravelsAsBytes && schemaClass.Members.Any(m => InitialiserFor(m).Length > 0))
+			{
+				WriteValueTypeConstructor(code, schemaClass.Name);
+				first = false;
+			}
+
 			foreach (SchemaMember member in schemaClass.Members)
 			{
 				if (!first)
@@ -101,6 +127,29 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		}
 
 		return code.ToString();
+	}
+
+	/// <summary>
+	/// Writes the parameterless constructor a value type needs before its members may have
+	/// initialisers.
+	/// </summary>
+	/// <remarks>
+	/// A struct whose members have initialisers and which declares no constructor of its own does
+	/// not compile, because <c>default</c> reaches an instance without running them. Declaring one
+	/// is what lets a member's default survive into <c>new T()</c>. <c>default(T)</c> is still all
+	/// zeroes, which is what it means for the bytes to be the whole of the value rather than a
+	/// defect in the defaults.
+	/// </remarks>
+	private static void WriteValueTypeConstructor(CodeBlocker code, ClassName name)
+	{
+		string identifier = CSharpKeywords.Identifier(name);
+
+		code.WriteLine("/// <summary>");
+		code.WriteLine($"/// Initialises a new <see cref=\"{identifier}\"/> at the defaults the schema declared.");
+		code.WriteLine("/// </summary>");
+		code.WriteLine($"public {identifier}()");
+		code.WriteLine("{");
+		code.WriteLine("}");
 	}
 
 	private static void WriteHeader(CodeBlocker code, CodeNamespace codeNamespace)
@@ -325,9 +374,28 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		{
 			Models.Types.String => " = string.Empty;",
 			Models.Types.Array arrayType => $" = new {MapArray(arrayType)}();",
-			Models.Types.Object objectType => $" = new {CSharpKeywords.Identifier(objectType.ClassName)}();",
+			Models.Types.Object objectType => ObjectInitialiserFor(objectType),
 			_ => string.Empty,
 		};
+
+	/// <summary>
+	/// Gets the initialiser a member holding another class is given.
+	/// </summary>
+	/// <remarks>
+	/// A class starts at null and is given one, because a member that has to be constructed before
+	/// it can be read is not the thing the schema described. A class that travels as bytes is a
+	/// struct, and a struct is already that thing - so it is given none, which is also what keeps a
+	/// promising class free of the constructor an initialiser would oblige it to declare.
+	/// <para>
+	/// The class a member names is only unresolvable on a schema validation would have refused
+	/// generation for, and constructing one is what every class did before, so that is where this
+	/// falls back to.
+	/// </para>
+	/// </remarks>
+	private static string ObjectInitialiserFor(Models.Types.Object objectType) =>
+		objectType.Class?.TravelsAsBytes == true
+			? string.Empty
+			: $" = new {CSharpKeywords.Identifier(objectType.ClassName)}();";
 
 	/// <summary>
 	/// Gets the initialiser for a member's default, or null when it has none that fits.
