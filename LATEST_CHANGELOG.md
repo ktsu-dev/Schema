@@ -1,7 +1,6 @@
-## v1.29.0 (minor)
+## v1.29.1 (patch)
 
-Changes since v1.28.0:
+Changes since v1.29.0:
 
-- Clear the five SonarCloud findings from the last change ([@Claude](https://github.com/Claude))
-- Emit interfaces, and spell the four types in a signature [minor] ([@Claude](https://github.com/Claude))
+- Clear the two findings the last push left ([@Claude](https://github.com/Claude))
 
