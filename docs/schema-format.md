@@ -709,8 +709,9 @@ SchemaGenerator.Register(new CppCodeGenerator(options));
 colour, a handle, a fallible return and a date, and which semantic types it already declares by hand.
 Anything a target has said nothing about is refused by name rather than emitted as a guess.
 
-The built-in `csharp` generator emits one file per class, per enum and per semantic type, named
-`<Name>.g.cs`. Descriptions become XML doc comments, which is what descriptions are for.
+The built-in `csharp` generator emits one file per class, per enum, per semantic type and per
+interface, named `<Name>.g.cs`. Descriptions become XML doc comments, which is what descriptions are
+for.
 
 ### C# type mapping
 
@@ -729,10 +730,14 @@ The built-in `csharp` generator emits one file per class, per enum and per seman
 | `Enum` | the generated enum |
 | `Object` | the generated class |
 | `Semantic` | the generated semantic type |
+| `Interface` | the generated interface |
 | `Handle` | `ktsu.Schema.Runtime.Handle<T>`, `T` being what the handle names |
+| `Optional` | `ktsu.Schema.Runtime.Optional<T>` |
 | `Array` with `vector` | `List<T>` |
 | `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
-| `Span`, `Result`, `Optional`, `Interface` | `object?`, as every type the generator cannot yet say is |
+| `Span` | `System.ReadOnlySpan<T>` for an `In` parameter and `System.Span<T>` otherwise. A parameter only - C# has no field of a `ref struct` |
+| `Result` | `ktsu.Schema.Runtime.Result<T, TError>`, or `Result<TError>` for `Result<Void>`. A return type only |
+| `Void` | `void`, as a return type. There is no member of one |
 
 The colours, the generic vectors and the handle have no counterpart in the base class library, so
 the library provides the types they map to. A generator inventing its own would break the round trip
@@ -746,6 +751,36 @@ A semantic type is emitted as a `readonly record struct` holding the one value i
 C# spells `explicit` and `implicit` on a conversion directly, so the two conventions the schema
 holds are the conversions themselves: crossing into or out of the representation is explicit both
 ways, and a type refining another widens to it implicitly and narrows back explicitly.
+
+An interface is emitted under the name the schema gave it, with **no `I` prefix**. The compiled name
+is what the importer reads back, so a prefix would have to be stripped again - and stripping cannot
+tell a prefix from a first letter, which would turn an interface called `Item` into `tem`. The
+classes and the enums follow the same rule.
+
+`Optional<T>` is a type this library provides rather than `T?`, which means two different things:
+over a value type it is `Nullable<T>`, a type, and over a reference type it is an annotation that is
+not part of the type at all. One of the two survives a reimport and the other does not, so a
+generator writing `T?` would keep an `Optional<Int>` and lose an `Optional<Item>`.
+
+`Result` carries the schema's error enum - the one named once by the schema's `errorType`, not one
+chosen per signature. There are two arities because C# has no `void` type argument: `Result<TError>`
+is what a `Result<Void>` becomes, and the arity is what tells the two apart when the code is read
+back.
+
+### Signatures
+
+A parameter's direction is the C# parameter modifier, except on a view:
+
+| Direction | C# |
+| --- | --- |
+| `In` | no modifier - an ordinary by-value parameter is already one the caller supplies and the callee does not modify |
+| `Out` | `out` |
+| `InOut` | `ref` |
+| any, on a `Span` | the direction picks `ReadOnlySpan<T>` or `Span<T>`, because on a view it describes the **elements** rather than the view |
+
+All four read back off the compiled signature, so direction needs no attribute. One thing does:
+`isQuery` has no C# syntax at all - C++ writes it as a trailing `const` - so a query carries
+`[SchemaQuery]`.
 
 ### The round trip
 
@@ -771,6 +806,7 @@ reads back:
 | `[SchemaEditorHint("dial")]` | How an editor should present it. |
 | `[SchemaTravelsAsBytes]` | That the class promised to travel as bytes. On the type. |
 | `[SchemaSemanticType(Refines = typeof(ForceMagnitude))]` | That the type is a semantic type, and which one it refines. On the type. |
+| `[SchemaQuery]` | That the method answers rather than acts. On the method. |
 
 A default is also emitted as the property's initialiser, so a generated instance *starts* at the
 default rather than only recording what it should have been:

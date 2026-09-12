@@ -193,3 +193,17 @@ public sealed class SchemaSemanticTypeAttribute : Attribute
 	/// </summary>
 	public Type? Refines { get; set; }
 }
+
+/// <summary>
+/// Records that a generated method answers rather than acts.
+/// </summary>
+/// <remarks>
+/// The fifth convention, and the one C# has no syntax for. C++ writes it as a trailing
+/// <c>const</c>; a C# method signature cannot say that calling it leaves the receiver alone, so
+/// without this the fact would be dropped by the reimport the round trip is built on.
+/// </remarks>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class SchemaQueryAttribute : Attribute
+{
+}
+
