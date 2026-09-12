@@ -137,12 +137,9 @@ internal sealed class CppReflectionBuilder(Models.Schema schema, SchemaCodeGener
 	{
 		string name = CppNaming.Type(schemaClass.Name.ToString(), "Class");
 
-		foreach (SchemaMember member in schemaClass.Members)
+		foreach ((SchemaMember member, SchemaEnum named) in Enumerations(schemaClass))
 		{
-			if (Enumerated(member) is SchemaEnum named)
-			{
-				yield return Values(schemaClass, member, named);
-			}
+			yield return Values(schemaClass, member, named);
 		}
 
 		yield return Members(schemaClass);
@@ -362,4 +359,17 @@ internal sealed class CppReflectionBuilder(Models.Schema schema, SchemaCodeGener
 	/// <summary>The enum a member names, or null when it names none.</summary>
 	private SchemaEnum? Enumerated(SchemaMember member) =>
 		member.Type is SchemaEnumType named ? schema.GetEnum(named.EnumName) : null;
+
+	/// <summary>
+	/// Each member that names an enum, paired with the enum it names.
+	/// </summary>
+	/// <remarks>
+	/// A projection rather than a loop with a test inside it: a member that names no enum
+	/// contributes nothing, which is what an empty sequence says, and the caller then does one
+	/// thing to everything it is handed.
+	/// </remarks>
+	private IEnumerable<(SchemaMember Member, SchemaEnum Named)> Enumerations(SchemaClass schemaClass) =>
+		schemaClass.Members.SelectMany(member => Enumerated(member) is SchemaEnum named
+			? new[] { (Member: member, Named: named) }
+			: []);
 }
