@@ -1,6 +1,4 @@
-## v1.30.1 (patch)
+## v1.30.1
 
-Changes since v1.30.0:
-
-- Move the ktsu.Semantics pins to 4.3.1 [patch] ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.30.1.
 
