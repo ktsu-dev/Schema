@@ -542,6 +542,13 @@ public partial class Schema : ISchema
 	public bool TryAddClass(ClassName name) => TryAddChild(name, ClassesInternal);
 
 	/// <summary>
+	/// Tries to add a class based on a .NET Type.
+	/// </summary>
+	/// <param name="type">The .NET type to add as a schema class.</param>
+	/// <returns>True if added successfully, false otherwise.</returns>
+	public bool TryAddClass(Type type) => AddClass(type) is not null;
+
+	/// <summary>
 	/// Adds an enum.
 	/// </summary>
 	/// <param name="name">The name of the enum to add.</param>
@@ -587,6 +594,18 @@ public partial class Schema : ISchema
 	/// <param name="name">The name of the class to add.</param>
 	/// <returns>The added class if successful, null otherwise.</returns>
 	public SchemaClass? AddClass(ClassName name) => AddChild(name, ClassesInternal);
+
+	/// <summary>
+	/// Adds a class based on a .NET Type.
+	/// </summary>
+	/// <remarks>
+	/// The reflection that reads the type lives in <see cref="ClrTypeImporter"/>, which is the
+	/// inverse of what the C# generator emits and is checked against it by the
+	/// generate-then-reimport round trip.
+	/// </remarks>
+	/// <param name="type">The .NET type to add as a schema class.</param>
+	/// <returns>The added class if successful, null otherwise.</returns>
+	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
 
 	/// <summary>
 	/// Tries to add a data source.
@@ -645,25 +664,6 @@ public partial class Schema : ISchema
 	/// <param name="codeGenerator">The found code generator, if any.</param>
 	/// <returns>True if found; otherwise, false.</returns>
 	public bool TryGetCodeGenerator(CodeGeneratorName name, out SchemaCodeGenerator? codeGenerator) => TryGetChild(name, CodeGeneratorsInternal, out codeGenerator);
-
-	/// <summary>
-	/// Tries to add a class based on a .NET Type.
-	/// </summary>
-	/// <param name="type">The .NET type to add as a schema class.</param>
-	/// <returns>True if added successfully, false otherwise.</returns>
-	public bool TryAddClass(Type type) => AddClass(type) is not null;
-
-	/// <summary>
-	/// Adds a class based on a .NET Type.
-	/// </summary>
-	/// <remarks>
-	/// The reflection that reads the type lives in <see cref="ClrTypeImporter"/>, which is the
-	/// inverse of what the C# generator emits and is checked against it by the
-	/// generate-then-reimport round trip.
-	/// </remarks>
-	/// <param name="type">The .NET type to add as a schema class.</param>
-	/// <returns>The added class if successful, null otherwise.</returns>
-	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
 
 	/// <summary>
 	/// Gets the first class in the schema.
