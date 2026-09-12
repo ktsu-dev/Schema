@@ -276,9 +276,7 @@ internal static class ClrTypeImporter
 		if (carried.IsByRef)
 		{
 			carried = carried.GetElementType() ?? carried;
-			added.Direction = parameter.IsOut
-				? ParameterDirection.Out
-				: parameter.IsIn ? ParameterDirection.In : ParameterDirection.InOut;
+			added.Direction = DirectionOf(parameter);
 		}
 		else if (carried.IsGenericType && carried.GetGenericTypeDefinition() == typeof(ReadOnlySpan<>))
 		{
@@ -292,6 +290,25 @@ internal static class ClrTypeImporter
 		}
 
 		added.SetType(Element(schema, carried));
+	}
+
+	/// <summary>
+	/// Says which way a by-reference parameter's value travels.
+	/// </summary>
+	/// <remarks>
+	/// <c>out</c>, <c>ref</c> and <c>in</c> are the same type three ways, so what tells them apart
+	/// is which flag the parameter carries rather than anything about the type. Only reached for a
+	/// by-reference parameter: an ordinary one is <see cref="ParameterDirection.In"/>, which is
+	/// also what a parameter carrying neither flag means.
+	/// </remarks>
+	private static ParameterDirection DirectionOf(ParameterInfo parameter)
+	{
+		if (parameter.IsOut)
+		{
+			return ParameterDirection.Out;
+		}
+
+		return parameter.IsIn ? ParameterDirection.In : ParameterDirection.InOut;
 	}
 
 	/// <summary>
