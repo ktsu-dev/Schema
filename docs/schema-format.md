@@ -709,8 +709,8 @@ SchemaGenerator.Register(new CppCodeGenerator(options));
 colour, a handle, a fallible return and a date, and which semantic types it already declares by hand.
 Anything a target has said nothing about is refused by name rather than emitted as a guess.
 
-The built-in `csharp` generator emits one file per class and per enum, named `<Name>.g.cs`.
-Descriptions become XML doc comments, which is what descriptions are for.
+The built-in `csharp` generator emits one file per class, per enum and per semantic type, named
+`<Name>.g.cs`. Descriptions become XML doc comments, which is what descriptions are for.
 
 ### C# type mapping
 
@@ -724,15 +724,28 @@ Descriptions become XML doc comments, which is what descriptions are for.
 | `String` | `string` |
 | `DateTime` | `System.DateTime` |
 | `TimeSpan` | `System.TimeSpan` |
-| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4`, when the components are floats - those types hold nothing else. A vector of anything else is emitted as `object?`, as every type the generator cannot yet say is. |
+| `Vector2` / `Vector3` / `Vector4` | `System.Numerics.Vector2` / `3` / `4` when the components are floats - those types hold nothing else - and `ktsu.Schema.Runtime.Vector2<T>` / `3` / `4` otherwise |
 | `ColorRGB` / `ColorRGBA` | `ktsu.Schema.Runtime.ColorRgb` / `ColorRgba` |
 | `Enum` | the generated enum |
 | `Object` | the generated class |
+| `Semantic` | the generated semantic type |
+| `Handle` | `ktsu.Schema.Runtime.Handle<T>`, `T` being what the handle names |
 | `Array` with `vector` | `List<T>` |
 | `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
+| `Span`, `Result`, `Optional`, `Interface` | `object?`, as every type the generator cannot yet say is |
 
-The colours have no counterpart in the base class library, so the library provides the two types
-they map to. A generator inventing its own would break the round trip below.
+The colours, the generic vectors and the handle have no counterpart in the base class library, so
+the library provides the types they map to. A generator inventing its own would break the round trip
+below.
+
+A handle's type argument is carried and never stored - a `Handle<T>` is an index and a generation
+whatever `T` is - which is what makes the schema's rule true in C#: a class that travels as bytes
+may hold a handle to a class that makes no such promise.
+
+A semantic type is emitted as a `readonly record struct` holding the one value it is represented as.
+C# spells `explicit` and `implicit` on a conversion directly, so the two conventions the schema
+holds are the conversions themselves: crossing into or out of the representation is explicit both
+ways, and a type refining another widens to it implicitly and narrows back explicitly.
 
 ### The round trip
 
@@ -756,6 +769,8 @@ reads back:
 | `[SchemaInterpolation(Interpolation.Spherical)]` | How two of its states blend. |
 | `[SchemaNetwork(0.01D, true)]` | Its quantisation step and delta flag. |
 | `[SchemaEditorHint("dial")]` | How an editor should present it. |
+| `[SchemaTravelsAsBytes]` | That the class promised to travel as bytes. On the type. |
+| `[SchemaSemanticType(Refines = typeof(ForceMagnitude))]` | That the type is a semantic type, and which one it refines. On the type. |
 
 A default is also emitted as the property's initialiser, so a generated instance *starts* at the
 default rather than only recording what it should have been:
@@ -770,6 +785,14 @@ public float Ratio { get; set; } = 1.5f;
 
 The attribute and the initialiser are not redundant: the initialiser is what makes the object
 right, and the attribute is what lets the default be read back off the type.
+
+The last two attributes are on the type rather than on a member, and both say something its shape
+cannot. A class that travels as bytes and a semantic type are both emitted as a struct, so the shape
+alone cannot tell one from the other, nor either from a struct the importer simply has no mapping
+for. And a semantic type that refines another stores the representation the two of them share,
+exactly as the one it refines does, so only `Refines` can say that the `float` arrived by way of a
+`ForceMagnitude`. The six metadata attributes above target a type as well as a member, because a
+semantic type carries them for the same reason a member does.
 
 ### Running a generator
 

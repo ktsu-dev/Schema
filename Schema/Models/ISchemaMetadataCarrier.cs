@@ -13,36 +13,42 @@ using ktsu.Schema.Models.Metadata;
 /// <c>Metres</c> is always metres, and a normalised ratio is always in [0, 1] wherever it appears.
 /// The rules for whether a given combination makes sense are identical in both cases, so this is
 /// the shape validation reads rather than each carrier growing its own copy of them.
+/// <para>
+/// Settable, because reading is not the only thing done to both alike:
+/// <see cref="ClrTypeImporter"/> restores all six from the attributes a generator wrote them into,
+/// and a member and a semantic type are restored identically. The read-only view of a member is
+/// <see cref="Contracts.ISchemaMember"/>, which is the abstraction seam; this is the models' own.
+/// </para>
 /// </remarks>
 public interface ISchemaMetadataCarrier
 {
 	/// <summary>
-	/// Gets the unit the value is measured in.
+	/// Gets or sets the unit the value is measured in.
 	/// </summary>
-	public UnitSymbol? Unit { get; }
+	public UnitSymbol? Unit { get; set; }
 
 	/// <summary>
-	/// Gets the range the value is bounded to, if any.
+	/// Gets or sets the range the value is bounded to, if any.
 	/// </summary>
-	public MemberRange? Range { get; }
+	public MemberRange? Range { get; set; }
 
 	/// <summary>
-	/// Gets the value taken when none is supplied.
+	/// Gets or sets the value taken when none is supplied.
 	/// </summary>
-	public MemberDefault? DefaultValue { get; }
+	public MemberDefault? DefaultValue { get; set; }
 
 	/// <summary>
-	/// Gets how the value should be encoded when sent over a network.
+	/// Gets or sets how the value should be encoded when sent over a network.
 	/// </summary>
-	public MemberNetwork? Network { get; }
+	public MemberNetwork? Network { get; set; }
 
 	/// <summary>
-	/// Gets how two states of the value may be blended.
+	/// Gets or sets how two states of the value may be blended.
 	/// </summary>
-	public Interpolation Interpolation { get; }
+	public Interpolation Interpolation { get; set; }
 
 	/// <summary>
-	/// Gets a hint about how an editor should present the value.
+	/// Gets or sets a hint about how an editor should present the value.
 	/// </summary>
-	public EditorHint? Editor { get; }
+	public EditorHint? Editor { get; set; }
 }

@@ -26,6 +26,16 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </summary>
 	public const string LanguageId = LanguageName.CSharpName;
 
+	/// <summary>
+	/// What a type this generator cannot yet spell is written as.
+	/// </summary>
+	/// <remarks>
+	/// Named rather than repeated, because two places have to agree on it: <see cref="MapType"/>
+	/// writes it, and a semantic type over a representation that reached it cannot emit its
+	/// conversions, since C# refuses a user-defined conversion to or from <c>object</c>.
+	/// </remarks>
+	private const string UnspeakableType = "object?";
+
 	/// <inheritdoc />
 	public string Language => LanguageId;
 
@@ -40,6 +50,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		foreach (SchemaEnum schemaEnum in schema.Enums)
 		{
 			files[$"{schemaEnum.Name}.g.cs"] = GenerateEnum(schemaEnum, configuration.Namespace);
+		}
+
+		foreach (SchemaSemanticType semanticType in schema.SemanticTypes)
+		{
+			files[$"{semanticType.Name}.g.cs"] = GenerateSemanticType(semanticType, configuration.Namespace);
 		}
 
 		foreach (SchemaClass schemaClass in schema.Classes)
@@ -152,6 +167,107 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		code.WriteLine("}");
 	}
 
+	/// <summary>
+	/// Emits a semantic type: the shim that makes two values sharing a representation stop being
+	/// interchangeable.
+	/// </summary>
+	/// <remarks>
+	/// A struct holding one value, so it is the same bytes as the thing it shims and a class that
+	/// travels as bytes may hold one. What it adds is what it refuses: C# spells "explicit" and
+	/// "implicit" on a conversion directly, so the schema's two conventions - crossing into or out
+	/// of the representation is always explicit, and a type refining another widens implicitly and
+	/// narrows explicitly - are the conversions themselves rather than a comment beside them.
+	/// <para>
+	/// A <c>record struct</c> for equality: two of these are the same when their values are, which
+	/// is what a distinct name over an existing type means, and writing that by hand would be
+	/// <c>Equals</c>, <c>GetHashCode</c> and two operators emitted identically every time.
+	/// </para>
+	/// </remarks>
+	private static string GenerateSemanticType(SchemaSemanticType semanticType, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		WriteDocComment(code, semanticType.Description);
+
+		string name = CSharpKeywords.Identifier(semanticType.Name);
+		SchemaSemanticType? refined = semanticType.Refines().FirstOrDefault();
+		string refines = refined is null
+			? string.Empty
+			: $"(Refines = typeof({CSharpKeywords.Identifier(refined.Name)}))";
+
+		code.WriteLine($"[ktsu.Schema.Runtime.SchemaSemanticType{refines}]");
+		WriteMetadataAttributes(code, semanticType);
+		code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+		code.WriteLine($"public readonly record struct {name}");
+
+		using (new Scope(code))
+		{
+			string underlying = MapType(semanticType.Representation());
+
+			code.WriteLine($"private {name}({underlying} value) => Value = value;");
+			code.NewLine();
+			code.WriteLine("/// <summary>");
+			code.WriteLine("/// Gets the value this is represented as.");
+			code.WriteLine("/// </summary>");
+			code.WriteLine($"public {underlying} Value {{ get; }}");
+
+			// A representation this generator cannot spell arrives as object, which C# refuses to
+			// convert to or from. The schema is one validation has already refused generation for,
+			// so the type is still emitted under its own name - it just cannot be crossed into.
+			if (!string.Equals(underlying, UnspeakableType, StringComparison.Ordinal))
+			{
+				WriteConversions(code, name, underlying, refined);
+			}
+		}
+
+		return code.ToString();
+	}
+
+	/// <summary>
+	/// Writes a semantic type's conversions: into and out of its representation, and to and from
+	/// the type it refines.
+	/// </summary>
+	private static void WriteConversions(CodeBlocker code, string name, string underlying, SchemaSemanticType? refined)
+	{
+		code.NewLine();
+		code.WriteLine("/// <summary>");
+		code.WriteLine($"/// Explicit: a bare value never becomes a {name} by accident.");
+		code.WriteLine("/// </summary>");
+		code.WriteLine($"public static explicit operator {name}({underlying} value) => new(value);");
+
+		code.NewLine();
+		code.WriteLine("/// <summary>");
+		code.WriteLine("/// Explicit in this direction too: leaving the type is a decision as well.");
+		code.WriteLine("/// </summary>");
+		code.WriteLine($"public static explicit operator {underlying}({name} value) => value.Value;");
+
+		if (refined is null)
+		{
+			return;
+		}
+
+		string broader = CSharpKeywords.Identifier(refined.Name);
+
+		code.NewLine();
+		code.WriteLine("/// <summary>");
+		code.WriteLine($"/// Widening is implicit: this is {Article(broader)} {broader}.");
+		code.WriteLine("/// </summary>");
+		code.WriteLine($"public static implicit operator {broader}({name} value) => ({broader})value.Value;");
+
+		code.NewLine();
+		code.WriteLine("/// <summary>");
+		code.WriteLine($"/// Narrowing is explicit: not every {broader} is {Article(name)} {name}.");
+		code.WriteLine("/// </summary>");
+		code.WriteLine($"public static explicit operator {name}({broader} value) => new(value.Value);");
+	}
+
+	/// <summary>
+	/// Picks the indefinite article for a type name, so a generated comment reads as a sentence.
+	/// </summary>
+	private static string Article(string name) =>
+		name.Length > 0 && "AEIOU".Contains(char.ToUpperInvariant(name[0]), StringComparison.Ordinal) ? "an" : "a";
+
 	private static void WriteHeader(CodeBlocker code, CodeNamespace codeNamespace)
 	{
 		code.WriteLine("// <auto-generated>");
@@ -207,45 +323,50 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	}
 
 	/// <summary>
-	/// Records a member's semantic metadata on the generated property.
+	/// Records semantic metadata on whatever generated declaration carries it.
 	/// </summary>
 	/// <remarks>
 	/// A C# type says what a value is and nothing about what it means, so without these the unit,
 	/// range, default, interpolation and network encoding would be dropped by the reimport the
 	/// round trip is built on - the same problem <see cref="WriteSchemaKeyAttribute"/> solves for
 	/// a keyed map.
+	/// <para>
+	/// Written against <see cref="ISchemaMetadataCarrier"/> rather than a member, because a
+	/// semantic type carries the same six properties and they are emitted the same way. That is
+	/// the same reason validation reads the interface rather than each carrier growing a copy.
+	/// </para>
 	/// </remarks>
-	private static void WriteMetadataAttributes(CodeBlocker code, SchemaMember member)
+	private static void WriteMetadataAttributes(CodeBlocker code, ISchemaMetadataCarrier carrier)
 	{
-		if (member.Unit is not null)
+		if (carrier.Unit is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaUnit({Quote(member.Unit)})]");
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaUnit({Quote(carrier.Unit)})]");
 		}
 
-		if (member.Range is MemberRange range)
+		if (carrier.Range is MemberRange range)
 		{
 			string wrap = range.Wrap ? ", Wrap = true" : string.Empty;
 			code.WriteLine($"[ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
 		}
 
-		if (DefaultArgument(member.DefaultValue) is string argument)
+		if (DefaultArgument(carrier.DefaultValue) is string argument)
 		{
 			code.WriteLine($"[ktsu.Schema.Runtime.SchemaDefault({argument})]");
 		}
 
-		if (member.Interpolation is not Interpolation.None)
+		if (carrier.Interpolation is not Interpolation.None)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaInterpolation(ktsu.Schema.Models.Metadata.Interpolation.{member.Interpolation})]");
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaInterpolation(ktsu.Schema.Models.Metadata.Interpolation.{carrier.Interpolation})]");
 		}
 
-		if (member.Network is MemberNetwork network)
+		if (carrier.Network is MemberNetwork network)
 		{
 			code.WriteLine($"[ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
 		}
 
-		if (member.Editor is not null)
+		if (carrier.Editor is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaEditorHint({Quote(member.Editor)})]");
+			code.WriteLine($"[ktsu.Schema.Runtime.SchemaEditorHint({Quote(carrier.Editor)})]");
 		}
 	}
 
@@ -313,12 +434,22 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		ColorRGBA => "ktsu.Schema.Runtime.ColorRgba",
 
 		// System.Numerics vectors hold floats and nothing else, so they represent a vector of
-		// floats and only that. A vector of anything else falls through to the same object? every
-		// other type this generator cannot yet say does, rather than being emitted as a type it
-		// is not.
+		// floats and only that. A vector of anything else is one of this library's, which is
+		// generic over the component precisely because the System.Numerics ones are not.
 		Vector2 { ElementType: Float } => "System.Numerics.Vector2",
 		Vector3 { ElementType: Float } => "System.Numerics.Vector3",
 		Vector4 { ElementType: Float } => "System.Numerics.Vector4",
+		Vector2 vector => $"ktsu.Schema.Runtime.Vector2<{MapType(vector.ElementType)}>",
+		Vector3 vector => $"ktsu.Schema.Runtime.Vector3<{MapType(vector.ElementType)}>",
+		Vector4 vector => $"ktsu.Schema.Runtime.Vector4<{MapType(vector.ElementType)}>",
+
+		// What the handle names is a type argument rather than anything stored, so this says which
+		// handles may be passed where without saying that a handle to a mesh is laid out
+		// differently from a handle to a texture - it is not.
+		Handle handle => $"ktsu.Schema.Runtime.Handle<{MapType(handle.ElementType)}>",
+
+		// The struct emitted for the semantic type, named the same way a class or an enum is.
+		Semantic semanticType => CSharpKeywords.Identifier(semanticType.SemanticTypeName),
 
 		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
 		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
@@ -326,8 +457,12 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		// A member left as None is reported by validation as a warning, not an error, so
 		// generation is not refused for it. object keeps the output compiling.
-		None => "object?",
-		_ => "object?",
+		None => UnspeakableType,
+
+		// A view, a fallible value, an absent one, an interface: what is left is the types whose
+		// C# spelling is a decision about the generated API rather than a gap in the mapping. A
+		// class that travels as bytes may hold none of them, so nothing here defeats that promise.
+		_ => UnspeakableType,
 	};
 
 	private static string MapArray(Models.Types.Array arrayType)

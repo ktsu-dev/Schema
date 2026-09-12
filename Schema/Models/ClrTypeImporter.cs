@@ -24,6 +24,11 @@ using ktsu.Semantics.Strings;
 internal static class ClrTypeImporter
 {
 	/// <summary>
+	/// The name of the property a generated semantic type holds its value in.
+	/// </summary>
+	private const string SemanticValueName = "Value";
+
+	/// <summary>
 	/// Reads a .NET type into a schema as a class, with a member for each of its properties and
 	/// fields.
 	/// </summary>
@@ -85,7 +90,7 @@ internal static class ClrTypeImporter
 
 		ApplySchemaKey(schemaType, info);
 		member.SetType(schemaType);
-		ApplyMemberMetadata(member, info);
+		ApplyMetadata(member, info);
 	}
 
 	private static BaseType? GetOrCreateSchemaType(Schema schema, Type type)
@@ -118,6 +123,19 @@ internal static class ClrTypeImporter
 				return new Enum() { EnumName = enumName };
 			}
 		}
+		else if (type.GetCustomAttribute<Runtime.SchemaSemanticTypeAttribute>() is Runtime.SchemaSemanticTypeAttribute semantic)
+		{
+			return ImportSemanticType(schema, type, semantic);
+		}
+		else if (TryGetWrappedType(type, typeof(Runtime.Handle<>), out Type? handled) && handled is not null)
+		{
+			return new Handle() { ElementType = GetOrCreateSchemaType(schema, handled) ?? new None() };
+		}
+		else if (TryGetVectorComponent(type, out Func<BaseType, BaseType>? vector, out Type? component) &&
+			vector is not null && component is not null)
+		{
+			return vector(GetOrCreateSchemaType(schema, component) ?? new None());
+		}
 		else if (IsSchemaClass(type))
 		{
 			ClassName className = type.Name.As<ClassName>();
@@ -129,6 +147,82 @@ internal static class ClrTypeImporter
 		}
 
 		return new None();
+	}
+
+	/// <summary>
+	/// Reads a generated semantic type back into the schema, declaring it if this is the first
+	/// member to name it.
+	/// </summary>
+	/// <remarks>
+	/// The struct holds the representation whether or not it refines another semantic type, so the
+	/// shape alone cannot say which - the attribute is what carries it, and the chain is rebuilt by
+	/// recursing into the type it names. A type already declared is left as it is, which is what
+	/// makes two members naming the same semantic type describe one declaration rather than two.
+	/// </remarks>
+	private static Semantic ImportSemanticType(Schema schema, Type type, Runtime.SchemaSemanticTypeAttribute attribute)
+	{
+		SemanticTypeName name = type.Name.As<SemanticTypeName>();
+		Semantic reference = new() { SemanticTypeName = name };
+
+		if (schema.GetSemanticType(name) is not null)
+		{
+			return reference;
+		}
+
+		SchemaSemanticType? declaration = schema.AddSemanticType(name);
+		if (declaration is null)
+		{
+			return reference;
+		}
+
+		BaseType underlying = attribute.Refines is Type refined
+			? GetOrCreateSchemaType(schema, refined) ?? new None()
+			: RepresentationOf(schema, type);
+
+		declaration.SetUnderlyingType(underlying);
+		ApplyMetadata(declaration, type);
+		return reference;
+	}
+
+	/// <summary>
+	/// Reads what a generated semantic type is represented as, off the one value it holds.
+	/// </summary>
+	private static BaseType RepresentationOf(Schema schema, Type type) =>
+		type.GetProperty(SemanticValueName, BindingFlags.Public | BindingFlags.Instance) is PropertyInfo value
+			? GetOrCreateSchemaType(schema, value.PropertyType) ?? new None()
+			: new None();
+
+	/// <summary>
+	/// Gets the type argument of a generic type built from <paramref name="definition"/>.
+	/// </summary>
+	private static bool TryGetWrappedType(Type type, Type definition, out Type? wrapped)
+	{
+		wrapped = type.IsGenericType && type.GetGenericTypeDefinition() == definition
+			? type.GetGenericArguments()[0]
+			: null;
+
+		return wrapped is not null;
+	}
+
+	/// <summary>
+	/// Gets which vector a generic vector type is, and what its components are.
+	/// </summary>
+	/// <remarks>
+	/// Only the vectors over something other than a float arrive here: a vector of floats is a
+	/// <see cref="System.Numerics"/> one and is already in <see cref="DirectTypeMappings"/>.
+	/// </remarks>
+	private static bool TryGetVectorComponent(Type type, out Func<BaseType, BaseType>? vector, out Type? component)
+	{
+		vector = null;
+		component = null;
+
+		if (!type.IsGenericType || !GenericVectors.TryGetValue(type.GetGenericTypeDefinition(), out vector))
+		{
+			return false;
+		}
+
+		component = type.GetGenericArguments()[0];
+		return true;
 	}
 
 	/// <summary>
@@ -168,7 +262,7 @@ internal static class ClrTypeImporter
 	}
 
 	/// <summary>
-	/// Restores a member's semantic metadata from the attributes a generator wrote it into.
+	/// Restores semantic metadata from the attributes a generator wrote it into.
 	/// </summary>
 	/// <remarks>
 	/// A generated property's type carries none of this: a <c>float</c> measured in metres per
@@ -179,24 +273,29 @@ internal static class ClrTypeImporter
 	/// An attribute that is absent leaves the property as it was rather than clearing it, so
 	/// reimporting into a member that already carries metadata adds to it instead of erasing it.
 	/// </para>
+	/// <para>
+	/// A semantic type carries the same six and is restored by the same code, which is what
+	/// <see cref="ISchemaMetadataCarrier"/> is for. A <see cref="Type"/> is a
+	/// <see cref="MemberInfo"/>, so the two callers differ only in what they hand it.
+	/// </para>
 	/// </remarks>
-	private static void ApplyMemberMetadata(SchemaMember member, MemberInfo info)
+	private static void ApplyMetadata(ISchemaMetadataCarrier carrier, MemberInfo info)
 	{
 		if (info.GetCustomAttribute<Runtime.SchemaUnitAttribute>() is Runtime.SchemaUnitAttribute unit)
 		{
-			member.Unit = unit.Unit.As<UnitSymbol>();
+			carrier.Unit = unit.Unit.As<UnitSymbol>();
 		}
 
 		if (info.GetCustomAttribute<Runtime.SchemaRangeAttribute>() is Runtime.SchemaRangeAttribute range)
 		{
-			member.Range = new MemberRange { Minimum = range.Minimum, Maximum = range.Maximum, Wrap = range.Wrap };
+			carrier.Range = new MemberRange { Minimum = range.Minimum, Maximum = range.Maximum, Wrap = range.Wrap };
 		}
 
 		if (info.GetCustomAttribute<Runtime.SchemaDefaultAttribute>() is Runtime.SchemaDefaultAttribute defaultValue)
 		{
 			// The constructor the generator chose is what says which kind of default this is, and
 			// the boxed value is the only thing that still remembers which one that was.
-			member.DefaultValue = defaultValue.Value switch
+			carrier.DefaultValue = defaultValue.Value switch
 			{
 				double number => new NumberDefault { Value = number },
 				bool boolean => new BooleanDefault { Value = boolean },
@@ -207,17 +306,17 @@ internal static class ClrTypeImporter
 
 		if (info.GetCustomAttribute<Runtime.SchemaInterpolationAttribute>() is Runtime.SchemaInterpolationAttribute interpolation)
 		{
-			member.Interpolation = interpolation.Mode;
+			carrier.Interpolation = interpolation.Mode;
 		}
 
 		if (info.GetCustomAttribute<Runtime.SchemaNetworkAttribute>() is Runtime.SchemaNetworkAttribute network)
 		{
-			member.Network = new MemberNetwork { Quantise = network.Quantise, Delta = network.Delta };
+			carrier.Network = new MemberNetwork { Quantise = network.Quantise, Delta = network.Delta };
 		}
 
 		if (info.GetCustomAttribute<Runtime.SchemaEditorHintAttribute>() is Runtime.SchemaEditorHintAttribute editor)
 		{
-			member.Editor = editor.Hint.As<EditorHint>();
+			carrier.Editor = editor.Hint.As<EditorHint>();
 		}
 	}
 
@@ -250,6 +349,22 @@ internal static class ClrTypeImporter
 		[typeof(System.Numerics.Vector4)] = () => new Vector4(),
 		[typeof(Runtime.ColorRgb)] = () => new ColorRGB(),
 		[typeof(Runtime.ColorRgba)] = () => new ColorRGBA(),
+	};
+
+	/// <summary>
+	/// The generic vector types and which schema vector each one is.
+	/// </summary>
+	/// <remarks>
+	/// Separate from <see cref="DirectTypeMappings"/> because these say nothing until their
+	/// component is read: a <c>Vector3&lt;double&gt;</c> and a <c>Vector3&lt;Kilograms&gt;</c> are
+	/// one entry here and two schema types, so what each one maps to is a function of its argument
+	/// rather than a fixed answer.
+	/// </remarks>
+	private static readonly Dictionary<Type, Func<BaseType, BaseType>> GenericVectors = new()
+	{
+		[typeof(Runtime.Vector2<>)] = element => new Vector2() { ElementType = element },
+		[typeof(Runtime.Vector3<>)] = element => new Vector3() { ElementType = element },
+		[typeof(Runtime.Vector4<>)] = element => new Vector4() { ElementType = element },
 	};
 
 	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
