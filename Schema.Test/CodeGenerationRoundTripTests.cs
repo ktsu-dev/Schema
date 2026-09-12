@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Tests;
 
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
@@ -136,6 +137,127 @@ public class CodeGenerationRoundTripTests
 		Assert.IsTrue((bool)user.GetProperty("Flag")!.GetValue(instance)!);
 		Assert.AreEqual("anonymous", user.GetProperty("Name")!.GetValue(instance));
 		Assert.AreEqual("Member", user.GetProperty("Role")!.GetValue(instance)!.ToString());
+	}
+
+	// ---- what the promise is emitted as --------------------------------------
+
+	/// <summary>
+	/// A class that promises to travel as raw bytes is a sequentially laid out struct, which is
+	/// the promise being kept rather than merely recorded.
+	/// </summary>
+	/// <remarks>
+	/// Sequential layout is what makes the schema's member order load-bearing on this side too: a
+	/// CLR class may order its fields however it likes, so the C# and C++ versions of a class
+	/// could not be compared byte for byte until this.
+	/// </remarks>
+	[TestMethod]
+	public void TestAPromisingClassIsGeneratedAsASequentialStruct()
+	{
+		Type packet = CompileFullSchema().GetType("Generated.Packet", throwOnError: true)!;
+
+		Assert.IsTrue(packet.IsValueType, "A class promising to travel as bytes came back as a reference type.");
+
+		StructLayoutAttribute layout = packet.StructLayoutAttribute!;
+		Assert.AreEqual(LayoutKind.Sequential, layout.Value);
+	}
+
+	/// <summary>
+	/// The promise changes the shape of the classes that make it and no others. This is not a move
+	/// to value types for generated C# in general.
+	/// </summary>
+	[TestMethod]
+	public void TestAClassMakingNoSuchPromiseIsStillAReferenceType()
+	{
+		Assembly assembly = CompileFullSchema();
+
+		Assert.IsFalse(assembly.GetType("Generated.User", throwOnError: true)!.IsValueType);
+		Assert.IsFalse(assembly.GetType("Generated.Item", throwOnError: true)!.IsValueType);
+	}
+
+	/// <summary>
+	/// A promising class holding another one round-trips as the class it names, which it could not
+	/// do while the importer read only reference types.
+	/// </summary>
+	/// <remarks>
+	/// The two halves of this change meet here: the generator turned the inner class into a struct
+	/// and the importer would have read a struct as a member with no type at all, so a class the
+	/// schema plainly named came back as <c>None</c>. Nothing else covers it, because the full
+	/// schema's promising class holds only primitives.
+	/// </remarks>
+	[TestMethod]
+	public void TestAPromisingClassInsideAnotherRoundTripsAsTheClassItNames()
+	{
+		Schema original = NestedPromisingSchema();
+		SchemaGenerationResult result = SchemaGenerator.Generate(original, CodeGenerationTests.ConfigureGenerator(original));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		Assembly assembly = GeneratedSourceCompiler.Compile(result.Files);
+
+		Schema reimported = new();
+		reimported.AddClass(assembly.GetType("Generated.Transform", throwOnError: true)!);
+
+		SchemaMember scale = reimported.GetClass("Transform".As<ClassName>())!.GetMember("Scale".As<MemberName>())!;
+		Assert.AreEqual(new Models.Types.Object { ClassName = "Triple".As<ClassName>() }, scale.Type);
+
+		// Discovered through the member, and still promising once it arrived.
+		SchemaClass? triple = reimported.GetClass("Triple".As<ClassName>());
+		Assert.IsNotNull(triple);
+		Assert.IsTrue(triple.TravelsAsBytes);
+	}
+
+	/// <summary>
+	/// A member of a promising class starts at its declared default, the same as one of any other
+	/// class.
+	/// </summary>
+	/// <remarks>
+	/// A struct whose members have initialisers does not compile without a constructor of its own,
+	/// so the generator writes one. Without it the source is rejected outright; with it, this is
+	/// what says the defaults survived being moved onto a value type.
+	/// </remarks>
+	[TestMethod]
+	public void TestAPromisingClassStartsAtItsDefaults()
+	{
+		Schema original = NestedPromisingSchema();
+		original.GetClass("Triple".As<ClassName>())!.GetMember("X".As<MemberName>())!.DefaultValue =
+			new NumberDefault { Value = 2.5 };
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(original, CodeGenerationTests.ConfigureGenerator(original));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		Type triple = GeneratedSourceCompiler.Compile(result.Files).GetType("Generated.Triple", throwOnError: true)!;
+		object instance = Activator.CreateInstance(triple)!;
+
+		Assert.AreEqual(2.5f, triple.GetProperty("X")!.GetValue(instance));
+	}
+
+	/// <summary>
+	/// A class that travels as bytes, holding one that does the same - which is what the promise
+	/// permits and what the C# side could not represent before.
+	/// </summary>
+	private static Schema NestedPromisingSchema()
+	{
+		Schema schema = new();
+
+		SchemaClass triple = schema.AddClass("Triple".As<ClassName>())!;
+		triple.TravelsAsBytes = true;
+		triple.AddMember("X".As<MemberName>())!.SetType(new Models.Types.Float());
+		triple.AddMember("Y".As<MemberName>())!.SetType(new Models.Types.Float());
+		triple.AddMember("Z".As<MemberName>())!.SetType(new Models.Types.Float());
+
+		SchemaClass transform = schema.AddClass("Transform".As<ClassName>())!;
+		transform.TravelsAsBytes = true;
+		transform.AddMember("Scale".As<MemberName>())!.SetType(new Models.Types.Object { ClassName = "Triple".As<ClassName>() });
+
+		return schema;
+	}
+
+	private static Assembly CompileFullSchema()
+	{
+		Schema schema = CodeGenerationTests.CreateFullSchema();
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, CodeGenerationTests.ConfigureGenerator(schema));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		return GeneratedSourceCompiler.Compile(result.Files);
 	}
 
 	/// <summary>

@@ -152,10 +152,12 @@ public sealed class SchemaEditorHintAttribute(string hint) : Attribute
 /// back a schema whose classes had quietly stopped promising it. A class attribute rather than a
 /// member one, because the promise is the type's.
 /// <para>
-/// It records the promise rather than enforcing it. Emitting a <c>struct</c> with a sequential
-/// layout would enforce it in C#, and would also change the shape of every generated component
-/// from a class to a value type - a decision about the C# API rather than about the schema, and
-/// not one this attribute is entitled to make.
+/// It records the promise; the generated type keeps it. A promising class is emitted as a
+/// <c>struct</c> with a sequential layout, which is what makes its member order load-bearing in C#
+/// as well. Sequential layout is a fact about a type rather than a statement of intent, though, and
+/// a hand-written struct may have it for reasons of its own - so the promise cannot be read back
+/// off the shape. That is what this is for, and it is also how
+/// <see cref="Models.ClrTypeImporter"/> tells a generated struct from any other value type.
 /// </para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]

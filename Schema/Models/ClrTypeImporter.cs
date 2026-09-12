@@ -118,7 +118,7 @@ internal static class ClrTypeImporter
 				return new Enum() { EnumName = enumName };
 			}
 		}
-		else if (type.IsClass && type != typeof(string))
+		else if (IsSchemaClass(type))
 		{
 			ClassName className = type.Name.As<ClassName>();
 			SchemaClass? schemaClass = schema.GetClass(className) ?? Import(schema, type);
@@ -130,6 +130,26 @@ internal static class ClrTypeImporter
 
 		return new None();
 	}
+
+	/// <summary>
+	/// Says whether a CLR type is one a generated schema class would have been emitted as.
+	/// </summary>
+	/// <remarks>
+	/// A reference type that is not a string, as it always was, and now a value type that says it
+	/// travels as bytes: <see cref="Generation.CSharpCodeGenerator"/> emits a struct for exactly
+	/// those classes and for no other reason, so the promise is what tells a generated struct apart
+	/// from a value type this importer simply has no mapping for. Read as "any struct" instead, a
+	/// <see cref="Guid"/> would come back as a class with no members - which says the wrong thing
+	/// rather than nothing.
+	/// <para>
+	/// Reached only after the direct mappings and the enum and collection cases, so the value types
+	/// that do have a mapping - the vectors, the colours, a date, a duration - are already spoken
+	/// for.
+	/// </para>
+	/// </remarks>
+	private static bool IsSchemaClass(Type type) =>
+		(type.IsClass && type != typeof(string)) ||
+		(type.IsValueType && type.GetCustomAttribute<Runtime.SchemaTravelsAsBytesAttribute>() is not null);
 
 	/// <summary>
 	/// Restores an array's key member from the attribute a generator wrote it into.

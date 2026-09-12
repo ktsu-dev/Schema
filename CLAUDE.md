@@ -129,21 +129,33 @@ holding each other validates rather than hanging the validator. It is off by def
 from the file when it is, so a class that says nothing about how it travels is what a class has
 always been.
 
-Nothing about a CLR type says this, so generated C# carries `SchemaTravelsAsBytesAttribute` and
-`ClrTypeImporter` reads it back - the same arrangement the member metadata uses, and covered by the
-same generate-compile-reimport test. The attribute records the promise rather than enforcing it:
-emitting a sequential-layout `struct` would enforce it and would also change every generated
-component from a class to a value type, which is a decision about the C# API rather than about the
-schema.
+Generated C# emits a promising class as a `[StructLayout(LayoutKind.Sequential)] struct`, and every
+other class stays a `class`. A reference type could never keep the promise however carefully it was
+written - an instance is an address, its fields are somewhere else, and the CLR orders them as it
+likes - so a consumer needing the two languages' versions of a class to be the same bytes had
+nothing to compare, and the promise was recorded but unkeepable. Sequential layout is what makes
+member order load-bearing on this side too. It is narrow by design: it reshapes the classes that
+make the promise and no others, rather than being a move to value types for generated C# in general.
 
-**That decision has been reopened and gone the other way, though nothing has changed here yet.** It
-was right while the C# API was the only consumer. It is not once a consumer needs the two languages'
-versions of a class to be the same bytes - a generated `class` can never match a C++ struct's
-layout, so a layout-equality test is impossible and the promise is recorded but unkeepable. The
-answer is narrow: `TravelsAsBytes` will mean `[StructLayout(LayoutKind.Sequential)] struct`, and
-every other class stays a class. That is not a change to the C# API in general; it is the C# API
-honouring a promise the schema already makes. `ClrTypeImporter` will need to read structs back,
-which the existing round-trip test covers.
+Nothing about a CLR type says the promise was *made*, though - sequential layout is a fact about a
+type that a hand-written struct may have for its own reasons - so generated C# still carries
+`SchemaTravelsAsBytesAttribute` and `ClrTypeImporter` still reads it back, the same arrangement the
+member metadata uses and covered by the same generate-compile-reimport test. The struct is how the
+promise is kept; the attribute is how it is recorded. Reading a value type as a class is gated on
+that attribute for the same reason: read as "any struct", a `Guid` would come back as a class with
+none of its members, which says the wrong thing rather than nothing.
+
+Two things follow on the C# side. A member holding a promising class is given no initialiser,
+because a struct is already the value its declaration described; and a struct whose members do have
+initialisers - from a default the schema declared - needs a parameterless constructor of its own
+before it will compile, which the generator writes. `default(T)` is still all zeroes, which is what
+it means for the bytes to be the whole of the value rather than a defect in the defaults.
+
+One hole is left, and it is the one `MapType` already had: a type the C# generator cannot yet spell
+- a `Handle`, a `Semantic`, a vector of anything but floats - falls through to `object?`, which
+inside a sequential struct is a reference field and defeats the promise the struct exists to keep.
+Validation accepts all three, because they travel as bytes in a language that can say them. The C++
+side says them; C# will, and until it does the refusal belongs there rather than here.
 
 ### Declaring behaviour
 
