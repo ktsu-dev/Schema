@@ -17,9 +17,15 @@ using ktsu.Schema.Models.Metadata;
 /// The text is the same spelling the schema file holds - a symbol or a unit name - and resolves
 /// through <see cref="UnitRegistry"/>.
 /// </para>
+/// <para>
+/// Each of them targets a struct as well as a member, because a semantic type carries the same six
+/// properties for the same reason a member does - a <c>Metres</c> is metres everywhere - and is
+/// emitted as a struct. <see cref="Models.ISchemaMetadataCarrier"/> is where the schema says the
+/// two carriers are the same shape; this is that fact on the generated side.
+/// </para>
 /// </remarks>
 /// <param name="unit">The unit's symbol or name.</param>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaUnitAttribute(string unit) : Attribute
 {
 	/// <summary>
@@ -33,7 +39,7 @@ public sealed class SchemaUnitAttribute(string unit) : Attribute
 /// </summary>
 /// <param name="minimum">The smallest allowed value, in the member's own unit.</param>
 /// <param name="maximum">The largest allowed value, in the member's own unit.</param>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaRangeAttribute(double minimum, double maximum) : Attribute
 {
 	/// <summary>
@@ -69,7 +75,7 @@ public sealed class SchemaRangeAttribute(double minimum, double maximum) : Attri
 /// instance start at the default; this is what lets the default be read back off the type.
 /// </para>
 /// </remarks>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaDefaultAttribute : Attribute
 {
 	/// <summary>
@@ -101,7 +107,7 @@ public sealed class SchemaDefaultAttribute : Attribute
 /// Records how two states of a generated member may be blended.
 /// </summary>
 /// <param name="mode">The interpolation mode.</param>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaInterpolationAttribute(Interpolation mode) : Attribute
 {
 	/// <summary>
@@ -115,7 +121,7 @@ public sealed class SchemaInterpolationAttribute(Interpolation mode) : Attribute
 /// </summary>
 /// <param name="quantise">The smallest change worth transmitting. Zero means full precision.</param>
 /// <param name="delta">Whether to send the member only when it differs from the last acknowledged state.</param>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaNetworkAttribute(double quantise, bool delta) : Attribute
 {
 	/// <summary>
@@ -133,7 +139,7 @@ public sealed class SchemaNetworkAttribute(double quantise, bool delta) : Attrib
 /// Records how an editor should present a generated member.
 /// </summary>
 /// <param name="hint">The hint, which is free text.</param>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Struct)]
 public sealed class SchemaEditorHintAttribute(string hint) : Attribute
 {
 	/// <summary>
@@ -163,4 +169,27 @@ public sealed class SchemaEditorHintAttribute(string hint) : Attribute
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
 public sealed class SchemaTravelsAsBytesAttribute : Attribute
 {
+}
+
+/// <summary>
+/// Records that a generated type is a semantic type rather than a class, and what it refines.
+/// </summary>
+/// <remarks>
+/// A semantic type is emitted as a struct holding one value, which is also what a class that
+/// travels as bytes is emitted as - so without this the importer would read <c>Kilograms</c> back
+/// as a class with a member called <c>Value</c>, which says the wrong thing rather than nothing.
+/// <para>
+/// <see cref="Refines"/> is the second thing the shape cannot answer. A type that refines another
+/// stores the representation both of them share, exactly as the one it refines does, so the field
+/// says <c>float</c> either way and only this can say whether that <c>float</c> arrived by way of
+/// a <c>ForceMagnitude</c>. Left null, the type is represented as whatever its value is.
+/// </para>
+/// </remarks>
+[AttributeUsage(AttributeTargets.Struct)]
+public sealed class SchemaSemanticTypeAttribute : Attribute
+{
+	/// <summary>
+	/// Gets or sets the semantic type this one refines, or null when it refines none.
+	/// </summary>
+	public Type? Refines { get; set; }
 }

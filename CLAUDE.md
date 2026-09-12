@@ -63,11 +63,12 @@ leaves the one fact worth knowing about either of them to a comment - which is t
 `ktsu.Semantics.Quantities` finds that library already names the 3D forms - `Velocity3D`,
 `Displacement3D`, `Force3D` - so a member holding one says `Semantic` naming that type rather than
 `Vector3` of a component. Stating it both ways is two spellings of one fact, and the second is the
-one both generators can already map: `CSharpCodeGenerator` handles `Vector3 { ElementType: Float }`
-and falls through to `object?` on a `Semantic` element, which stops being a hole the moment a
-dimensional vector is a `Semantic` in its own right. Expect `ElementType` to narrow to "which
-numeric type", with `Vector2/3/4` meaning untyped geometry, once that lands. It is documented as it
-stands rather than as it is heading, because nothing has changed yet.
+one both generators can already map, and now map the same way: `CSharpCodeGenerator` writes
+`System.Numerics.Vector3` for `Vector3 { ElementType: Float }` and `Runtime.Vector3<Kilograms>` for
+a `Semantic` element, so a dimensional vector spelled either way reaches C# as a type rather than as
+an `object?`. Expect `ElementType` to narrow to "which numeric type", with `Vector2/3/4` meaning
+untyped geometry, once that lands. It is documented as it stands rather than as it is heading,
+because the schema has not changed.
 
 The component must be a number or a `Semantic` over one; anything else is a collection of things
 rather than one value with components, which is what `Array` is for. It defaults to `Float` and is
@@ -151,11 +152,44 @@ initialisers - from a default the schema declared - needs a parameterless constr
 before it will compile, which the generator writes. `default(T)` is still all zeroes, which is what
 it means for the bytes to be the whole of the value rather than a defect in the defaults.
 
-One hole is left, and it is the one `MapType` already had: a type the C# generator cannot yet spell
-- a `Handle`, a `Semantic`, a vector of anything but floats - falls through to `object?`, which
-inside a sequential struct is a reference field and defeats the promise the struct exists to keep.
-Validation accepts all three, because they travel as bytes in a language that can say them. The C++
-side says them; C# will, and until it does the refusal belongs there rather than here.
+The three types that used to defeat the promise are now spelled. A `Handle`, a `Semantic` and a
+vector of anything but floats all fell through `MapType` to `object?`, which compiles and says
+nothing - and inside a sequential struct says something worse, a reference field in the one kind of
+class whose whole promise is that it has none. Validation accepts all three there, because they
+travel as bytes in a language that can say them, so the gap was the generator's rather than the
+schema's.
+
+- A **handle** is `Handle<T>` from `ktsu.Schema.Runtime`, an index and a generation with `T` carried
+  and never stored. That phantom parameter is what makes the schema's rule true in C#: a handle
+  travels as bytes *whatever it identifies*, so a promising class may hold a handle to one that
+  makes no promise at all, while the type still keeps a handle to a texture out of a slot meant for
+  a mesh.
+- A **vector** of floats is still `System.Numerics.Vector3`, which holds floats and nothing else; a
+  vector of anything else is `ktsu.Schema.Runtime.Vector3<T>`, whose components are fields of `T`.
+  Two spellings for one family, because keeping the first is what stops this changing the type of
+  every vector member that already existed.
+- A **semantic type** is emitted, which it was not before - a `readonly record struct` over its
+  representation, one file each, beside the classes and the enums. C# spells `explicit` and
+  `implicit` on a conversion directly, so the schema's two conventions are the conversions
+  themselves rather than a comment beside them: crossing into or out of the representation is
+  explicit both ways, and a type refining another widens implicitly and narrows explicitly.
+
+`SchemaSemanticTypeAttribute` is what the shape cannot say, the same arrangement as
+`TravelsAsBytes`. A semantic type and a promising class are both a struct, so without it `Kilograms`
+reimports as a class with a member called `Value`; and a type that refines another stores the shared
+representation exactly as the one it refines does, so the field says `float` either way and only
+`Refines` can say that one arrived by way of the other. The six metadata attributes target a struct
+as well as a member for the same reason, since a semantic type carries them too -
+`ISchemaMetadataCarrier` is settable so the importer restores both through one path.
+
+The proof is a test that pins an instance: the CLR refuses to pin a type holding a reference
+anywhere in it, so a promising class holding all three either is bytes or the test fails. It is the
+C# counterpart of the `static_assert(std::is_trivially_copyable_v<T>)` the C++ generator emits
+beside the same class.
+
+What is still `object?` is a `Span`, a `Result`, an `Optional` and an `Interface` - types whose C#
+spelling is a decision about the generated API rather than a gap in the mapping, and none of which a
+promising class may hold.
 
 ### Declaring behaviour
 
