@@ -1,7 +1,6 @@
-## v1.30.0 (minor)
+## v1.30.1 (patch)
 
-Changes since v1.29.0:
+Changes since v1.30.0:
 
-- Keep each adder's two forms together ([@Claude](https://github.com/Claude))
-- Clear the two findings the last push left ([@Claude](https://github.com/Claude))
+- Move the ktsu.Semantics pins to 4.3.1 [patch] ([@Claude](https://github.com/Claude))
 
