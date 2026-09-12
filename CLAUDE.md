@@ -9,7 +9,7 @@ Schema is a C# library for defining and managing data structure schemas. It cons
 - **Schema** - Core library providing schema definition types (classes, enums, members, types)
 - **Schema.Test** - MSTest unit tests for the core library
 - **Schema.Cpp** - The C++ generator, in its own project because `ktsu.Coder` ships no `net8.0`
-- **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document
+- **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document and one that compiles the generated reflection table
 - **Schema.Editor** - ImGui-based visual editor application for creating and editing `.schema.json` files
 - **Schema.Editor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
 - **Schema.Tool** - Command line entry point for validating schemas and running their code generators
@@ -201,6 +201,51 @@ One file per element, and **an enum goes to namespace scope in a header of its o
 nested in the class that names it. Holotype's target document nests it, which was right when an enum
 belonged to the component that declared it; here an enum is a top-level element any class may name,
 so nesting it in the one class using it today would move the type the moment a second class used it.
+
+### The reflection table
+
+`CppGeneratorOptions.Reflection` adds two files: `reflect`, the vocabulary, and `reflection`, the
+table. It is off by default, because they are two files a target that does not read them did not
+ask for.
+
+**What it is for.** A generated struct carries a name, a type and an order. Everything else the
+schema says about a member — its unit, its range, whether it wraps, whether two states of it can be
+blended, how it is quantised on the wire, what an editor should draw — the header can only put in a
+comment, which is to say it cannot say it at all. The table is where those facts become data, and a
+validator, a serialiser, a network codec and an editor all read it rather than each being a
+generator with its own copy. That also makes them work on a schema loaded at run time, which
+generated code cannot. The rule it suggests: **generate what has to be a *type*, and write by hand
+what only needs to *read* a type's description.**
+
+**The offsets are the compiler's.** The table says `offsetof(Class, member)` and
+`sizeof(Class::member)`, so the numbers are whatever the compiler chose for that target, that ABI,
+those packing rules. Reflection therefore cannot drift from the layout it describes: it is derived
+from it, by the only thing that knows. A generator that worked offsets out itself would be a second
+implementation of the C++ ABI and would be wrong somewhere eventually.
+
+**A member's kind and its representation are both carried.** `kind` is what the schema declares —
+`Semantic` for a member typed `Kilograms` — and `representation` is what the bytes are, with a
+semantic type followed down its chain of refinement (`Float`). One field could not do both: reading
+a value out of a save file needs the second, and showing the member to a person wants the first.
+
+**The dimension comes from the unit.** A member's unit text is resolved through `UnitRegistry` and
+the unit's own `DimensionInfo` supplies the eight exponents, so the numbers in the table cannot
+disagree with the unit beside them. A member that measures nothing is dimensionless, which is the
+same shape rather than a missing one.
+
+`reflect` is **shipped rather than generated**, like `ktsu.Semantics.Cpp`'s prelude and for the same
+reason: `template <typename T> struct Describe;` declares a type parameter and `concept Reflected`
+is a concept, neither of which the AST models — a generator names a generic type, it never declares
+one. Two lists in it are substituted, though: `TypeKind` is every `[JsonDerivedType]` on `BaseType`
+and `Interpolation` is the enum of that name, each written twice (the enumeration and the names
+beside it) from one list, because the alternative is a `switch` that nothing would keep in step.
+That is why the C++ side emits its own vocabulary rather than being written against one a target
+already has — a type added to the schema appears in C++ with no edit in either repository.
+
+The table is anchored by `template<> struct Describe<Class>`, which is `ktsu.Coder`'s
+`ClassDeclaration.SpecialisationArguments` and was the last thing the AST could not say. The
+alternative was a `DescribeRigidBody` every consumer spells for itself, which is what a lookup by
+type exists to avoid.
 
 ### Contracts
 

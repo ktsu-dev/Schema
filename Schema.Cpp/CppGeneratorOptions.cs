@@ -119,4 +119,18 @@ public sealed record CppGeneratorOptions
 	/// Gets how the target spells the name of a member, function or parameter.
 	/// </summary>
 	public CppMemberNaming MemberNaming { get; init; } = CppMemberNaming.SnakeCase;
+
+	/// <summary>
+	/// Gets a value indicating whether to emit the reflection table beside the headers.
+	/// </summary>
+	/// <remarks>
+	/// Off by default, because it is two files a target that does not read them did not ask for.
+	/// <para>
+	/// What it buys is everything the header can only put in a comment: a unit, a range, whether
+	/// two states of a member can be blended, how it is quantised on the wire, what an editor
+	/// should draw. A generated struct carries none of that, and a program that needs it either
+	/// reads a table or has the facts written into it a second time by hand.
+	/// </para>
+	/// </remarks>
+	public bool Reflection { get; init; }
 }
