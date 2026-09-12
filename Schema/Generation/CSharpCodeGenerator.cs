@@ -36,6 +36,15 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	private const string UnspeakableType = "object?";
 
+	/// <summary>
+	/// The delimiters of a doc comment, named because every generated declaration carrying one
+	/// writes the same two lines around it.
+	/// </summary>
+	private const string SummaryOpen = "/// <summary>";
+
+	/// <inheritdoc cref="SummaryOpen" />
+	private const string SummaryClose = "/// </summary>";
+
 	/// <inheritdoc />
 	public string Language => LanguageId;
 
@@ -164,9 +173,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	{
 		string identifier = CSharpKeywords.Identifier(name);
 
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Initialises a new <see cref=\"{identifier}\"/> at the defaults the schema declared.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Initialises a new <see cref=\"{identifier}\"/> at the defaults the schema declared.");
 		code.WriteLine($"public {identifier}()");
 		code.WriteLine("{");
 		code.WriteLine("}");
@@ -212,9 +219,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 			code.WriteLine($"private {name}({underlying} value) => Value = value;");
 			code.NewLine();
-			code.WriteLine("/// <summary>");
-			code.WriteLine("/// Gets the value this is represented as.");
-			code.WriteLine("/// </summary>");
+			WriteSummary(code, "Gets the value this is represented as.");
 			code.WriteLine($"public {underlying} Value {{ get; }}");
 
 			// A representation this generator cannot spell arrives as object, which C# refuses to
@@ -236,15 +241,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	private static void WriteConversions(CodeBlocker code, string name, string underlying, SchemaSemanticType? refined)
 	{
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Explicit: a bare value never becomes a {name} by accident.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Explicit: a bare value never becomes a {name} by accident.");
 		code.WriteLine($"public static explicit operator {name}({underlying} value) => new(value);");
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine("/// Explicit in this direction too: leaving the type is a decision as well.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, "Explicit in this direction too: leaving the type is a decision as well.");
 		code.WriteLine($"public static explicit operator {underlying}({name} value) => value.Value;");
 
 		if (refined is null)
@@ -255,15 +256,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		string broader = CSharpKeywords.Identifier(refined.Name);
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Widening is implicit: this is {Article(broader)} {broader}.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Widening is implicit: this is {Article(broader)} {broader}.");
 		code.WriteLine($"public static implicit operator {broader}({name} value) => ({broader})value.Value;");
 
 		code.NewLine();
-		code.WriteLine("/// <summary>");
-		code.WriteLine($"/// Narrowing is explicit: not every {broader} is {Article(name)} {name}.");
-		code.WriteLine("/// </summary>");
+		WriteSummary(code, $"Narrowing is explicit: not every {broader} is {Article(name)} {name}.");
 		code.WriteLine($"public static explicit operator {name}({broader} value) => new(value.Value);");
 	}
 
@@ -416,13 +413,28 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			return;
 		}
 
-		code.WriteLine("/// <summary>");
+		code.WriteLine(SummaryOpen);
 		foreach (string line in description.Split('\n'))
 		{
 			code.WriteLine($"/// {Escape(line.TrimEnd('\r'))}");
 		}
 
-		code.WriteLine("/// </summary>");
+		code.WriteLine(SummaryClose);
+	}
+
+	/// <summary>
+	/// Writes a one-line doc comment on the generated declaration that follows.
+	/// </summary>
+	/// <remarks>
+	/// The counterpart of <see cref="WriteDocComment"/>, which writes what the schema said; this
+	/// writes what the generator has to say about a declaration the schema did not describe - a
+	/// conversion, an accessor, a constructor it had to add.
+	/// </remarks>
+	private static void WriteSummary(CodeBlocker code, string text)
+	{
+		code.WriteLine(SummaryOpen);
+		code.WriteLine($"/// {text}");
+		code.WriteLine(SummaryClose);
 	}
 
 	/// <summary>

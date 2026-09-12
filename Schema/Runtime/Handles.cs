@@ -25,4 +25,8 @@ using System.Runtime.InteropServices;
 /// <param name="Generation">Which occupant of that slot this names, so a stale handle is
 /// detectable rather than undefined.</param>
 [StructLayout(LayoutKind.Sequential)]
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+	"Major Code Smell",
+	"S2326:Unused type parameters should be removed",
+	Justification = "T is deliberately phantom. It is what keeps a handle to a texture out of a slot meant for a mesh, and storing nothing of it is what keeps the handle the same bytes whatever it names - which is why a class that travels as bytes may hold one.")]
 public readonly record struct Handle<T>(uint Index, uint Generation);

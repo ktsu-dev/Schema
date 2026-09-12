@@ -177,7 +177,7 @@ public class GeneratedSignatureSpellingTests
 	{
 		SchemaInterface renderer = Reimport().GetInterface("Renderer".As<InterfaceName>())!;
 
-		CollectionAssert.AreEqual(ExpectedSignatures, renderer.Functions.Select(Describe).ToArray());
+		Assert.AreSequenceEqual(ExpectedSignatures, renderer.Functions.Select(Describe));
 	}
 
 	/// <summary>
