@@ -1,8 +1,6 @@
-## v1.31.0 (minor)
+## v1.31.1 (patch)
 
-Changes since v1.30.0:
+Changes since v1.31.0:
 
-- Ship the command line as a `dotnet tool`, and let a target configure it [minor] ([@Claude](https://github.com/Claude))
-- Take ktsu.Semantics 5.0.1, and assert a radian is an angle [minor] ([@Claude](https://github.com/Claude))
-- Move the ktsu.Semantics pins to 4.3.1 [patch] ([@Claude](https://github.com/Claude))
+- Make a promising class the same bytes in C# as in C++ [patch] ([@Claude](https://github.com/Claude))
 
