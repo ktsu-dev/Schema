@@ -416,10 +416,31 @@ public static class SchemaDataValidator
 			return;
 		}
 
-		if (!value.TryGetInt64(out _))
+		if (type is Int)
+		{
+			if (value.TryGetInt32(out _))
+			{
+				return;
+			}
+
+			if (value.TryGetInt64(out long integral))
+			{
+				issues.Add(Error(path, $"Expected a 32-bit whole number for type '{type.DisplayName}' but found {integral} (valid range: {int.MinValue}..{int.MaxValue})."));
+				return;
+			}
+		}
+		else if (value.TryGetInt64(out _))
+		{
+			return;
+		}
+
+		if (type is Long)
 		{
 			issues.Add(Error(path, $"Expected a whole number for type '{type.DisplayName}' but found {value.GetRawText()}."));
+			return;
 		}
+
+		issues.Add(Error(path, $"Expected a 32-bit whole number for type '{type.DisplayName}' but found {value.GetRawText()}."));
 	}
 
 	private static void ExpectParsable(JsonElement value, string path, BaseType type, Collection<SchemaValidationIssue> issues, Func<string, bool> canParse)

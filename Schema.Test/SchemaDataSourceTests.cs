@@ -238,6 +238,16 @@ public class SchemaDataSourceTests
 	}
 
 	[TestMethod]
+	public void TestValueOutsideInt32RangeForAnIntIsAnError()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "Id": "s", "Count": 5000000000, "Status": "Active", "Tint": [1,1,1] }""");
+
+		Assert.IsTrue(SchemaDataValidator.ValidateDataSources(schema).Any(i =>
+			i.Message.Contains("32-bit whole number", StringComparison.Ordinal)));
+	}
+
+	[TestMethod]
 	public void TestValueOutsideTheEnumIsAnError()
 	{
 		Schema schema = CreateAnchoredSchema();

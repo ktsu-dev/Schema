@@ -341,9 +341,15 @@ public partial class Schema
 				// question directly, and it does not compare two doubles for equality. It also
 				// answers false for an infinity, which is not a whole number and cannot narrow to
 				// one - the comparison called that whole, since truncating an infinity returns it.
-				if (type.IsIntegral && !double.IsInteger(number.Value))
+				bool isWholeNumber = double.IsInteger(number.Value);
+				if (type.IsIntegral && !isWholeNumber)
 				{
 					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {type.TypeName}.");
+				}
+
+				if (type is Int && isWholeNumber && !FitsInt32(number.Value))
+				{
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}).");
 				}
 
 				// A wrapping range is a period rather than a bound, so a value outside it is
@@ -463,6 +469,8 @@ public partial class Schema
 	private static bool CanCarryUnit(BaseType type) => type.IsNumeric || IsVector(type);
 
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
+
+	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
 
 	/// <summary>
 	/// Formats a number for a message, culture-invariantly: a validation message that says
