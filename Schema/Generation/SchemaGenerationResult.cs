@@ -31,6 +31,16 @@ public enum SchemaGenerationStatus
 	/// No generator is registered for the requested language.
 	/// </summary>
 	UnknownLanguage,
+
+	/// <summary>
+	/// The schema is coherent, but says something the generator's target cannot express.
+	/// </summary>
+	/// <remarks>
+	/// Distinct from <see cref="SchemaInvalid"/> because the schema is not at fault: a target
+	/// without a fixed-shape vector cannot be handed one, and a target with one can. The message
+	/// names both the element and what the target would have to supply.
+	/// </remarks>
+	TargetCannotExpress,
 }
 
 /// <summary>

@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Cpp.Test;
 
+using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
@@ -139,6 +140,41 @@ public sealed class ExemplarInterfaceTests
 
 		Assert.Contains("Result", refused.Message, StringComparison.Ordinal);
 		Assert.Contains(nameof(CppGeneratorOptions.Result), refused.Message, StringComparison.Ordinal);
+
+		// And the key of the file, which is how a build that runs the tool supplies it. Two
+		// spellings of one property is what drifts, so the message asks the reader for the second
+		// rather than restating it.
+		Assert.Contains($"'{CppGeneratorOptionsFile.NameOf(nameof(CppGeneratorOptions.Result))}'", refused.Message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// The same refusal, reaching a caller as an outcome rather than as a stack trace.
+	/// </summary>
+	/// <remarks>
+	/// Being refused by name is the designed behaviour, so it has to arrive somewhere a person
+	/// reads. Through <see cref="SchemaGenerator"/> - which is the path the command line tool takes,
+	/// and now the path a build takes - the message is the result's, and the status says the schema
+	/// is not at fault: it is coherent, and this target cannot say it.
+	/// <para>
+	/// Only <see cref="SchemaGenerationException"/> is caught, which is why
+	/// <see cref="CppGenerationException"/> derives from it. A generator with a bug in it still
+	/// throws, because a stack trace is the right answer to that and the wrong answer to this.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void ARefusalIsAnOutcomeRatherThanAStackTrace()
+	{
+		Models.Schema schema = ExemplarSchema();
+		SchemaGenerator.Register(new CppCodeGenerator(new CppGeneratorOptions()));
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(
+			schema,
+			schema.GetCodeGenerator("Cpp".As<CodeGeneratorName>())!);
+
+		Assert.AreEqual(SchemaGenerationStatus.TargetCannotExpress, result.Status);
+		Assert.IsFalse(result.IsSuccess);
+		Assert.Contains(nameof(CppGeneratorOptions.Result), result.Message, StringComparison.Ordinal);
+		Assert.IsEmpty(result.Files, "a refusal has nothing partial to hand back");
 	}
 
 	/// <summary>

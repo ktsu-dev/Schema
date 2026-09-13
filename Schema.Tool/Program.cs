@@ -18,11 +18,19 @@ using ktsu.Schema.Generation;
 /// generation can happen in a build rather than only from the editor.
 /// </summary>
 /// <remarks>
-/// Deliberately thin: the commands live in <see cref="SchemaCommandLine"/> in the library, where
-/// they can be tested without spawning a process. This is only the wiring from a real console.
+/// Deliberately thin: the commands live in <see cref="SchemaCommandLine"/> in the library and the
+/// C++ options in <see cref="CppGeneratorOptionsFile"/> beside the generator, both of which can be
+/// tested without spawning a process. This is only the wiring from a real console.
 /// </remarks>
 internal static class Program
 {
+	/// <summary>What this is installed as, and the one option it adds to the commands.</summary>
+	private static SchemaCommandLineHost Host => new()
+	{
+		CommandName = "kschema",
+		Options = [CppGeneratorOptionsFile.OptionUsage],
+	};
+
 	private static int Main(string[] args)
 	{
 		// The C++ generator cannot ship inside the library - it is built on an AST that publishes
@@ -31,10 +39,16 @@ internal static class Program
 		//
 		// With no options it emits standard C++ and nothing else: a schema reaching for a vector,
 		// a handle, a fallible return or a date is refused by name rather than handed a header
-		// that will not compile. A target with its own vocabulary for those hosts the generator
-		// itself and hands it a CppGeneratorOptions saying how it spells them.
-		SchemaGenerator.Register(new CppCodeGenerator());
+		// that will not compile. A target with its own vocabulary for those says how it spells
+		// them in the file named by --cpp-options.
+		if (!CppGeneratorOptionsFile.TryTake(args, out string[] remaining, out CppGeneratorOptions? options, out string? message))
+		{
+			Console.Error.WriteLine(message);
+			return SchemaCommandLine.Failure;
+		}
 
-		return SchemaCommandLine.Run(args, Console.Out, Console.Error);
+		SchemaGenerator.Register(new CppCodeGenerator(options));
+
+		return SchemaCommandLine.Run(remaining, Console.Out, Console.Error, Host);
 	}
 }

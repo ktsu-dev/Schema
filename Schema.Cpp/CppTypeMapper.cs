@@ -205,8 +205,11 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 	{
 		if (spelling is null)
 		{
+			// Both spellings, because there are two ways to supply these and the message cannot
+			// tell which one the reader used: a host that constructs the record names the
+			// property, and a build that runs the tool names the key in its options file.
 			throw new CppGenerationException(
-				$"The schema uses {schemaType}, which standard C++ has no type for. Set {nameof(CppGeneratorOptions)}.{optionName} to how this target spells it.");
+				$"The schema uses {schemaType}, which standard C++ has no type for. Set '{CppGeneratorOptionsFile.NameOf(optionName)}' in the {CppGeneratorOptionsFile.Option} file, or {nameof(CppGeneratorOptions)}.{optionName} in a host, to how this target spells it.");
 		}
 
 		Require(spelling.Include);
