@@ -240,6 +240,15 @@ public class MemberMetadataTests
 	}
 
 	[TestMethod]
+	public void ADefaultOutsideInt32RangeOnAnIntMemberIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Int(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 5_000_000_000.0 };
+
+		AssertMentions(Errors(schema), "outside the 32-bit range");
+	}
+
+	[TestMethod]
 	public void ADefaultOfTheWrongKindIsAnError()
 	{
 		SchemaMember member = MemberWith(new SchemaTypes.Float(), out Schema schema);
