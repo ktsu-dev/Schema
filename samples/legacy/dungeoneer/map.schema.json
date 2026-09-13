@@ -1,0 +1,163 @@
+{
+  "Classes": [
+    {
+      "Name": "Map",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "entities",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MapEntity"
+          }
+        },
+        {
+          "Name": "triggers",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MapTrigger",
+            "Container": "cmVectorMap",
+            "Key": "name"
+          }
+        },
+        {
+          "Name": "planes",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MapPlane",
+            "Container": "cmVectorMap",
+            "Key": "name"
+          }
+        },
+        {
+          "Name": "collisions",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "Line2D"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MapEntity",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "type",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "position",
+          "Typename": "Vector2",
+          "Description": ""
+        }
+      ]
+    },
+    {
+      "Name": "MapTrigger",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "rect",
+          "Typename": "Rect",
+          "Description": ""
+        },
+        {
+          "Name": "script",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "respondingTypes",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string",
+            "Container": "cmVectorSet"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MapLayer",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "tiles",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MapTile",
+            "Container": "cmVectorMap",
+            "Key": "name"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MapPlane",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "layers",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MapLayer",
+            "Container": "cmVectorMap",
+            "Key": "name"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MapTile",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "positions",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "Vector2"
+          }
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": [
+    "..\\..\\carbonmonoxide\\assets\\schema\\vector.schema.json",
+    "..\\..\\carbonmonoxide\\assets\\schema\\rect.schema.json",
+    "..\\..\\carbonmonoxide\\assets\\schema\\line.schema.json"
+  ]
+}

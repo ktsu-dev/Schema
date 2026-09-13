@@ -1,0 +1,33 @@
+{
+  "Classes": [
+    {
+      "Name": "Spline2D",
+      "Members": [
+        {
+          "Name": "nodes",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "Vector2"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Spline3D",
+      "Members": [
+        {
+          "Name": "nodes",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "Vector3"
+          }
+        }
+      ]
+    }
+  ],
+  "ReferencedSchemas": [
+    "vector.schema.json"
+  ]
+}

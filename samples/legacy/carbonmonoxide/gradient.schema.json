@@ -1,0 +1,51 @@
+{
+  "Classes": [
+    {
+      "Name": "Gradient",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "nextId",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "points",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "GradientPoint"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GradientPoint",
+      "Members": [
+        {
+          "Name": "id",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "color",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "value",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": [],
+  "ReferencedClasses": [],
+  "ReferencedEnums": {}
+}

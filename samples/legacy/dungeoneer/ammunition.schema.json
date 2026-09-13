@@ -1,0 +1,24 @@
+{
+  "Classes": [
+    {
+      "Name": "Ammunition",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "cost",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "weight",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    }
+  ]
+}

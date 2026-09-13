@@ -1,0 +1,291 @@
+{
+  "Classes": [
+    {
+      "Name": "Monster",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "size",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "Size"
+          }
+        },
+        {
+          "Name": "type",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "CreatureType"
+          }
+        },
+        {
+          "Name": "subtype",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "CreatureSubtype"
+          }
+        },
+        {
+          "Name": "alignment",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "Alignment"
+          }
+        },
+        {
+          "Name": "armorClass",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "hitPoints",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "hitDice",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "speed",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "strength",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "dexterity",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "constitution",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "intelligence",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "wisdom",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "charisma",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "strengthSave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "dexteritySave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "constitutionSave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "intelligenceSave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "wisdomSave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "charismaSave",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "perception",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "damageVulnerabilities",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "damageResistances",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "damageImmunities",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "conditionImmunities",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "senses",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "languages",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "challengeRating",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "actions",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "MonsterAction"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MonsterAction",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "attackBonus",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "damageDice",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "damageBonus",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {
+    "Size": [
+      "Tiny",
+      "Small",
+      "Medium",
+      "Large",
+      "Huge",
+      "Gargantuan"
+    ],
+    "Alignment": [
+      "LawfulGood",
+      "NeutralGood",
+      "ChaoticGood",
+      "LawfulNeutral",
+      "Neutral",
+      "ChaoticNeutral",
+      "LawfulEvil",
+      "NeutralEvil",
+      "ChaoticEvil",
+      "Unaligned",
+	  "Any",
+      "AnyEvil",
+	  "AnyChaotic",
+      "AnyNeutral",
+      "AnyLawful",
+	  "AnyGood",
+	  "AnyNonEvil",
+	  "AnyNonChaotic",
+      "AnyNonNeutral",
+      "AnyNonLawful",
+	  "AnyNonGood"
+    ],
+    "CreatureType": [
+      "Aberration",
+      "Humanoid",
+      "Dragon",
+      "Undead",
+      "Elemental",
+      "Monstrosity",
+      "Construct",
+      "Beast",
+      "Plant",
+      "Fiend",
+      "Ooze",
+      "Fey",
+      "Giant",
+      "Celestial",
+      "SwarmOfTinyBeasts"
+    ],
+    "CreatureSubtype": [
+      "None",
+      "AnyRace",
+      "Demon",
+      "Devil",
+      "Goblinoid",
+      "Gnome",
+      "Shapechanger",
+      "Elf",
+      "Dwarf",
+      "Gnoll",
+      "Grimlock",
+      "Human",
+      "Kobold",
+      "Titan",
+      "Lizardfolk",
+      "Merfolk",
+      "Orc",
+      "Sahuagin"
+    ]
+  },
+  "References": []
+}

@@ -479,3 +479,19 @@ own delegate does.
 ## Schema Files
 
 Schema definitions are stored as `.schema.json` files using `System.Text.Json` with polymorphic type discriminators (`TypeName` property).
+
+### The breadth suite
+
+`samples/` holds two real programs' whole schema vocabulary - Carbon Monoxide's and Dungeoneer's,
+26 files and 45 elements - migrated from the `{Classes, Enums}` format they were written in. Every
+other test here builds a schema to exercise one rule; these exist so a generator meets types nobody
+chose for their shape. `LegacySampleGenerationTests` compiles the C# generated from both,
+`LegacySampleCppTests` compiles the C++, and one test asserts that no member of either reaches C#
+as `object?` - which compiling cannot catch, because `object?` compiles.
+
+`LegacySchemaReader` is in the test project rather than the library: the legacy format is two
+repositories' history and publishing a reader for it would commit this library to a dialect nobody
+else has. The migration is re-run on every test run rather than trusted, so a committed sample
+cannot drift from the legacy files beside it. `samples/README.md` records what the migration could
+not preserve - chiefly the file boundaries, since a `className` resolves within one schema and 14
+of the legacy references cross a file.

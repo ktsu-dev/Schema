@@ -1,0 +1,38 @@
+{
+  "Classes": [
+    {
+      "Name": "Rect",
+      "Members": [
+        {
+          "Name": "position",
+          "Typename": "Vector2",
+          "Description": ""
+        },
+        {
+          "Name": "size",
+          "Typename": "Vector2",
+          "Description": ""
+        }
+      ]
+    },
+    {
+      "Name": "IntRect",
+      "Members": [
+        {
+          "Name": "position",
+          "Typename": "IntVector2",
+          "Description": ""
+        },
+        {
+          "Name": "size",
+          "Typename": "IntVector2",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": [
+    "vector.schema.json"
+  ]
+}

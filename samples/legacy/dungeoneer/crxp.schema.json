@@ -1,0 +1,19 @@
+{
+  "Classes": [
+    {
+      "Name": "CRXP",
+      "Members": [
+        {
+          "Name": "cr",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "xp",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    }
+  ]
+}

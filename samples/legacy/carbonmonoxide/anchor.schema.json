@@ -1,0 +1,19 @@
+{
+  "Classes": [],
+  "Enums": {
+    "Anchor": [
+      "TopLeft",
+      "Top",
+      "TopRight",
+      "Left",
+      "Center",
+      "Right",
+      "BottomLeft",
+      "Bottom",
+      "BottomRight"
+    ]
+  },
+  "References": [],
+  "ReferencedClasses": [],
+  "ReferencedEnums": {}
+}
