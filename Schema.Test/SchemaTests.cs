@@ -189,10 +189,12 @@ public class SchemaTests
 	}
 
 	[TestMethod]
-	public void TestGetAvailableTypesIncludesDefinedEnumsAndClasses()
+	public void TestGetAvailableTypesIncludesDefinedEnumsSemanticTypesInterfacesAndClasses()
 	{
 		Schema schemaProvider = new();
 		schemaProvider.AddEnum("Status".As<EnumName>());
+		schemaProvider.AddSemanticType("Metres".As<SemanticTypeName>());
+		schemaProvider.AddInterface("Inventory".As<InterfaceName>());
 		schemaProvider.AddClass("User".As<ClassName>());
 
 		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetAvailableTypes()];
@@ -201,11 +203,39 @@ public class SchemaTests
 			types.Any(t => t is SchemaTypes.Enum e && e.EnumName == "Status".As<EnumName>()),
 			"GetAvailableTypes should include an Enum for each defined enum");
 		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Semantic s && s.SemanticTypeName == "Metres".As<SemanticTypeName>()),
+			"GetAvailableTypes should include a Semantic for each declared semantic type");
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Interface i && i.InterfaceName == "Inventory".As<InterfaceName>()),
+			"GetAvailableTypes should include an Interface for each declared interface");
+		Assert.IsTrue(
 			types.Any(t => t is SchemaTypes.Object o && o.ClassName == "User".As<ClassName>()),
 			"GetAvailableTypes should include an Object for each defined class");
 		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Array a && a.ElementType is SchemaTypes.Semantic s && s.SemanticTypeName == "Metres".As<SemanticTypeName>()),
+			"GetAvailableTypes should include an Array of each declared semantic type");
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Array a && a.ElementType is SchemaTypes.Interface i && i.InterfaceName == "Inventory".As<InterfaceName>()),
+			"GetAvailableTypes should include an Array of each declared interface");
+		Assert.IsTrue(
 			types.Any(t => t is SchemaTypes.Array a && a.ElementType is SchemaTypes.Object o && o.ClassName == "User".As<ClassName>()),
 			"GetAvailableTypes should include an Array of each defined class");
+	}
+
+	[TestMethod]
+	public void TestGetAvailableTypesIncludesVectorsForNumericAndSemanticComponents()
+	{
+		Schema schemaProvider = new();
+		schemaProvider.AddSemanticType("MetresPerSecond".As<SemanticTypeName>());
+
+		List<SchemaTypes.BaseType> types = [.. schemaProvider.GetAvailableTypes()];
+
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Vector3 vector && vector.ElementType is SchemaTypes.Int),
+			"GetAvailableTypes should include vector variants for numeric component types.");
+		Assert.IsTrue(
+			types.Any(t => t is SchemaTypes.Vector3 vector && vector.ElementType is SchemaTypes.Semantic semantic && semantic.SemanticTypeName == "MetresPerSecond".As<SemanticTypeName>()),
+			"GetAvailableTypes should include vector variants for semantic component types.");
 	}
 
 	[TestMethod]
