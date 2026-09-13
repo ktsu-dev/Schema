@@ -1,0 +1,34 @@
+{
+	"Classes": [
+		{
+			"Name": "Line2D",
+			"Members": [
+				{
+					"Name": "v1",
+					"Typename": "Vector2",
+					"Description": ""
+				},
+				{
+					"Name": "v2",
+					"Typename": "Vector2",
+					"Description": ""
+				}
+			]
+		},
+		{
+			"Name": "Line3D",
+			"Members": [
+				{
+					"Name": "v1",
+					"Typename": "Vector3",
+					"Description": ""
+				},
+				{
+					"Name": "v2",
+					"Typename": "Vector3",
+					"Description": ""
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,350 @@
+{
+  "formatVersion": 6,
+  "errorType": "",
+  "classes": [
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "interpolation": "None",
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "nextId",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "GradientPoint"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "interpolation": "None",
+          "name": "points",
+          "description": ""
+        }
+      ],
+      "name": "Gradient",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "id",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "interpolation": "None",
+          "name": "color",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "value",
+          "description": ""
+        }
+      ],
+      "name": "GradientPoint",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector2"
+          },
+          "interpolation": "None",
+          "name": "v1",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector2"
+          },
+          "interpolation": "None",
+          "name": "v2",
+          "description": ""
+        }
+      ],
+      "name": "Line2D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector3"
+          },
+          "interpolation": "None",
+          "name": "v1",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector3"
+          },
+          "interpolation": "None",
+          "name": "v2",
+          "description": ""
+        }
+      ],
+      "name": "Line3D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector2"
+          },
+          "interpolation": "None",
+          "name": "position",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Vector2"
+          },
+          "interpolation": "None",
+          "name": "size",
+          "description": ""
+        }
+      ],
+      "name": "Rect",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "IntVector2"
+          },
+          "interpolation": "None",
+          "name": "position",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "IntVector2"
+          },
+          "interpolation": "None",
+          "name": "size",
+          "description": ""
+        }
+      ],
+      "name": "IntRect",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "Vector2"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "interpolation": "None",
+          "name": "nodes",
+          "description": ""
+        }
+      ],
+      "name": "Spline2D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "Vector3"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "interpolation": "None",
+          "name": "nodes",
+          "description": ""
+        }
+      ],
+      "name": "Spline3D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "x",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "y",
+          "description": ""
+        }
+      ],
+      "name": "Vector2",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "x",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "y",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "interpolation": "None",
+          "name": "z",
+          "description": ""
+        }
+      ],
+      "name": "Vector3",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "x",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "y",
+          "description": ""
+        }
+      ],
+      "name": "IntVector2",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "x",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "y",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "interpolation": "None",
+          "name": "z",
+          "description": ""
+        }
+      ],
+      "name": "IntVector3",
+      "description": ""
+    }
+  ],
+  "enums": [
+    {
+      "values": [
+        "TopLeft",
+        "Top",
+        "TopRight",
+        "Left",
+        "Center",
+        "Right",
+        "BottomLeft",
+        "Bottom",
+        "BottomRight"
+      ],
+      "name": "Anchor",
+      "description": ""
+    },
+    {
+      "values": [
+        "Block",
+        "Trigger"
+      ],
+      "name": "CollisionResponse",
+      "description": ""
+    },
+    {
+      "values": [
+        "Circle",
+        "Box"
+      ],
+      "name": "Hitbox",
+      "description": ""
+    }
+  ],
+  "interfaces": [],
+  "semanticTypes": [],
+  "codeGenerators": [],
+  "dataSources": [],
+  "canResolvePaths": false
+}

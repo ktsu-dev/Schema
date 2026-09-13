@@ -1,0 +1,41 @@
+{
+  "Classes": [
+    {
+      "Name": "SpawnTable",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "table",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "SpawnTableEntry",
+            "Container": "cmVectorMap",
+            "Key": "name"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SpawnTableEntry",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "probability",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": []
+}

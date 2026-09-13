@@ -1,0 +1,76 @@
+{
+  "Classes": [
+    {
+      "Name": "Vector2",
+      "Members": [
+        {
+          "Name": "x",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "y",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    },
+    {
+      "Name": "Vector3",
+      "Members": [
+        {
+          "Name": "x",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "y",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "z",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    },
+    {
+      "Name": "IntVector2",
+      "Members": [
+        {
+          "Name": "x",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "y",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    },
+    {
+      "Name": "IntVector3",
+      "Members": [
+        {
+          "Name": "x",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "y",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "z",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": []
+}

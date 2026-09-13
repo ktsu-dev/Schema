@@ -1,0 +1,19 @@
+{
+  "Classes": [
+    {
+      "Name": "Mount",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "cost",
+          "Typename": "int",
+          "Description": ""
+        }
+      ]
+    }
+  ]
+}

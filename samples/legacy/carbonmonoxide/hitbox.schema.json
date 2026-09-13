@@ -1,0 +1,12 @@
+{
+  "Classes": [],
+  "Enums": {
+    "Hitbox": [
+      "Circle",
+      "Box"
+    ]
+  },
+  "References": [],
+  "ReferencedClasses": [],
+  "ReferencedEnums": {}
+}

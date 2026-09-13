@@ -1,0 +1,1656 @@
+{
+  "formatVersion": 6,
+  "errorType": "",
+  "classes": [
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "nextId",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "GradientPoint"
+            },
+            "container": "map",
+            "key": "id"
+          },
+          "name": "points",
+          "description": ""
+        }
+      ],
+      "name": "Gradient",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "id",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "ColorRGBA"
+          },
+          "editor": "color",
+          "name": "color",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "range": {
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "interpolation": "Linear",
+          "name": "value",
+          "description": ""
+        }
+      ],
+      "name": "GradientPoint",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "name": "v1",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "name": "v2",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "Line2D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Vector3"
+          },
+          "name": "v1",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector3"
+          },
+          "name": "v2",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "Line3D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "name": "position",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "name": "size",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "Rect",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Vector2",
+            "elementType": {
+              "TypeName": "Int"
+            }
+          },
+          "name": "position",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2",
+            "elementType": {
+              "TypeName": "Int"
+            }
+          },
+          "name": "size",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "IntRect",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Vector2"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "nodes",
+          "description": ""
+        }
+      ],
+      "name": "Spline2D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Vector3"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "nodes",
+          "description": ""
+        }
+      ],
+      "name": "Spline3D",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "description",
+          "description": ""
+        }
+      ],
+      "name": "AdventuringGear",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        }
+      ],
+      "name": "Ammunition",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        }
+      ],
+      "name": "Armor",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 0,
+            "maximum": 30
+          },
+          "name": "cr",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "xp",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "CRXP",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Bool"
+          },
+          "name": "scriptable",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Bool"
+          },
+          "name": "renderable",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Bool"
+          },
+          "name": "collidable",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "file",
+          "name": "script",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "Anchor"
+          },
+          "name": "anchor",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "interpolation": "Linear",
+          "name": "renderOffset",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "interpolation": "Linear",
+          "name": "lightOffset",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Metres"
+          },
+          "name": "lightRadius",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "ColorRGB"
+          },
+          "editor": "color",
+          "name": "lightColor",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "range": {
+            "minimum": 0.0,
+            "maximum": 4.0
+          },
+          "defaultValue": {
+            "DefaultKind": "NumberDefault",
+            "value": 1.0
+          },
+          "name": "shadowScale",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "texture",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "textureLeft",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "textureRight",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "textureBackLeft",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "textureBackRight",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "asset",
+          "name": "textureForeground",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "CollisionResponse"
+          },
+          "name": "collisionResponse",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "Hitbox"
+          },
+          "name": "hitboxType",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "name": "hitboxSize",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Metres"
+          },
+          "name": "hitboxRadius",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "interpolation": "Linear",
+          "name": "hitboxOffset",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "MetresPerSecond"
+          },
+          "network": {
+            "quantise": 0.01,
+            "delta": true
+          },
+          "name": "moveSpeedPerSec",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "range": {
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "defaultValue": {
+            "DefaultKind": "NumberDefault",
+            "value": 0.5
+          },
+          "name": "friction",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "MetresPerSecondSquared"
+          },
+          "defaultValue": {
+            "DefaultKind": "NumberDefault",
+            "value": -9.81
+          },
+          "name": "gravity",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "range": {
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "defaultValue": {
+            "DefaultKind": "NumberDefault",
+            "value": 0.0
+          },
+          "name": "restitution",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Metres"
+          },
+          "name": "influenceRadius",
+          "description": ""
+        }
+      ],
+      "name": "Entity",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 20
+          },
+          "name": "level",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "xp",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "LevelXP",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MapEntity"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "entities",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MapTrigger"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "triggers",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MapPlane"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "planes",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "Line2D"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "collisions",
+          "description": ""
+        }
+      ],
+      "name": "Map",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "type",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Vector2"
+          },
+          "interpolation": "Linear",
+          "network": {
+            "quantise": 0.01,
+            "delta": true
+          },
+          "name": "position",
+          "description": ""
+        }
+      ],
+      "name": "MapEntity",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Object",
+            "className": "Rect"
+          },
+          "name": "rect",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "editor": "file",
+          "name": "script",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "respondingTypes",
+          "description": ""
+        }
+      ],
+      "name": "MapTrigger",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MapTile"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "tiles",
+          "description": ""
+        }
+      ],
+      "name": "MapLayer",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MapLayer"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "layers",
+          "description": ""
+        }
+      ],
+      "name": "MapPlane",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Vector2"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "positions",
+          "description": ""
+        }
+      ],
+      "name": "MapTile",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "Size"
+          },
+          "name": "size",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "CreatureType"
+          },
+          "name": "type",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "CreatureSubtype"
+          },
+          "name": "subtype",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "Alignment"
+          },
+          "name": "alignment",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 0,
+            "maximum": 30
+          },
+          "name": "armorClass",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "hitPoints",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "hitDice",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "speed",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "strength",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "dexterity",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "constitution",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "intelligence",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "wisdom",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 30
+          },
+          "name": "charisma",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "strengthSave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "dexteritySave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "constitutionSave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "intelligenceSave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "wisdomSave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "charismaSave",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 0,
+            "maximum": 30
+          },
+          "name": "perception",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "damageVulnerabilities",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "damageResistances",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "damageImmunities",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "conditionImmunities",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "senses",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "languages",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Float"
+          },
+          "range": {
+            "minimum": 0.0,
+            "maximum": 30.0
+          },
+          "name": "challengeRating",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "MonsterAction"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "actions",
+          "description": ""
+        }
+      ],
+      "name": "Monster",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "attackBonus",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "damageDice",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "damageBonus",
+          "description": ""
+        }
+      ],
+      "name": "MonsterAction",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        }
+      ],
+      "name": "Mount",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "description",
+          "description": ""
+        }
+      ],
+      "name": "MountSupply",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 0,
+            "maximum": 100
+          },
+          "name": "probability",
+          "description": ""
+        }
+      ],
+      "name": "ProbabilityPair",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 1,
+            "maximum": 20
+          },
+          "name": "level",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "name": "proficiency",
+          "description": ""
+        }
+      ],
+      "travelsAsBytes": true,
+      "name": "Proficiency",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "SpawnTableEntry"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "table",
+          "description": ""
+        }
+      ],
+      "name": "SpawnTable",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Int"
+          },
+          "range": {
+            "minimum": 0,
+            "maximum": 100
+          },
+          "name": "probability",
+          "description": ""
+        }
+      ],
+      "name": "SpawnTableEntry",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "ProbabilityPair"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "textures",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "Object",
+              "className": "ProbabilityPair"
+            },
+            "container": "map",
+            "key": "name"
+          },
+          "name": "entitySpawn",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Bool"
+          },
+          "defaultValue": {
+            "DefaultKind": "BooleanDefault",
+            "value": false
+          },
+          "name": "isBasic",
+          "description": ""
+        }
+      ],
+      "name": "Tile",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "id",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Array",
+            "elementType": {
+              "TypeName": "String"
+            },
+            "container": "vector",
+            "key": ""
+          },
+          "name": "input",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "output",
+          "description": ""
+        }
+      ],
+      "name": "TileRecipe",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "description",
+          "description": ""
+        }
+      ],
+      "name": "Tool",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "description",
+          "description": ""
+        }
+      ],
+      "name": "Vehicle",
+      "description": ""
+    },
+    {
+      "members": [
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "name",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Coin"
+          },
+          "name": "cost",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "String"
+          },
+          "name": "damageDice",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Enum",
+            "enumName": "DamageType"
+          },
+          "name": "damageType",
+          "description": ""
+        },
+        {
+          "type": {
+            "TypeName": "Semantic",
+            "semanticTypeName": "Kilograms"
+          },
+          "name": "weight",
+          "description": ""
+        }
+      ],
+      "name": "Weapon",
+      "description": ""
+    }
+  ],
+  "enums": [
+    {
+      "values": [
+        "TopLeft",
+        "Top",
+        "TopRight",
+        "Left",
+        "Center",
+        "Right",
+        "BottomLeft",
+        "Bottom",
+        "BottomRight"
+      ],
+      "name": "Anchor",
+      "description": ""
+    },
+    {
+      "values": [
+        "Block",
+        "Trigger"
+      ],
+      "name": "CollisionResponse",
+      "description": ""
+    },
+    {
+      "values": [
+        "Circle",
+        "Box"
+      ],
+      "name": "Hitbox",
+      "description": ""
+    },
+    {
+      "values": [
+        "Tiny",
+        "Small",
+        "Medium",
+        "Large",
+        "Huge",
+        "Gargantuan"
+      ],
+      "name": "Size",
+      "description": ""
+    },
+    {
+      "values": [
+        "LawfulGood",
+        "NeutralGood",
+        "ChaoticGood",
+        "LawfulNeutral",
+        "Neutral",
+        "ChaoticNeutral",
+        "LawfulEvil",
+        "NeutralEvil",
+        "ChaoticEvil",
+        "Unaligned",
+        "Any",
+        "AnyEvil",
+        "AnyChaotic",
+        "AnyNeutral",
+        "AnyLawful",
+        "AnyGood",
+        "AnyNonEvil",
+        "AnyNonChaotic",
+        "AnyNonNeutral",
+        "AnyNonLawful",
+        "AnyNonGood"
+      ],
+      "name": "Alignment",
+      "description": ""
+    },
+    {
+      "values": [
+        "Aberration",
+        "Humanoid",
+        "Dragon",
+        "Undead",
+        "Elemental",
+        "Monstrosity",
+        "Construct",
+        "Beast",
+        "Plant",
+        "Fiend",
+        "Ooze",
+        "Fey",
+        "Giant",
+        "Celestial",
+        "SwarmOfTinyBeasts"
+      ],
+      "name": "CreatureType",
+      "description": ""
+    },
+    {
+      "values": [
+        "None",
+        "AnyRace",
+        "Demon",
+        "Devil",
+        "Goblinoid",
+        "Gnome",
+        "Shapechanger",
+        "Elf",
+        "Dwarf",
+        "Gnoll",
+        "Grimlock",
+        "Human",
+        "Kobold",
+        "Titan",
+        "Lizardfolk",
+        "Merfolk",
+        "Orc",
+        "Sahuagin"
+      ],
+      "name": "CreatureSubtype",
+      "description": ""
+    },
+    {
+      "values": [
+        "Piercing",
+        "Slashing",
+        "Bludgeoning",
+        "Cold",
+        "Fire",
+        "Radiant",
+        "Necrotic",
+        "Psychic",
+        "Acid"
+      ],
+      "name": "DamageType",
+      "description": ""
+    }
+  ],
+  "semanticTypes": [
+    {
+      "underlyingType": {
+        "TypeName": "Int"
+      },
+      "name": "Coin",
+      "description": "A price in the smallest coin. A number of coins is not a number of anything else."
+    },
+    {
+      "underlyingType": {
+        "TypeName": "Float"
+      },
+      "unit": "kg",
+      "name": "Kilograms",
+      "description": "A mass in kilograms."
+    },
+    {
+      "underlyingType": {
+        "TypeName": "Float"
+      },
+      "unit": "m",
+      "name": "Metres",
+      "description": "A distance in metres."
+    },
+    {
+      "underlyingType": {
+        "TypeName": "Float"
+      },
+      "unit": "m/s",
+      "name": "MetresPerSecond",
+      "description": "A speed in metres per second."
+    },
+    {
+      "underlyingType": {
+        "TypeName": "Float"
+      },
+      "unit": "m/s\u00b2",
+      "name": "MetresPerSecondSquared",
+      "description": "An acceleration in metres per second squared."
+    }
+  ],
+  "interfaces": [],
+  "codeGenerators": [],
+  "dataSources": []
+}

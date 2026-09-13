@@ -1,0 +1,160 @@
+{
+  "Classes": [
+    {
+      "Name": "Entity",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "scriptable",
+          "Typename": "bool",
+          "Description": ""
+        },
+        {
+          "Name": "renderable",
+          "Typename": "bool",
+          "Description": ""
+        },
+        {
+          "Name": "collidable",
+          "Typename": "bool",
+          "Description": ""
+        },
+        {
+          "Name": "script",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "anchor",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "Anchor"
+          }
+        },
+        {
+          "Name": "renderOffset",
+          "Typename": "Vector2",
+          "Description": ""
+        },
+        {
+          "Name": "lightOffset",
+          "Typename": "Vector2",
+          "Description": ""
+        },
+        {
+          "Name": "lightRadius",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "lightColor",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "shadowScale",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "texture",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textureLeft",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textureRight",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textureBackLeft",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textureBackRight",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textureForeground",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "collisionResponse",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "CollisionResponse"
+          }
+        },
+        {
+          "Name": "hitboxType",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "Hitbox"
+          }
+        },
+        {
+          "Name": "hitboxSize",
+          "Typename": "Vector2",
+          "Description": ""
+        },
+        {
+          "Name": "hitboxRadius",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "hitboxOffset",
+          "Typename": "Vector2",
+          "Description": ""
+        },
+        {
+          "Name": "moveSpeedPerSec",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "friction",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "gravity",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "restitution",
+          "Typename": "float",
+          "Description": ""
+        },
+        {
+          "Name": "influenceRadius",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": [
+    "..\\..\\carbonmonoxide\\assets\\schema\\vector.schema.json",
+    "..\\..\\carbonmonoxide\\assets\\schema\\anchor.schema.json",
+    "..\\..\\carbonmonoxide\\assets\\schema\\hitbox.schema.json",
+    "..\\..\\carbonmonoxide\\assets\\schema\\collision.schema.json"
+  ]
+}

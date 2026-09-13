@@ -1,0 +1,39 @@
+{
+  "Classes": [
+    {
+      "Name": "Tile",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "textures",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "ProbabilityPair"
+          }
+        },
+        {
+          "Name": "entitySpawn",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "ProbabilityPair"
+          }
+        },
+        {
+          "Name": "isBasic",
+          "Typename": "bool",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": [
+    "probability.schema.json"
+  ]
+}

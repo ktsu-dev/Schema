@@ -1,0 +1,13 @@
+{
+  "Classes": [
+  ],
+  "Enums": {
+    "CollisionResponse": [
+      "Block",
+      "Trigger"
+    ]
+  },
+  "References": [],
+  "ReferencedClasses": [],
+  "ReferencedEnums": {}
+}

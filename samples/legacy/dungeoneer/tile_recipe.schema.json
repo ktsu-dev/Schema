@@ -1,0 +1,29 @@
+{
+  "Classes": [
+    {
+      "Name": "TileRecipe",
+      "Members": [
+        {
+          "Name": "id",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "input",
+          "Typename": "array",
+          "Description": "",
+          "ArrayProperties": {
+            "ElementTypename": "string"
+          }
+        },
+        {
+          "Name": "output",
+          "Typename": "string",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {},
+  "References": []
+}

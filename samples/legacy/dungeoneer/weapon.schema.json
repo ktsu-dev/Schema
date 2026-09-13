@@ -1,0 +1,51 @@
+{
+  "Classes": [
+    {
+      "Name": "Weapon",
+      "Members": [
+        {
+          "Name": "name",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "cost",
+          "Typename": "int",
+          "Description": ""
+        },
+        {
+          "Name": "damageDice",
+          "Typename": "string",
+          "Description": ""
+        },
+        {
+          "Name": "damageType",
+          "Typename": "enum",
+          "Description": "",
+          "EnumProperties": {
+            "Name": "DamageType"
+          }
+        },
+        {
+          "Name": "weight",
+          "Typename": "float",
+          "Description": ""
+        }
+      ]
+    }
+  ],
+  "Enums": {
+    "DamageType": [
+      "Piercing",
+      "Slashing",
+      "Bludgeoning",
+      "Cold",
+      "Fire",
+      "Radiant",
+      "Necrotic",
+      "Psychic",
+      "Acid"
+    ]
+  },
+  "References": []
+}
