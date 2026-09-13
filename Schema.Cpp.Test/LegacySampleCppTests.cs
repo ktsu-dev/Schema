@@ -50,6 +50,23 @@ public sealed class LegacySampleCppTests
 		AssertCompiles("dungeoneer", new CppGeneratorOptions { Reflection = true });
 
 	/// <summary>
+	/// The modernised sample generates C++ that compiles, vocabulary and all.
+	/// </summary>
+	/// <remarks>
+	/// This is the one that exercises the generator rather than merely feeding it. The two
+	/// migrated samples are primitives, classes, enums and sequences; this one adds five semantic
+	/// types the generator has to emit as classes, built-in vectors and colours the target has to
+	/// spell for itself, keyed containers, and seven classes promising to travel as bytes -- which
+	/// is where the <c>static_assert(std::is_trivially_copyable_v&lt;T&gt;)</c> beside each of them
+	/// has to be true rather than merely written.
+	/// </remarks>
+	[TestMethod]
+	public void TheModernisedSampleCompiles()
+	{
+		AssertCompiles("modernised", TargetOptions with { Reflection = true }, SampleTypes);
+	}
+
+	/// <summary>
 	/// One header per element, and nothing else.
 	/// </summary>
 	/// <remarks>
@@ -78,9 +95,50 @@ public sealed class LegacySampleCppTests
 	}
 
 	/// <summary>
+	/// The include for a header beside the generated ones, quoted rather than bracketed.
+	/// </summary>
+	private const string LocalHeader = "\"sample_types.hpp\"";
+
+	/// <summary>
+	/// What a target has to say for itself, since standard C++ has no vector and no colour.
+	/// </summary>
+	private static CppGeneratorOptions TargetOptions { get; } = new()
+	{
+		Vector2 = new CppTypeSpelling("sample::Vector2", LocalHeader),
+		Vector3 = new CppTypeSpelling("sample::Vector3", LocalHeader),
+		Vector4 = new CppTypeSpelling("sample::Vector4", LocalHeader),
+		ColorRgb = new CppTypeSpelling("sample::ColorRgb", LocalHeader),
+		ColorRgba = new CppTypeSpelling("sample::ColorRgba", LocalHeader),
+	};
+
+	/// <summary>
+	/// The header those five names come from, written beside the generated ones.
+	/// </summary>
+	/// <remarks>
+	/// Deliberately the smallest thing that can be true: a vector of N components and a colour of
+	/// three or four channels, each an aggregate of the element type and nothing else. A promising
+	/// class holds these, so if any of them were not trivially copyable the assertion the
+	/// generator writes beside that class would fail to compile -- which is the point of compiling
+	/// this at all.
+	/// </remarks>
+	private const string SampleTypes = """
+		#pragma once
+
+		namespace sample
+		{
+			template <typename T> struct Vector2 { T x, y; };
+			template <typename T> struct Vector3 { T x, y, z; };
+			template <typename T> struct Vector4 { T x, y, z, w; };
+
+			struct ColorRgb { float r, g, b; };
+			struct ColorRgba { float r, g, b, a; };
+		}
+		""";
+
+	/// <summary>
 	/// Emits a sample and compiles a translation unit that includes every header it wrote.
 	/// </summary>
-	private static void AssertCompiles(string sample, CppGeneratorOptions? options = null)
+	private static void AssertCompiles(string sample, CppGeneratorOptions? options = null, string? prelude = null)
 	{
 		Schema schema = LoadSample(sample);
 		IReadOnlyDictionary<string, string> files = Generate(schema, options ?? new CppGeneratorOptions());
@@ -93,6 +151,11 @@ public sealed class LegacySampleCppTests
 			foreach ((string name, string text) in files)
 			{
 				File.WriteAllText(Path.Join(directory, name), text);
+			}
+
+			if (prelude is not null)
+			{
+				File.WriteAllText(Path.Join(directory, "sample_types.hpp"), prelude);
 			}
 
 			string includes = string.Concat(files.Keys.Order(StringComparer.Ordinal)

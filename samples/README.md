@@ -48,3 +48,34 @@ the library knows about: a generated `struct Vector2 { float x; float y; }` is w
 compile against today. Mapping them onto the built-ins would be a redesign wearing a migration's
 clothes - and it would take the cross-file references with it, which are the most interesting
 thing in the set.
+
+## `modernised.schema.json`
+
+The same 33 classes and 8 enums, with the same members in the same order, saying what they always
+meant. The two migrated samples are a transliteration — that is what makes the migration checkable
+— and the cost is that they exercise almost none of the schema: 45 elements of `Int`, `Float`,
+`String` and `Array`, and not one unit, range, default, colour, keyed container or promise about
+representation.
+
+| Was | Is | Because |
+| --- | --- | --- |
+| `Vector2`, `Vector3`, `IntVector2`, `IntVector3` as classes | the built-in vectors, `elementType` `Float` or `Int` | four classes existed to say "two floats" |
+| `color: string` | `ColorRGBA`, `lightColor: ColorRGB` | the old format had no colour |
+| `weight: float`, `cost: int` | `Semantic(Kilograms)`, `Semantic(Coin)` | a weight is kilograms everywhere, and a price is not a count of anything else |
+| `lightRadius`, `moveSpeedPerSec`, `gravity` | `Metres`, `MetresPerSecond`, `MetresPerSecondSquared` | the unit lives on the type, stated once |
+| `probability: int`, `friction: float` | the same, with ranges and defaults | a probability is not any integer |
+| `points: array<GradientPoint>` | a `map` keyed by `id` | the id was already there |
+| `Rect`, `Line2D`, `CRXP`, … | `travelsAsBytes` | they are only fixed-size numbers |
+
+`ModernisedSampleTests.SameDefinitionsAsTheLegacySet` asserts the classes, the enums, their values
+and every member name and order against the legacy files, so the first half of "same definitions,
+new vocabulary" stays true while the second half changes. `UsesWhatTheOldFormatCouldNotSay` asserts
+the second half, so the file cannot decay back into a transliteration one edit at a time.
+
+It is authored rather than derived — a mechanical rewrite could not decide that a `string` called
+`color` is a colour — which is why the correspondence is a test rather than a regeneration.
+
+**One thing the format cannot say.** `MemberRange.Minimum` and `Maximum` are both non-nullable, so
+a range is always two-sided and there is no way to write "at least zero". Where only one end is
+real — a weight, a price, a radius — this schema states no range rather than inventing a ceiling,
+and the semantic type carries the meaning instead.

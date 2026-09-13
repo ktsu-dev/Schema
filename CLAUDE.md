@@ -489,6 +489,13 @@ chose for their shape. `LegacySampleGenerationTests` compiles the C# generated f
 `LegacySampleCppTests` compiles the C++, and one test asserts that no member of either reaches C#
 as `object?` - which compiling cannot catch, because `object?` compiles.
 
+`samples/modernised.schema.json` is the same definitions said in the current vocabulary - built-in
+vectors instead of four classes that meant "two floats", colours instead of strings, units on
+semantic types, keyed containers, ranges, defaults and `travelsAsBytes`. The migrated pair is a
+transliteration and therefore exercises almost none of the schema; this is what meets the
+generators with the vocabulary they actually have. `ModernisedSampleTests` pins both halves: the
+definitions still match the legacy files, and the vocabulary is still being used.
+
 `LegacySchemaReader` is in the test project rather than the library: the legacy format is two
 repositories' history and publishing a reader for it would commit this library to a dialect nobody
 else has. The migration is re-run on every test run rather than trusted, so a committed sample
