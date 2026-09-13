@@ -188,6 +188,24 @@ anywhere in it, so a promising class holding all three either is bytes or the te
 C# counterpart of the `static_assert(std::is_trivially_copyable_v<T>)` the C++ generator emits
 beside the same class.
 
+**Being bytes is not the same as being the same bytes**, and two members went on differing after
+the layout was sequential. Sequential layout fixes the *order* of the members and says nothing
+about the *width* of each one, so a generated class was the same bytes in both languages only where
+every member happened to agree - and two did not. An `enum` is four bytes in C# unless the
+declaration says otherwise and one in the C++ emitted here, which writes
+`enum class ... : std::uint8_t`; a `bool` is one byte in the managed layout and four when
+marshalled, so `Marshal.SizeOf` disagreed with the runtime before either disagreed with C++. Both
+are now spelled: a generated enum is `: byte`, and a `bool` in a promising class carries
+`[field: MarshalAs(UnmanagedType.U1)]` - `field:` because an auto-property's backing field is what
+the marshaller lays out.
+
+Neither width is anything a `.schema.json` states, so there is no third place for the two
+generators to agree with; they agree by each naming the same width and each pinning its own half,
+in `GeneratedLayoutAgreesWithCppTests` here and `EnumUnderlyingTypeTests` in `Schema.Cpp.Test`. The
+first measures the type rather than the text - a bool, a one-byte enum and a bool is three bytes
+when every member is what C++ makes it, nine when the enum is an `int`, and twelve when the bools
+marshal as four each, so one assertion on the size tells the three cases apart.
+
 The four that were left - a `Span`, a `Result`, an `Optional` and an `Interface` - were never a gap
 in the mapping the way those three were. Each is a decision about the generated C# API, and the one
 that had to come first is that **an interface is emitted at all**: until it was, an `Interface`

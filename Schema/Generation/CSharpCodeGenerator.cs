@@ -79,13 +79,33 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		return files;
 	}
 
+	/// <summary>
+	/// What a generated enum is stored as.
+	/// </summary>
+	/// <remarks>
+	/// Named rather than left to the language's default, and the reason is a whole byte of a
+	/// promise. C# stores an enum as an <c>int</c> unless told otherwise; <c>ktsu.Schema.Cpp</c>
+	/// emits <c>enum class ... : std::uint8_t</c>, because a one-byte discriminant is what a
+	/// component wants and C++ makes that the declaration's business. A class that
+	/// <see cref="SchemaClass.TravelsAsBytes"/> and holds an enum was therefore four bytes wider
+	/// on this side than on that one - which is not a difference of idiom, it is the promise the
+	/// flag makes being false.
+	/// <para>
+	/// Nothing in the schema says how wide an enum is, so there is no third place for the two
+	/// generators to agree with. They agree by both naming the same width, and by each one's tests
+	/// asserting it: <c>EnumsAreOneByteLikeTheirCppCounterpart</c> here and
+	/// <c>EnumIsOneByte</c> in <c>Schema.Cpp.Test</c>.
+	/// </para>
+	/// </remarks>
+	private const string EnumUnderlyingType = "byte";
+
 	private static string GenerateEnum(SchemaEnum schemaEnum, CodeNamespace codeNamespace)
 	{
 		using CodeBlocker code = CodeBlocker.Create();
 		WriteHeader(code, codeNamespace);
 
 		WriteDocComment(code, schemaEnum.Description);
-		code.WriteLine($"public enum {CSharpKeywords.Identifier(schemaEnum.Name)}");
+		code.WriteLine($"public enum {CSharpKeywords.Identifier(schemaEnum.Name)} : {EnumUnderlyingType}");
 		using (new Scope(code))
 		{
 			foreach (EnumValueName value in schemaEnum.Values)
@@ -150,12 +170,42 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 				WriteDocComment(code, member.Description);
 				WriteSchemaKeyAttribute(code, member.Type);
+				WriteMarshalAttribute(code, member.Type, schemaClass.TravelsAsBytes);
 				WriteMetadataAttributes(code, member);
 				code.WriteLine($"public {MapType(member.Type)} {CSharpKeywords.Identifier(member.Name)} {{ get; set; }}{InitialiserFor(member)}");
 			}
 		}
 
 		return code.ToString();
+	}
+
+	/// <summary>
+	/// Writes what a member needs before the marshaller agrees with the managed layout.
+	/// </summary>
+	/// <remarks>
+	/// Only <c>bool</c>, and only in a class that travels as bytes. C# stores a <c>bool</c> in one
+	/// byte but <em>marshals</em> it as four, so <see cref="System.Runtime.InteropServices.Marshal"/>
+	/// reports a size and a set of offsets that are not the ones the runtime uses - and those are
+	/// the numbers anyone comparing this type against its C++ counterpart, or passing it to native
+	/// code, will read. <c>UnmanagedType.U1</c> is what makes the two views one view again.
+	/// <para>
+	/// The alternative was emitting a <c>byte</c> member and letting the caller remember what it
+	/// meant, which is what a generator exists to stop. A promise about bytes is kept by the
+	/// attribute; the member stays a <c>bool</c>.
+	/// </para>
+	/// </remarks>
+	/// <param name="code">Where the attribute is written.</param>
+	/// <param name="type">The member's type.</param>
+	/// <param name="travelsAsBytes">Whether the class makes the promise that gives layout meaning.</param>
+	private static void WriteMarshalAttribute(CodeBlocker code, BaseType type, bool travelsAsBytes)
+	{
+		if (travelsAsBytes && type is Bool)
+		{
+			// `field:` because the member is an auto-property and the attribute is only legal on a
+			// field. That is also the declaration it has to reach: the backing field is what the
+			// marshaller lays out, and what the property is only a pair of accessors over.
+			code.WriteLine("[field: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.U1)]");
+		}
 	}
 
 	/// <summary>
