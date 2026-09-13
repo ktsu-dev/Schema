@@ -39,19 +39,25 @@ public static class SchemaCommandLine
 	/// <summary>
 	/// Runs a command.
 	/// </summary>
-	/// <param name="args">The command and its arguments.</param>
+	/// <param name="args">The command and its arguments, with the host's own already taken out.</param>
 	/// <param name="output">Where ordinary output goes.</param>
 	/// <param name="error">Where errors go.</param>
+	/// <param name="host">
+	/// What the hosting program is called and what it adds, for the usage text. Defaults to a host
+	/// that is called <c>schema</c> and adds nothing.
+	/// </param>
 	/// <returns><see cref="Success"/> or <see cref="Failure"/>.</returns>
-	public static int Run(string[] args, TextWriter output, TextWriter error)
+	public static int Run(string[] args, TextWriter output, TextWriter error, SchemaCommandLineHost? host = null)
 	{
 		Ensure.NotNull(args);
 		Ensure.NotNull(output);
 		Ensure.NotNull(error);
 
+		host ??= new SchemaCommandLineHost();
+
 		if (args.Length == 0 || IsHelp(args[0]))
 		{
-			WriteUsage(output);
+			WriteUsage(output, host);
 			return args.Length == 0 ? Failure : Success;
 		}
 
@@ -59,29 +65,41 @@ public static class SchemaCommandLine
 		{
 			"generate" => Generate([.. args.Skip(1)], output, error),
 			"validate" => Validate([.. args.Skip(1)], output, error),
-			_ => UnknownCommand(args[0], output, error),
+			_ => UnknownCommand(args[0], output, error, host),
 		};
 	}
 
 	private static bool IsHelp(string argument) =>
 		argument is "--help" or "-h" or "-?" or "help";
 
-	private static void WriteUsage(TextWriter output)
+	private static void WriteUsage(TextWriter output, SchemaCommandLineHost host)
 	{
-		output.WriteLine("Usage: schema <command> <schema-file> [options]");
+		output.WriteLine($"Usage: {host.CommandName} <command> <schema-file> [options]");
 		output.WriteLine();
 		output.WriteLine("Commands:");
 		output.WriteLine("  generate <schema-file> [--generator <name>]   Run the schema's code generators.");
 		output.WriteLine("  validate <schema-file>                        Report the schema's validation issues.");
+
+		if (host.Options.Count > 0)
+		{
+			output.WriteLine();
+			output.WriteLine($"Options of {host.CommandName}:");
+
+			foreach (string option in host.Options)
+			{
+				output.WriteLine($"  {option}");
+			}
+		}
+
 		output.WriteLine();
 		output.WriteLine("Output paths are relative to the schema file's own directory.");
 		output.WriteLine($"Known languages: {string.Join(", ", SchemaGenerator.SupportedLanguages)}");
 	}
 
-	private static int UnknownCommand(string command, TextWriter output, TextWriter error)
+	private static int UnknownCommand(string command, TextWriter output, TextWriter error, SchemaCommandLineHost host)
 	{
 		error.WriteLine($"Unknown command '{command}'.");
-		WriteUsage(output);
+		WriteUsage(output, host);
 		return Failure;
 	}
 

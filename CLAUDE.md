@@ -12,7 +12,7 @@ Schema is a C# library for defining and managing data structure schemas. It cons
 - **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document and one that compiles the generated reflection table
 - **Schema.Editor** - ImGui-based visual editor application for creating and editing `.schema.json` files
 - **Schema.Editor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
-- **Schema.Tool** - Command line entry point for validating schemas and running their code generators
+- **Schema.Tool** - The `dotnet tool` (`kschema`) that validates schemas and runs their code generators
 
 ## Build Commands
 
@@ -22,6 +22,7 @@ dotnet test               # Run all tests
 dotnet test --filter "FullyQualifiedName~TestName"  # Run specific test
 dotnet run --project Schema.Editor  # Launch the visual editor
 dotnet run --project Schema.Tool -- generate my.schema.json  # Run a schema's code generators
+dotnet pack Schema.Tool -c Release   # Build the `kschema` tool package
 ```
 
 ## Architecture
@@ -276,6 +277,42 @@ which header they come from; a target that has not is **refused those schema typ
 the option to set, rather than handed a header that will not compile. `ExistingTypes` is the other
 direction - a semantic type the target already hand-wrote is named rather than generated a second
 time.
+
+**A target says all of that in a file, not only in C#.** `CppGeneratorOptionsFile` reads a
+`CppGeneratorOptions` out of JSON in the same dialect as a `.schema.json` - camelCase, comments and
+trailing commas tolerated - and `kschema --cpp-options <file>` is how a build supplies one. The
+alternative was a growing list of command line flags spelling one record, or requiring every target
+to be a C# program hosting the generator, and a build that runs a tool is neither.
+
+An unrecognised property is **refused rather than ignored**, which is the one place this differs
+from ordinary lenience. Every option here means something when absent - no `handle` refuses the
+schema's handles by name, no `reflection` emits no table - so a typo would not fail. It would
+select the other behaviour, and the generator would then refuse a schema for naming a type the
+target believed it had just declared, with nothing pointing at the file. For the same reason the
+refusal message names the file's key *and* the C# property, and asks `NameOf` for the first rather
+than restating it.
+
+A refusal reaches a caller as a result rather than a stack trace: `CppGenerationException` derives
+from `SchemaGenerationException`, and `SchemaGenerator.Generate` catches that base and reports
+`SchemaGenerationStatus.TargetCannotExpress`. Only that base - a generator with a bug in it still
+throws, because a stack trace is the right answer to that and the wrong answer to being told a
+target has no vector type.
+
+### The command line
+
+`Schema.Tool` packs as a `dotnet tool` called **`kschema`**, under `ktsu.Sdk.Tool` rather than
+`ktsu.Sdk.ConsoleApp`: the two differ in that the tool SDK clears `RuntimeIdentifiers`, and packing
+a tool with the seven identifiers set writes seven runtime-specific packages instead of the one
+everybody installs.
+
+The commands themselves live in `SchemaCommandLine` in the library, where they are tested without
+spawning a process; `Program.cs` is only the wiring. `SchemaCommandLineHost` is what the library
+cannot know - the name the host was installed as, and the options the host adds - and it exists for
+the usage text alone. A host parses its own options and hands on what is left, which is why
+`CppGeneratorOptionsFile.TryTake` *removes* `--cpp-options` rather than passing it through: the
+commands find the schema by taking the first argument that is not an option, stepping over the value
+any option consumes, and the list of options that consume one belongs to the commands, which have
+never heard of the C++ generator.
 
 One file per element, and **an enum goes to namespace scope in a header of its own** rather than
 nested in the class that names it. Holotype's target document nests it, which was right when an enum

@@ -113,6 +113,46 @@ public class SchemaCommandLineTests
 		Assert.IsTrue(result.Output.Contains("csharp", StringComparison.Ordinal), "Usage should name the known languages.");
 	}
 
+	/// <summary>
+	/// The usage text names the program the reader actually typed, and the options it adds.
+	/// </summary>
+	/// <remarks>
+	/// This is a library, so it knows neither. The command name is whatever the host was installed
+	/// as - <c>kschema</c>, for the tool this repository ships - and the extra options are the
+	/// host's own: a host exists in order to register the generators a schema can name, and a
+	/// generator with something to be told needs somewhere to be told it. Usage that said
+	/// <c>schema</c> and listed only the commands would be documenting a program nobody has.
+	/// </remarks>
+	[TestMethod]
+	public void TestUsageNamesTheHostAndItsOptions()
+	{
+		using StringWriter output = new();
+		using StringWriter error = new();
+
+		SchemaCommandLineHost host = new()
+		{
+			CommandName = "kschema",
+			Options = ["--cpp-options <file>   How this target spells what C++ does not."],
+		};
+
+		SchemaCommandLine.Run(["--help"], output, error, host);
+
+		Assert.IsTrue(output.ToString().Contains("Usage: kschema", StringComparison.Ordinal), output.ToString());
+		Assert.IsTrue(output.ToString().Contains("--cpp-options", StringComparison.Ordinal), output.ToString());
+	}
+
+	/// <summary>
+	/// A host that adds nothing gets no empty section, and the default name.
+	/// </summary>
+	[TestMethod]
+	public void TestUsageWithoutAHostSaysNothingAboutOptions()
+	{
+		Result result = Run("--help");
+
+		Assert.IsTrue(result.Output.Contains("Usage: schema", StringComparison.Ordinal), result.Output);
+		Assert.IsFalse(result.Output.Contains("Options of", StringComparison.Ordinal), result.Output);
+	}
+
 	[TestMethod]
 	public void TestUnknownCommandIsAFailure()
 	{

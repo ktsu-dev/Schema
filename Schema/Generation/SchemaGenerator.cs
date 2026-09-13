@@ -108,7 +108,24 @@ public static class SchemaGenerator
 			};
 		}
 
-		IReadOnlyDictionary<string, string> files = generator.Generate(schema, configuration);
+		IReadOnlyDictionary<string, string> files;
+
+		try
+		{
+			files = generator.Generate(schema, configuration);
+		}
+		catch (SchemaGenerationException exception)
+		{
+			// A refusal is an outcome rather than a fault: the schema named something the target
+			// has no type for, and the generator said which and what it would need. Reported as a
+			// result so a caller prints that sentence, rather than leaving it to be read off the
+			// top of a stack trace.
+			return new()
+			{
+				Status = SchemaGenerationStatus.TargetCannotExpress,
+				Message = exception.Message,
+			};
+		}
 
 		return new()
 		{

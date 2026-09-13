@@ -1,13 +1,15 @@
 <Project>
   <Sdk Name="Microsoft.NET.Sdk" />
   <Sdk Name="ktsu.Sdk" />
-  <Sdk Name="ktsu.Sdk.ConsoleApp" />
+  <Sdk Name="ktsu.Sdk.Tool" />
 
   <PropertyGroup>
-    <!-- Deliberately not packed as a `dotnet tool`. Publishing a new public package is the
-         repository owner's call, not something this project should decide for them; setting
-         PackAsTool here is the one-line change that makes it one. -->
-    <IsPackable>false</IsPackable>
+    <!-- ktsu.Sdk.Tool rather than ktsu.Sdk.ConsoleApp: the two differ in that the tool SDK clears
+         RuntimeIdentifiers, and a `dotnet tool` wants that cleared. A console app is published per
+         runtime; a tool is a package restored into whatever runtime is already there, and packing
+         one with the seven identifiers set writes seven runtime-specific tool packages instead of
+         the one everybody installs. -->
+    <ToolCommandName>kschema</ToolCommandName>
   </PropertyGroup>
 
   <ItemGroup>
