@@ -65,6 +65,28 @@ public class SchemaValidationTests
 	}
 
 	[TestMethod]
+	public void TestVectorWithNonNumericSemanticComponentIsRejected()
+	{
+		Schema schema = new();
+		SchemaSemanticType? tag = schema.AddSemanticType("Tag".As<SemanticTypeName>());
+		tag?.SetUnderlyingType(new SchemaTypes.String());
+
+		SchemaClass? holder = schema.AddClass("Holder".As<ClassName>());
+		holder?.AddMember("Velocity".As<MemberName>())?.SetType(
+			new SchemaTypes.Vector3
+			{
+				ElementType = new SchemaTypes.Semantic { SemanticTypeName = "Tag".As<SemanticTypeName>() },
+			});
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i =>
+			i.Severity == SchemaValidationSeverity.Error
+			&& i.Path == "Holder.Velocity"
+			&& i.Message.Contains("components are numbers, or a semantic type over one")),
+			string.Join("; ", issues));
+	}
+
+	[TestMethod]
 	public void TestIssuesCarryTheElementTheyWereReportedAgainst()
 	{
 		Schema schema = CreateValidSchema();

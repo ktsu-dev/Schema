@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Editor.Test;
 
+using System;
+using System.IO;
 using System.Linq;
 
 using ktsu.Schema.Models;
@@ -25,6 +27,7 @@ public sealed class ElementPanelTests
 {
 	private EditorHarness harness = null!;
 	private Schema schema = null!;
+	private AbsoluteDirectoryPath scratchDirectory = null!;
 
 	[TestInitialize]
 	public void StartEditor()
@@ -32,10 +35,29 @@ public sealed class ElementPanelTests
 		harness = EditorHarness.Start();
 		schema = new Schema();
 		harness.Editor.CurrentSchema = schema;
+		scratchDirectory = Path.GetTempPath().As<AbsoluteDirectoryPath>() / $"element-panel-tests-{Guid.NewGuid():N}".As<DirectoryName>();
+		Directory.CreateDirectory(scratchDirectory);
 	}
 
 	[TestCleanup]
-	public void StopEditor() => harness.Dispose();
+	public void StopEditor()
+	{
+		harness.Dispose();
+
+		try
+		{
+			Directory.Delete(scratchDirectory, recursive: true);
+		}
+		catch (IOException)
+		{
+			// A leftover temporary directory is not worth failing a passing test over.
+		}
+	}
+
+	private AbsoluteFilePath ScratchFile(string name) => scratchDirectory / name.As<FileName>();
+
+	private static bool HasExactTypeOption(EditorHarness harness, string typeName) =>
+		harness.App.Probe.KnownNames.Any(name => name.EndsWith($"/searchable-list/{typeName}", StringComparison.Ordinal));
 
 	private SchemaClass AddClass(string name) => schema.AddClass(name.As<ClassName>())!;
 
@@ -218,6 +240,44 @@ public sealed class ElementPanelTests
 		harness.Editor.UndoRedo.Undo();
 
 		Assert.AreEqual("Int", id.Type.DisplayName);
+	}
+
+	[TestMethod]
+	public void TypePickerShowsSemanticAndInterfaceOptionsAndTheyRoundTrip()
+	{
+		schema.AddSemanticType("MetresPerSecond".As<SemanticTypeName>());
+		schema.AddInterface("MovementSystem".As<InterfaceName>());
+		SchemaClass body = AddClass("Body");
+		SchemaMember velocity = body.AddMember("Velocity".As<MemberName>())!;
+		SchemaMember movement = body.AddMember("Movement".As<MemberName>())!;
+		harness.Editor.EditClass(body);
+
+		harness.Click("memberVelocity/Type");
+		harness.StepUntil(() => HasExactTypeOption(harness, "MetresPerSecond"), "semantic type option appearing in the member type picker");
+		harness.StepUntil(() => HasExactTypeOption(harness, "MovementSystem"), "interface type option appearing in the member type picker");
+
+		velocity.SetType(new SchemaTypes.Semantic { SemanticTypeName = "MetresPerSecond".As<SemanticTypeName>() });
+		movement.SetType(new SchemaTypes.Interface { InterfaceName = "MovementSystem".As<InterfaceName>() });
+
+		AbsoluteFilePath path = ScratchFile("semantic-interface.schema.json");
+		Assert.IsTrue(SchemaFile.TrySave(schema, path));
+		Assert.IsTrue(SchemaFile.TryLoad(path, out Schema? loaded));
+		Assert.IsNotNull(loaded);
+
+		SchemaClass? reloadedClass = loaded.GetClass("Body".As<ClassName>());
+		Assert.IsNotNull(reloadedClass);
+		Assert.IsNotNull(reloadedClass.GetMember("Velocity".As<MemberName>()));
+		Assert.IsNotNull(reloadedClass.GetMember("Movement".As<MemberName>()));
+		string velocityType = reloadedClass.GetMember("Velocity".As<MemberName>())!.Type.DisplayName;
+		string movementType = reloadedClass.GetMember("Movement".As<MemberName>())!.Type.DisplayName;
+		Assert.IsTrue(
+			reloadedClass.GetMember("Velocity".As<MemberName>())!.Type is SchemaTypes.Semantic semantic
+			&& semantic.SemanticTypeName == "MetresPerSecond".As<SemanticTypeName>(),
+			$"Expected Velocity to be Semantic(MetresPerSecond) but was '{velocityType}'.");
+		Assert.IsTrue(
+			reloadedClass.GetMember("Movement".As<MemberName>())!.Type is SchemaTypes.Interface schemaInterface
+			&& schemaInterface.InterfaceName == "MovementSystem".As<InterfaceName>(),
+			$"Expected Movement to be Interface(MovementSystem) but was '{movementType}'.");
 	}
 
 	/// <summary>

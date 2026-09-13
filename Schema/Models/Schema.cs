@@ -698,8 +698,10 @@ public partial class Schema : ISchema
 	/// <summary>
 	/// Gets every type a member can be assigned, suitable for populating a type picker.
 	/// This includes the built-in types, an <see cref="Enum"/> for each defined enum,
-	/// an <see cref="Object"/> for each defined class, and an <see cref="Array"/> of each
-	/// of those element types.
+	/// a <see cref="Semantic"/> for each declared semantic type, an <see cref="Interface"/>
+	/// for each declared interface, an <see cref="Object"/> for each defined class, vector
+	/// variants of each selectable vector component, and an <see cref="Array"/> of each of
+	/// those element types.
 	/// </summary>
 	/// <returns>Collection of all selectable schema types.</returns>
 	public IEnumerable<BaseType> GetAvailableTypes()
@@ -709,6 +711,13 @@ public partial class Schema : ISchema
 		foreach (BaseType elementType in GetSelectableElementTypes())
 		{
 			yield return elementType;
+		}
+
+		foreach (BaseType componentType in GetSelectableVectorElementTypes())
+		{
+			yield return new Vector2() { ElementType = componentType };
+			yield return new Vector3() { ElementType = componentType };
+			yield return new Vector4() { ElementType = componentType };
 		}
 
 		foreach (BaseType elementType in GetSelectableElementTypes())
@@ -732,9 +741,35 @@ public partial class Schema : ISchema
 			yield return new Enum() { EnumName = schemaEnum.Name };
 		}
 
+		foreach (SchemaSemanticType semanticType in SemanticTypesInternal)
+		{
+			yield return new Semantic() { SemanticTypeName = semanticType.Name };
+		}
+
+		foreach (SchemaInterface schemaInterface in InterfacesInternal)
+		{
+			yield return new Interface() { InterfaceName = schemaInterface.Name };
+		}
+
 		foreach (SchemaClass schemaClass in ClassesInternal)
 		{
 			yield return new Object() { ClassName = schemaClass.Name };
+		}
+	}
+
+	private IEnumerable<BaseType> GetSelectableVectorElementTypes()
+	{
+		foreach (BaseType selectableType in GetSelectableElementTypes())
+		{
+			if (selectableType is Float)
+			{
+				continue;
+			}
+
+			if (selectableType.IsNumeric || selectableType is Semantic)
+			{
+				yield return selectableType;
+			}
 		}
 	}
 }
