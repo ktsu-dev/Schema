@@ -145,6 +145,36 @@ public sealed class ReflectionTableTests
 	}
 
 	/// <summary>
+	/// A member measured in radians carries an angle, not eight zeroes.
+	/// </summary>
+	/// <remarks>
+	/// This is the eighth axis earning its place from the far end of the stack.
+	/// <c>ktsu.Semantics</c> carries <c>angle</c> so that an angular displacement is not the same
+	/// type as a ratio and an angular speed not the same type as a frequency; but a unit claimed by
+	/// two dimensions used to report whichever declared it first, and <c>Dimensionless</c> is the
+	/// first entry in <c>dimensions.json</c>, so every angular unit answered with the dimensional
+	/// formula of a unitless count - the exact conflation the axis was added to prevent.
+	/// <para>
+	/// Which reached here, because this table does not restate a dimension: it asks the unit. So
+	/// the fix belongs upstream and the assertion belongs downstream, and this is the downstream
+	/// end. A member that measures an angle and a member that measures nothing must not write the
+	/// same eight numbers, whatever a consumer then does with them.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void CarriesTheAngleOfARadianRatherThanNothing()
+	{
+		string table = Generate()["reflection.gen.hpp"];
+
+		// Radians: the angle axis is the fourth, and it is the only one set.
+		Assert.Contains(".dimension = { 0, 0, 0, 1, 0, 0, 0, 0 }", table, StringComparison.Ordinal);
+
+		// The member that measures nothing still writes eight zeroes, so the two are distinguishable
+		// rather than merely both present.
+		Assert.Contains(".dimension = { 0, 0, 0, 0, 0, 0, 0, 0 }", table, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// A semantic type is what the schema declares and a float is what the bytes are, and the table
 	/// says both.
 	/// </summary>

@@ -17,9 +17,9 @@
     <PackageVersion Include="ktsu.Keybinding.Core" Version="1.0.45" />
     <PackageVersion Include="ktsu.UndoRedo.Core" Version="1.0.20" />
     <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.57" />
-    <PackageVersion Include="ktsu.Semantics.Quantities" Version="4.3.1" />
-    <PackageVersion Include="ktsu.Semantics.Strings" Version="4.3.1" />
-    <PackageVersion Include="ktsu.Semantics.Paths" Version="4.3.1" />
+    <PackageVersion Include="ktsu.Semantics.Quantities" Version="5.0.1" />
+    <PackageVersion Include="ktsu.Semantics.Strings" Version="5.0.1" />
+    <PackageVersion Include="ktsu.Semantics.Paths" Version="5.0.1" />
     <PackageVersion Include="ktsu.ImGui.App" Version="3.32.2" />
     <PackageVersion Include="ktsu.ImGui.App.Testing" Version="3.32.2" />
     <PackageVersion Include="ktsu.ImGui.Popups" Version="3.32.2" />

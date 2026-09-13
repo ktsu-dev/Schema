@@ -313,6 +313,14 @@ the unit's own `DimensionInfo` supplies the eight exponents, so the numbers in t
 disagree with the unit beside them. A member that measures nothing is dimensionless, which is the
 same shape rather than a missing one.
 
+The fourth of those eight is `angle`, and it is the one that only means something if the unit
+registry answers honestly. `ktsu.Semantics` carries the axis so an angular displacement is not the
+same type as a ratio, but a unit claimed by two dimensions used to report whichever was declared
+first - and `Dimensionless` is first in `dimensions.json`, so a member measured in radians wrote the
+eight numbers of a unitless count. Nothing here could have caught that, because this table asks the
+unit rather than restating it; so the fix is upstream (`ktsu.Semantics` v5.0.1) and the assertion is
+here, in `ReflectionTableTests.CarriesTheAngleOfARadianRatherThanNothing`.
+
 `reflect` is **shipped rather than generated**, like `ktsu.Semantics.Cpp`'s prelude and for the same
 reason: `template <typename T> struct Describe;` declares a type parameter and `concept Reflected`
 is a concept, neither of which the AST models — a generator names a generic type, it never declares
