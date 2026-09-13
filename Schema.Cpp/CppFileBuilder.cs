@@ -295,7 +295,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	/// <remarks>
 	/// A value stored as a <c>float</c> needs both a decimal point and an <c>f</c>: <c>1</c> is an
 	/// int and <c>1.0</c> is a double, and a braced initialiser refuses either for narrowing, which
-	/// is the whole reason to brace it. Everything else is the text the schema holds.
+	/// is the whole reason to brace it. Text represented as a string is quoted and escaped the way
+	/// C++ reads it.
 	/// </remarks>
 	/// <param name="member">The member the default belongs to, named if it cannot be written.</param>
 	/// <param name="value">The default.</param>
@@ -303,6 +304,11 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	/// <returns>The literal.</returns>
 	private static string Literal(SchemaMember member, MemberDefault value, BaseType represented)
 	{
+		if (value is TextDefault text && represented is SchemaTypes.String)
+		{
+			return Quote(text.Value);
+		}
+
 		if (value is not NumberDefault number)
 		{
 			return value.ToString();
@@ -346,6 +352,26 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		return text.AsSpan().IndexOfAny('.', 'e', 'E') >= 0 ? text : $"{text}.0";
 	}
+
+	/// <summary>
+	/// Writes text as a C++ string literal.
+	/// </summary>
+	private static string Quote(string text) => $"\"{Escape(text)}\"";
+
+	/// <summary>
+	/// Escapes text for use inside a C++ string literal.
+	/// </summary>
+	private static string Escape(string text) =>
+		text.Replace("\\", "\\\\", StringComparison.Ordinal)
+			.Replace("\"", "\\\"", StringComparison.Ordinal)
+			.Replace("\0", "\\0", StringComparison.Ordinal)
+			.Replace("\a", "\\a", StringComparison.Ordinal)
+			.Replace("\b", "\\b", StringComparison.Ordinal)
+			.Replace("\f", "\\f", StringComparison.Ordinal)
+			.Replace("\n", "\\n", StringComparison.Ordinal)
+			.Replace("\r", "\\r", StringComparison.Ordinal)
+			.Replace("\t", "\\t", StringComparison.Ordinal)
+			.Replace("\v", "\\v", StringComparison.Ordinal);
 
 	/// <summary>
 	/// Follows a semantic type down to what it is stored as, which is what decides how a literal

@@ -77,6 +77,14 @@ public class MemberDefaultTests
 	}
 
 	/// <summary>
+	/// A string default containing both a quote and a backslash is written as a C++ string literal
+	/// with both escaped.
+	/// </summary>
+	[TestMethod]
+	public void AStringDefaultIsQuotedAndEscaped() =>
+		Assert.Contains("std::string name = std::string{ \"anon\\\"ym\\\\ous\" };", GenerateWithDefault("anon\"ym\\ous"));
+
+	/// <summary>
 	/// Builds a one-member schema whose member defaults to the given value, and generates it.
 	/// </summary>
 	/// <param name="value">The default.</param>
@@ -93,6 +101,27 @@ public class MemberDefaultTests
 		SchemaMember speed = body.AddMember("Speed".As<MemberName>())!;
 		speed.SetType(new Float());
 		speed.DefaultValue = new NumberDefault { Value = value };
+
+		return new CppCodeGenerator().Generate(schema, configuration)["Body.gen.hpp"];
+	}
+
+	/// <summary>
+	/// Builds a one-member schema whose string member defaults to the given value, and generates it.
+	/// </summary>
+	/// <param name="value">The default.</param>
+	/// <returns>The generated header.</returns>
+	private static string GenerateWithDefault(string value)
+	{
+		Models.Schema schema = new();
+
+		SchemaCodeGenerator configuration = schema.AddCodeGenerator("Cpp".As<CodeGeneratorName>())!;
+		configuration.Language = CppCodeGenerator.LanguageId.As<LanguageName>();
+		configuration.Namespace = "holo::components".As<CodeNamespace>();
+
+		SchemaClass body = schema.AddClass("Body".As<ClassName>())!;
+		SchemaMember name = body.AddMember("Name".As<MemberName>())!;
+		name.SetType(new Models.Types.String());
+		name.DefaultValue = new TextDefault { Value = value };
 
 		return new CppCodeGenerator().Generate(schema, configuration)["Body.gen.hpp"];
 	}
