@@ -147,6 +147,13 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		}
 
 		declaration.Members.Add(Comparison(name, "==", "bool"));
+
+		// A defaulted <=> answers with one of the ordering types, and those live in <compare>.
+		// libstdc++ happens to have declared them by the time this header is read and libc++ does
+		// not, so without this the generated type compiles under GCC and is refused by Clang -
+		// which is exactly the kind of difference a generator must not leave to whoever includes
+		// it.
+		mapper.Require("<compare>");
 		declaration.Members.Add(Comparison(name, "<=>", "auto"));
 		declaration.Members.Add(new FieldDeclaration(ValueField, UnderlyingAlias) { Visibility = Visibility.Private });
 
