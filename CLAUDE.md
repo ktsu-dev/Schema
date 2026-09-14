@@ -11,7 +11,7 @@ Schema is a C# library for defining and managing data structure schemas. It cons
 - **Schema.Cpp** - The C++ generator, in its own project because `ktsu.Coder` ships no `net8.0`
 - **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document and one that compiles the generated reflection table
 - **Schema.Editor** - ImGui-based visual editor application for creating and editing `.schema.json` files
-- **Schema.Editor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
+- **Schema.Editor.UITests** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`. Named `.UITests` so the shared `dotnet.yml` runs it on Linux only, as it does every other ktsu UI suite
 - **Schema.Tool** - The `dotnet tool` (`kschema`) that validates schemas and runs their code generators
 
 ## Build Commands
@@ -519,8 +519,8 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema.Editor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
 - `Schema.Editor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
 - `Schema.Editor/Program.cs` - The entry point, and the only file excluded from coverage measurement
-- `Schema.Editor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
-- `Schema.Editor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
+- `Schema.Editor.UITests/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
+- `Schema.Editor.UITests/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
 
 ### Addressing the editor from a test
 

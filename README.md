@@ -21,7 +21,7 @@ The solution contains seven projects:
 - **Schema.Cpp** - The C++ generator, published separately as [`ktsu.Schema.Cpp`](https://nuget.org/packages/ktsu.Schema.Cpp)
 - **Schema.Cpp.Test** - Its tests, including acceptance tests against a real target's document
 - **Schema.Editor** - ImGui-based desktop application for visual schema editing
-- **Schema.Editor.Test** - Headless UI tests that drive the editor with no window or display
+- **Schema.Editor.UITests** - Headless UI tests that drive the editor with no window or display
 - **Schema.Tool** - Command line entry point for validating schemas and running their code generators
 
 `Schema.Cpp` is a separate package rather than part of the library because the AST it builds on

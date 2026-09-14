@@ -1,6 +1,6 @@
 // Copyright (c) 2023-2026 ktsu-dev contributors
 
-namespace ktsu.Schema.Editor.Test;
+namespace ktsu.Schema.Editor.UITests;
 
 /// <summary>
 /// Which ktsu.ThemeProvider theme the editor runs under, and where that choice comes from.

@@ -64,7 +64,7 @@ if (SchemaSerializer.TryDeserialize(File.ReadAllText("user.schema.json"), out Sc
 -   **[Schema](api/schema-core.md)** - Core library containing the schema definition system
 -   **[Schema.Editor](features/schema-editor.md)** - Visual editor application
 -   **Schema.Tool** - Command line validator and code generator runner
--   **Schema.Test** / **Schema.Editor.Test** - MSTest suites for the library and the editor (see the [development guide](development/README.md))
+-   **Schema.Test** / **Schema.Editor.UITests** - MSTest suites for the library and the editor (see the [development guide](development/README.md))
 
 ## Documentation
 

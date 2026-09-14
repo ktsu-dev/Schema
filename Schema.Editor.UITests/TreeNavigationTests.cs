@@ -1,6 +1,6 @@
 // Copyright (c) 2023-2026 ktsu-dev contributors
 
-namespace ktsu.Schema.Editor.Test;
+namespace ktsu.Schema.Editor.UITests;
 
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;

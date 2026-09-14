@@ -1,6 +1,6 @@
 // Copyright (c) 2023-2026 ktsu-dev contributors
 
-namespace ktsu.Schema.Editor.Test;
+namespace ktsu.Schema.Editor.UITests;
 
 /// <summary>
 /// That the harness itself works: without these, a failure anywhere else is ambiguous between the

@@ -38,7 +38,7 @@ time. For what the library actually does, the tests in
   recent-files list.
 - **CLI** — `Schema.Tool` validates a schema or runs its code generators, exiting non-zero on
   errors so it can gate a build.
-- **Editor tests** — `Schema.Editor.Test` drives the editor headlessly through
+- **Editor tests** — `Schema.Editor.UITests` drives the editor headlessly through
   `ktsu.ImGui.App.Testing`, which rasterizes in software and injects input straight into ImGui, so
   the editor's real draw code runs on a continuous integration runner with no window or display.
 - **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL, NuGet
@@ -103,7 +103,7 @@ Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
 
 Not one of the original phases; added when the editor grew large enough to need one.
 
-`Schema.Editor.Test` ([#128](https://github.com/ktsu-dev/Schema/issues/128)) drives the editor
+`Schema.Editor.UITests` ([#128](https://github.com/ktsu-dev/Schema/issues/128)) drives the editor
 headlessly. It covers the recent-files list, the commit-once text field, the unsaved-changes guard
 and the save-then-continue sequence, validation debouncing and click-to-navigate, and — by
 addressing widgets through the names the editor marks them with — the schema tree, its context

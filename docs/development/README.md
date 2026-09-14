@@ -46,7 +46,7 @@ dotnet run --project Schema.Editor
 | `Schema/`             | Core schema definition library       |
 | `Schema.Test/`        | MSTest unit tests for the library    |
 | `Schema.Editor/`      | ImGui-based visual editor            |
-| `Schema.Editor.Test/` | Headless UI tests for the editor     |
+| `Schema.Editor.UITests/` | Headless UI tests for the editor  |
 | `Schema.Tool/`        | Command line validator and generator |
 | `docs/`               | Markdown documentation               |
 | `scripts/`            | Build automation (PSBuild)           |
@@ -69,7 +69,7 @@ Plain unit tests over the core library, run against every framework it publishes
 suites (`SchemaTests`, `SchemaClassTests`, `SchemaEnumTests`, `TypeSystemTests`,
 `SchemaSerializerTests`, `AddClassFromTypeTests`) show the conventions in use.
 
-### The editor — `Schema.Editor.Test`
+### The editor — `Schema.Editor.UITests`
 
 The editor's code is immediate-mode draw calls, so none of it executes without a live ImGui
 context. `ktsu.ImGui.App.Testing` supplies one with no window, no display and no GPU: it rasterizes
