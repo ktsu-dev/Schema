@@ -316,6 +316,59 @@ public sealed class QuantityCppTests
 	}
 
 	/// <summary>
+	/// The table says what a quantity's bytes are, which for a vector form is not its storage.
+	/// </summary>
+	/// <remarks>
+	/// A magnitude is one number and reports the number. A vector form is two to four of them side
+	/// by side, and reporting <c>Float</c> for one would be false about the bytes rather than
+	/// merely vague - false in the way that reads as true, since a consumer asks the representation
+	/// how many lanes a member has. Told <c>Float</c>, it takes a <c>Velocity3D</c>'s first four
+	/// bytes for the whole value and checks one component while the other two go unexamined.
+	/// <para>
+	/// All five arities the vocabulary has are pinned rather than the two that would carry the
+	/// argument. Every one of them is a real quantity - 148 magnitudes, 27 signed scalars, and 8,
+	/// 22 and 7 of two, three and four components - so none of these arms is defensive code, and
+	/// a reader of this test can see the whole rule instead of inferring it from a sample of it.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void TheTableSaysWhatAQuantitysBytesAre()
+	{
+		Schema schema = new();
+		SchemaClass body = schema.AddClass("Body".As<ClassName>())!;
+
+		// A magnitude and a signed scalar are both one number, which is why they report the same
+		// thing from different arities: what the representation answers is the shape of the bytes,
+		// not how many directions the quantity has.
+		(string Member, string Quantity, string Representation)[] members =
+		[
+			("Mass", "Mass", "Float"),
+			("Heading", "Heading", "Float"),
+			("Drift", "Velocity2D", "Vector2"),
+			("Velocity", "Velocity3D", "Vector3"),
+			("Worldline", "Velocity4D", "Vector4"),
+		];
+
+		foreach ((string member, string quantity, _) in members)
+		{
+			body.AddMember(member.As<MemberName>())!
+				.SetType(new Quantity { QuantityName = quantity.As<QuantityName>() });
+		}
+
+		string table = Generate(Configured(schema), TargetOptions with { Reflection = true })
+			.Single(file => file.Key.Contains("reflection", StringComparison.Ordinal)).Value;
+
+		// Every one of them is declared a Quantity; what differs is what the bytes are.
+		Assert.AreEqual(members.Length, table.Split(".kind = TypeKind::Quantity").Length - 1);
+
+		foreach ((string member, _, string representation) in members)
+		{
+			Assert.Contains($".representation = TypeKind::{representation}", table,
+				StringComparison.Ordinal, $"{member} should be {representation}");
+		}
+	}
+
+	/// <summary>
 	/// A schema of one class holding one quantity.
 	/// </summary>
 	private static Schema Body(Quantity? quantity = null)
