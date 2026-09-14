@@ -88,6 +88,17 @@ public sealed record CppGeneratorOptions
 	public CppTypeSpelling? DateTime { get; init; }
 
 	/// <summary>
+	/// Gets where the target's physical quantities live, and what they are stored in.
+	/// </summary>
+	/// <remarks>
+	/// Null when the target has none, which refuses a <see cref="Models.Types.Quantity"/> by name
+	/// the way a missing vector refuses a <see cref="Models.Types.Vector3"/>. One entry covers the
+	/// whole vocabulary rather than one per quantity, because the target did not name them: it ran
+	/// <c>ktsu.Semantics.Cpp</c>, which names them what the schema does.
+	/// </remarks>
+	public CppQuantitySpelling? Quantities { get; init; }
+
+	/// <summary>
 	/// Gets the semantic types the target already declares, keyed by the name the schema gives
 	/// them.
 	/// </summary>

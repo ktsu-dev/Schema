@@ -146,6 +146,11 @@ internal static class ClrTypeImporter
 			return ImportSemanticType(schema, type, semantic);
 		}
 
+		if (TryReadQuantity(schema, type) is Quantity quantity)
+		{
+			return quantity;
+		}
+
 		if (type.IsGenericType &&
 			GenericTypeMappings.TryGetValue(type.GetGenericTypeDefinition(), out Func<Schema, Type[], BaseType>? build))
 		{
@@ -158,6 +163,35 @@ internal static class ClrTypeImporter
 		}
 
 		return IsSchemaClass(type) ? ImportClass(schema, type) : new None();
+	}
+
+	/// <summary>
+	/// Reads a closed quantity back as the quantity it is, or nothing when it is not one.
+	/// </summary>
+	/// <remarks>
+	/// The one thing here that needs no attribute to be recognised. Everything else generated C#
+	/// carries has to record what it is, because a struct with sequential layout or a record
+	/// struct over a float is a shape a hand-written type may have for its own reasons - but a
+	/// <c>Mass&lt;float&gt;</c> from <c>ktsu.Semantics.Quantities</c> is not something a target
+	/// happened to write, it is the quantity. The type is its own evidence, which is what it
+	/// means for the vocabulary to be shared.
+	/// </remarks>
+	private static Quantity? TryReadQuantity(Schema schema, Type type)
+	{
+		if (!type.IsGenericType || type.GetGenericArguments() is not [Type storage])
+		{
+			return null;
+		}
+
+		string name = type.GetGenericTypeDefinition().Name;
+		int arity = name.IndexOf('`', StringComparison.Ordinal);
+
+		return arity > 0 &&
+			QuantityRegistry.TryResolve(name[..arity], out QuantityRegistry.QuantityInfo? resolved) &&
+			resolved!.Definition == type.GetGenericTypeDefinition() &&
+			GetOrCreateSchemaType(schema, storage) is BaseType stored
+			? new Quantity { QuantityName = resolved.Name.As<QuantityName>(), Storage = stored }
+			: null;
 	}
 
 	/// <summary>

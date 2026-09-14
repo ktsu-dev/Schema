@@ -109,6 +109,7 @@ public sealed class LegacySampleCppTests
 		Vector4 = new CppTypeSpelling("sample::Vector4", LocalHeader),
 		ColorRgb = new CppTypeSpelling("sample::ColorRgb", LocalHeader),
 		ColorRgba = new CppTypeSpelling("sample::ColorRgba", LocalHeader),
+		Quantities = new CppQuantitySpelling("sample", LocalHeader),
 	};
 
 	/// <summary>
@@ -120,6 +121,11 @@ public sealed class LegacySampleCppTests
 	/// class holds these, so if any of them were not trivially copyable the assertion the
 	/// generator writes beside that class would fail to compile -- which is the point of compiling
 	/// this at all.
+	/// <para>
+	/// The four quantities are here for the same reason and stand in for the same thing a real
+	/// target would have: <c>ktsu.Semantics.Cpp</c> emits all 212 of them, and a schema that names
+	/// one is naming a class the program already has rather than asking for one.
+	/// </para>
 	/// </remarks>
 	private const string SampleTypes = """
 		#pragma once
@@ -132,6 +138,13 @@ public sealed class LegacySampleCppTests
 
 			struct ColorRgb { float r, g, b; };
 			struct ColorRgba { float r, g, b, a; };
+
+			// Standing in for what ktsu.Semantics.Cpp emits: a class per quantity, holding one
+			// float for a magnitude or a signed scalar and nothing else.
+			class Mass { public: float value; };
+			class Radius { public: float value; };
+			class Speed { public: float value; };
+			class Acceleration1D { public: float value; };
 		}
 		""";
 

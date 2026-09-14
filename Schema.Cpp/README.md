@@ -71,6 +71,14 @@ ExistingTypes = new Dictionary<string, CppTypeSpelling>(StringComparer.Ordinal)
 }
 ```
 
+`Quantities` is the third kind of answer, and the one that covers a whole vocabulary in a line. A schema member may hold one of `ktsu.Semantics.Quantities`' 212 physical quantities, and if your program ran `ktsu.Semantics.Cpp` it already has all of them - so what you say is where they went, not what each one is called. It called each one what the schema calls it:
+
+```csharp
+Quantities = new CppQuantitySpelling("holo", "<holotype/quantities/quantities.hpp>"),
+```
+
+A third argument says what your vocabulary is stored in, `Float` by default. C# closes `Mass<T>` per member and a C++ `Mass` is a class rather than a template, so a member the schema keeps in a double has no spelling on a target whose quantities are floats. Saying which one you generated is what makes that a refusal rather than two languages quietly disagreeing about the bytes.
+
 The rest of `CppGeneratorOptions` is cosmetic: `HeaderExtension` (`.gen.hpp` by default), `MemberNaming` (`snake_case` by default), and `GeneratedBy`, the name a generated file's banner opens with - which a target that vendors this behind its own build step should set to the thing a reader would run again.
 
 ## Conventions the generated headers keep

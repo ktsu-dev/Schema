@@ -139,9 +139,30 @@ public static class CppGeneratorOptionsFile
 			}
 		}
 
+		if (options.Quantities is CppQuantitySpelling quantities &&
+			!QuantityStorages.Contains(quantities.Storage))
+		{
+			// Left to the generator this would refuse every quantity in the schema with a message
+			// about the schema, which is not where the mistake is.
+			message =
+				$"'{NameOf(nameof(CppGeneratorOptions.Quantities))}.storage' is '{quantities.Storage}'. " +
+				$"A quantity is stored in a number: {string.Join(", ", QuantityStorages)}.";
+			return false;
+		}
+
 		message = null;
 		return true;
 	}
+
+	/// <summary>
+	/// The schema types a target's quantities may be stored in.
+	/// </summary>
+	/// <remarks>
+	/// Named as the schema names them rather than as C++ spells them, because what this is
+	/// compared against is <c>Quantity.Storage</c>, and comparing the two through a translation
+	/// table would be a third place for them to disagree.
+	/// </remarks>
+	private static readonly string[] QuantityStorages = ["Float", "Double", "Int", "Long"];
 
 	/// <summary>
 	/// Takes <see cref="Option"/> out of a host's arguments, reading the file it names.

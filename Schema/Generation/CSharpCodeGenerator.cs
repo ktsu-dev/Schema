@@ -633,6 +633,12 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// The struct emitted for the semantic type, named the same way a class or an enum is.
 		Semantic semanticType => CSharpKeywords.Identifier(semanticType.SemanticTypeName),
 
+		// The one type here that names something neither this schema nor this library declares.
+		// A quantity is written where it lives, closed over the number it is stored in, and
+		// nothing is emitted for it - which is the whole of what makes it different from the
+		// semantic type above.
+		Quantity quantity => $"ktsu.Semantics.Quantities.{quantity.QuantityName}<{MapType(quantity.Storage)}>",
+
 		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
 		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
 		Models.Types.Interface interfaceType => CSharpKeywords.Identifier(interfaceType.InterfaceName),

@@ -21,7 +21,7 @@ public static class SchemaSerializer
 		Converters = { new RoundTripStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
-			Modifiers = { OmitDefaultVectorElement },
+			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage },
 		},
 	};
 
@@ -46,6 +46,31 @@ public static class SchemaSerializer
 			.Where(property => string.Equals(property.Name, "elementType", StringComparison.OrdinalIgnoreCase));
 
 		foreach (JsonPropertyInfo property in componentProperties)
+		{
+			property.ShouldSerialize = static (_, value) => value is not Types.Float;
+		}
+	}
+
+	/// <summary>
+	/// Leaves a quantity's storage out of the file when it is the default.
+	/// </summary>
+	/// <remarks>
+	/// The same arrangement as <see cref="OmitDefaultVectorElement"/> and for the same reason:
+	/// <see cref="Types.Quantity.Storage"/> is not nullable, so no ignore condition describes
+	/// "the same as saying nothing", and writing it regardless would put four lines of
+	/// <c>{ "TypeName": "Float" }</c> under every quantity in every file.
+	/// </remarks>
+	private static void OmitDefaultQuantityStorage(JsonTypeInfo typeInfo)
+	{
+		if (typeInfo.Type != typeof(Types.Quantity))
+		{
+			return;
+		}
+
+		IEnumerable<JsonPropertyInfo> storageProperties = typeInfo.Properties
+			.Where(property => string.Equals(property.Name, "storage", StringComparison.OrdinalIgnoreCase));
+
+		foreach (JsonPropertyInfo property in storageProperties)
 		{
 			property.ShouldSerialize = static (_, value) => value is not Types.Float;
 		}

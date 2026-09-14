@@ -172,6 +172,12 @@ public partial class Schema
 		// travels as bytes whatever it identifies.
 		Handle => null,
 
+		// A quantity is so many of its storage and nothing else - a Mass<float> is a float, a
+		// Velocity3D<float> is three - so what decides is what it is stored in. Said rather than
+		// left to the arm below, because a type added to the vocabulary that quietly travelled as
+		// bytes because nobody wrote its case down is the failure this whole switch is against.
+		Quantity quantity => WhyItCannotTravelAsBytes(quantity.Storage),
+
 		Vector vectorType => WhyItCannotTravelAsBytes(vectorType.ElementType),
 
 		Semantic { Declaration: SchemaSemanticType declaration } => WhyARepresentationCannotTravelAsBytes(declaration.Representation()),
@@ -226,6 +232,10 @@ public partial class Schema
 	/// </remarks>
 	private static void ValidateMetadata(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element, string kind)
 	{
+		// Before the reduction below, which is what loses the quantity: a unit disagreeing with
+		// what the member holds is a fact about the declared type, not about the number under it.
+		ValidateQuantityUnit(issues, carrier, type, path, element);
+
 		BaseType represented = Represented(type);
 
 		// A chain that never reached anything real - a name that does not resolve, or a cycle -
@@ -258,10 +268,17 @@ public partial class Schema
 	/// anything real. Callers treat that as "already reported elsewhere" rather than recursing:
 	/// it is what keeps a refinement cycle a reported error and not a walk with no bottom.
 	/// </returns>
-	private static BaseType Represented(BaseType type) =>
-		type is Semantic { Declaration: SchemaSemanticType declaration }
-			? declaration.Representation()
-			: type;
+	private static BaseType Represented(BaseType type) => type switch
+	{
+		Semantic { Declaration: SchemaSemanticType declaration } => declaration.Representation(),
+
+		// A quantity is the number it is stored in, under a name that says what the number
+		// measures. That is why its storage may only be a bare numeric and never a semantic type
+		// or another quantity: this reduces in one step because there is nothing to walk.
+		Quantity quantity => quantity.Storage,
+
+		_ => type,
+	};
 
 	/// <summary>
 	/// A unit has to resolve, and has to be on something that can carry one.
@@ -716,6 +733,10 @@ public partial class Schema
 				ValidateSemanticReference(issues, semanticReference, path, element);
 				break;
 
+			case Quantity quantity:
+				ValidateQuantity(issues, quantity, path, element);
+				break;
+
 			// A vector's components are a type in their own right, checked as one.
 			case Vector vectorType:
 				ValidateVectorElement(issues, vectorType, path, element);
@@ -793,6 +814,111 @@ public partial class Schema
 			Report(issues, path, element!, $"Semantic type reference names '{reference.SemanticTypeName}', which this schema does not declare.");
 		}
 	}
+
+	/// <summary>
+	/// A named quantity has to be one the shared vocabulary has, and has to be stored in a number.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Unlike a class, an interface or a semantic type, the name is not resolved against this
+	/// schema - there is nothing here to declare it. It is resolved against
+	/// <c>ktsu.Semantics.Quantities</c>, which is the point of the type: the vocabulary is shared,
+	/// so naming one reaches a type the target already has rather than a copy this schema asked
+	/// for.
+	/// </para>
+	/// <para>
+	/// The storage is held to a bare numeric rather than to "a number or a semantic type over
+	/// one", which is the looser rule a vector's components get. A quantity is generic over its
+	/// storage under a <c>where T : struct, INumber&lt;T&gt;</c> constraint, and a generated
+	/// semantic type is a record struct over a float that implements no such thing - so
+	/// <c>Mass&lt;Kilograms&gt;</c> is not a type that exists to be written. Refusing it here is
+	/// the schema saying so rather than a generator emitting C# that will not compile.
+	/// </para>
+	/// </remarks>
+	private static void ValidateQuantity(Collection<SchemaValidationIssue> issues, Quantity quantity, string path, ISchemaElement? element)
+	{
+		if (string.IsNullOrEmpty(quantity.QuantityName))
+		{
+			Report(issues, path, element!, "Quantity type does not name a quantity.");
+		}
+		else if (quantity.Resolved is null)
+		{
+			Report(issues, path, element!, $"Quantity type names '{quantity.QuantityName}', which is not a quantity ktsu.Semantics.Quantities declares.");
+		}
+
+		if (!quantity.Storage.IsNumeric)
+		{
+			Report(issues, path, element!, $"Quantity '{quantity.QuantityName}' is stored in a {quantity.Storage.DisplayName}. A quantity is stored in a number.");
+		}
+	}
+
+	/// <summary>
+	/// A unit on a quantity has to measure what the quantity measures.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// This is the one check the <see cref="Quantity"/> type makes possible and the
+	/// <see cref="Semantic"/> it replaces never could. A unit is text the schema resolves through
+	/// <see cref="UnitRegistry"/>, and a semantic type called <c>Kilograms</c> is a name nothing
+	/// reads - so <c>Semantic(Kilograms)</c> carrying <c>unit: "m"</c> was two unrelated strings
+	/// and no way to tell they disagreed. A quantity knows its own eight exponents and so does
+	/// the unit, so the contradiction is arithmetic.
+	/// </para>
+	/// <para>
+	/// It reads the declared type rather than the representation, which is why it is called from
+	/// <see cref="ValidateMetadata"/> instead of living beside the other unit check: by the time
+	/// that one runs the quantity has already been reduced to the number it is stored in, which
+	/// is exactly the fact this check is not about.
+	/// </para>
+	/// </remarks>
+	private static void ValidateQuantityUnit(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, BaseType type, string path, ISchemaElement element)
+	{
+		// An unresolved quantity or unit is already reported, and saying they disagree as well
+		// would be two messages for one mistake.
+		if (type is not Quantity quantity ||
+			quantity.Resolved is not QuantityRegistry.QuantityInfo resolved ||
+			carrier.Unit is null ||
+			!UnitRegistry.TryResolve(carrier.Unit, out IUnit? unit, out _) ||
+			unit is null)
+		{
+			return;
+		}
+
+		if (!SameDimension(resolved.Dimension, unit.Dimension))
+		{
+			Report(
+				issues,
+				path,
+				element,
+				$"'{carrier.Unit}' measures {unit.Dimension.Name}, and a {quantity.QuantityName} is {resolved.Dimension.Name}.");
+		}
+	}
+
+	/// <summary>
+	/// Whether two dimensions are the same eight exponents.
+	/// </summary>
+	/// <remarks>
+	/// The exponents rather than the name, because 72 of the vocabulary's dimensions share 63
+	/// exponent vectors: <c>Torque</c> and <c>Energy</c> are one vector between two names, and a
+	/// newton metre is as good a unit for either. Comparing names would refuse that, and refusing
+	/// what the physics allows is worse than not checking.
+	/// </remarks>
+	private static bool SameDimension(DimensionInfo left, DimensionInfo right)
+	{
+		Dictionary<string, int> here = left.DimensionalFormula;
+		Dictionary<string, int> there = right.DimensionalFormula;
+
+		return DimensionAxes.All(axis =>
+			(here.TryGetValue(axis, out int mine) ? mine : 0) == (there.TryGetValue(axis, out int theirs) ? theirs : 0));
+	}
+
+	/// <summary>
+	/// The axes a dimensional formula is written over.
+	/// </summary>
+	private static readonly string[] DimensionAxes =
+	[
+		"length", "mass", "time", "angle", "electricCurrent", "temperature", "amountOfSubstance", "luminousIntensity",
+	];
 
 	/// <summary>
 	/// A vector is so many of something, and that something has to be a number.

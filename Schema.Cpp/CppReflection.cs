@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
+using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Types;
 
@@ -125,10 +126,16 @@ internal static class CppReflection
 	/// </remarks>
 	/// <param name="type">The type.</param>
 	/// <returns>The enumerator, qualified by the enumeration.</returns>
-	internal static string Representation(BaseType type) =>
-		Ensure.NotNull(type) is Semantic semantic && semantic.Declaration?.Representation() is BaseType stored
-			? Kind(stored)
-			: Kind(type);
+	internal static string Representation(BaseType type) => Ensure.NotNull(type) switch
+	{
+		Semantic { Declaration: SchemaSemanticType declaration } => Kind(declaration.Representation()),
+
+		// A quantity says what it is stored in directly, so there is no chain to walk: a
+		// Velocity3D over a float is three floats, and the table's reader needs the float.
+		Quantity quantity => Kind(quantity.Storage),
+
+		_ => Kind(type),
+	};
 
 	/// <summary>
 	/// How a member's interpolation is named in the table.
