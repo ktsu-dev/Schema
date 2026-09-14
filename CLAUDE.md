@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Schema is a C# library for defining and managing data structure schemas. It consists of seven projects:
+Schema is a C# library for defining and managing data structure schemas. It consists of eight projects:
 
 - **Schema** - Core library providing schema definition types (classes, enums, members, types)
 - **Schema.Test** - MSTest unit tests for the core library
 - **Schema.Cpp** - The C++ generator, in its own project because `ktsu.Coder` ships no `net8.0`
 - **Schema.Cpp.Test** - Its tests, including the three acceptance tests against Holotype's target document and one that compiles the generated reflection table
 - **Schema.Editor** - ImGui-based visual editor application for creating and editing `.schema.json` files
-- **Schema.Editor.Test** - Headless UI tests for the editor, driven through `ktsu.ImGui.App.Testing`
+- **Schema.Editor.Test** - The editor's tests that need no frame: the recent-files list and reading and writing the document on disk. Ordinary unit tests, so they run on every platform - which is the point of keeping them out of the suite below, since those are the two parts of the editor whose behaviour differs by operating system
+- **tests/Schema.Editor.UITests** - The editor's tests that drive real frames through `EditorHarness`/`WidgetHarness`. The shared `dotnet.yml` runs it on Linux only, as it does every other ktsu UI suite: the CPU rasterizer measures the same on any host, so the other platforms pay the cost without learning anything. **Both halves of the path are load-bearing** - `ktsubuild --exclude "**/*.UITests/*"` needs the `.UITests` suffix *and* a leading directory, because its `**/` does not match zero segments. A project at the repository root is never excluded, however it is named
 - **Schema.Tool** - The `dotnet tool` (`kschema`) that validates schemas and runs their code generators
 
 ## Build Commands
@@ -519,8 +520,8 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema.Editor/EditorHost.cs` - Builds the `ImGuiAppConfig`; `CreateConfig` is what the tests drive too
 - `Schema.Editor/EditorTheme.cs` - The ktsu.ThemeProvider theme, and the one definition of how a validation issue is coloured
 - `Schema.Editor/Program.cs` - The entry point, and the only file excluded from coverage measurement
-- `Schema.Editor.Test/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
-- `Schema.Editor.Test/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
+- `tests/Schema.Editor.UITests/EditorHarness.cs` - Runs a real editor headlessly, frames advanced by the test
+- `tests/Schema.Editor.UITests/WidgetHarness.cs` - A headless frame containing only the widget under test, and an editor for a panel that is one
 
 ### Addressing the editor from a test
 

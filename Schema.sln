@@ -11,11 +11,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor", "Schema.Edi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Tool", "Schema.Tool\Schema.Tool.csproj", "{1EBD8E07-A2A3-4091-8748-ECFEB1D301F0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor.Test", "Schema.Editor.Test\Schema.Editor.Test.csproj", "{31DEE39F-3542-4B65-B744-74243D28D878}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor.UITests", "tests\Schema.Editor.UITests\Schema.Editor.UITests.csproj", "{31DEE39F-3542-4B65-B744-74243D28D878}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Cpp", "Schema.Cpp\Schema.Cpp.csproj", "{93D1BF5F-D2C4-46C4-A783-2F6F4B7AA6B7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Cpp.Test", "Schema.Cpp.Test\Schema.Cpp.Test.csproj", "{B331523C-35C3-456A-B5DA-678A6144A090}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schema.Editor.Test", "Schema.Editor.Test\Schema.Editor.Test.csproj", "{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,6 +113,18 @@ Global
 		{B331523C-35C3-456A-B5DA-678A6144A090}.Release|x64.Build.0 = Release|Any CPU
 		{B331523C-35C3-456A-B5DA-678A6144A090}.Release|x86.ActiveCfg = Release|Any CPU
 		{B331523C-35C3-456A-B5DA-678A6144A090}.Release|x86.Build.0 = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|x64.Build.0 = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Debug|x86.Build.0 = Debug|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|x64.ActiveCfg = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|x64.Build.0 = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|x86.ActiveCfg = Release|Any CPU
+		{5562D744-2ECE-47B5-9AB8-EA5F659ABAE8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
