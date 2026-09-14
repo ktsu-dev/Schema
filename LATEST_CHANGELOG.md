@@ -1,7 +1,8 @@
-## v1.33.0 (minor)
+## v1.34.0 (minor)
 
-Changes since v1.32.0:
+Changes since v1.33.0:
 
-- Quote and escape C++ string defaults ([@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]))
-- Initial plan ([@copilot-swe-agent[bot]](https://github.com/copilot-swe-agent[bot]))
+- Guard the dimension property explicitly ([@Claude](https://github.com/Claude))
+- Say the modernised sample's measurements as quantities ([@Claude](https://github.com/Claude))
+- Name the quantity, not the unit [minor] ([@Claude](https://github.com/Claude))
 
