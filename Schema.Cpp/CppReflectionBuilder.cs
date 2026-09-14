@@ -263,12 +263,17 @@ internal sealed class CppReflectionBuilder(Models.Schema schema, SchemaCodeGener
 	/// The dimensional formula a member's values have, from its type where its type knows and from
 	/// its unit otherwise.
 	/// </summary>
-	private static Dictionary<string, int> Measured(SchemaMember member) =>
-		member.Type is Quantity { Resolved: QuantityRegistry.QuantityInfo quantity }
-			? quantity.Dimension.DimensionalFormula
-			: member.TryResolveUnit(out IUnit? unit, out _) && unit is not null
-				? unit.Dimension.DimensionalFormula
-				: new Dictionary<string, int>(StringComparer.Ordinal);
+	private static Dictionary<string, int> Measured(SchemaMember member)
+	{
+		if (member.Type is Quantity { Resolved: QuantityRegistry.QuantityInfo quantity })
+		{
+			return quantity.Dimension.DimensionalFormula;
+		}
+
+		return member.TryResolveUnit(out IUnit? unit, out _) && unit is not null
+			? unit.Dimension.DimensionalFormula
+			: new Dictionary<string, int>(StringComparer.Ordinal);
+	}
 
 	private static ConstructionExpression Range(MemberRange? range)
 	{
