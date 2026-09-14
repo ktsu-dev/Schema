@@ -139,12 +139,32 @@ public sealed class LegacySampleCppTests
 			struct ColorRgb { float r, g, b; };
 			struct ColorRgba { float r, g, b, a; };
 
-			// Standing in for what ktsu.Semantics.Cpp emits: a class per quantity, holding one
-			// float for a magnitude or a signed scalar and nothing else.
-			class Mass { public: float value; };
-			class Radius { public: float value; };
-			class Speed { public: float value; };
-			class Acceleration1D { public: float value; };
+			// Standing in for what ktsu.Semantics.Cpp emits: a class per quantity over a storage
+			// that is itself explicit, so a bare number never becomes one by accident. That is
+			// what makes the modernised sample's defaulted gravity worth generating here -- it
+			// only compiles if the generator says the step out loud.
+			struct Rep
+			{
+				float count{};
+				constexpr Rep() noexcept = default;
+				explicit constexpr Rep(float value) noexcept : count(value) {}
+			};
+
+			#define SAMPLE_MAGNITUDE(Name)                                            \
+				class Name                                                            \
+				{                                                                     \
+				public:                                                               \
+					using underlying = Rep;                                           \
+					constexpr Name() noexcept = default;                              \
+					explicit constexpr Name(underlying value) noexcept : value_(value) {} \
+				private:                                                              \
+					underlying value_{};                                              \
+				}
+
+			SAMPLE_MAGNITUDE(Mass);
+			SAMPLE_MAGNITUDE(Radius);
+			SAMPLE_MAGNITUDE(Speed);
+			SAMPLE_MAGNITUDE(Acceleration1D);
 		}
 		""";
 

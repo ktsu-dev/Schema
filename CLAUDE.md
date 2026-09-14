@@ -167,6 +167,16 @@ Three things follow from a quantity knowing its own dimension.
   generated semantic type is a record struct over a float implementing no `INumber<T>`, so
   `Mass<Kilograms>` is not a type anything could write.
 
+**A default takes one more step than anything else here.** A generated C++ quantity refuses a bare
+number twice over: its own constructor is explicit - *a bare value never becomes a `Mass` by
+accident* - and so is the constructor of the `Quantity` that one takes. So `holo::Mass{ 1.0f }` is
+two conversions rather than one and does not compile; what does is the step said out loud,
+`holo::Mass{ holo::Mass::underlying{ 1.0f } }`, and a vector form spells the same alias `component`
+and takes one per component. Both names are `ktsu.Semantics.Cpp`'s, which is a coupling rather than
+a deduction - `CppGeneratorOptions.Quantities` is the target saying its vocabulary came from there -
+so it is compiled rather than assumed, in `QuantityCppTests` against a stub that is explicit in both
+places and in `TheModernisedSampleCompiles` against a sample whose gravity has a default.
+
 C# spells it `ktsu.Semantics.Quantities.Mass<float>` and `ClrTypeImporter` reads it straight back
 off the closed type - **the one thing generated C# carries that needs no attribute recording what
 it is**. Everything else does, because a sequential struct or a record struct over a float is a
