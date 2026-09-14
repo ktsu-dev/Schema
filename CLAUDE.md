@@ -540,6 +540,36 @@ records its tabs nor takes a selection from outside. A panel behind it - the cla
 diagnostics list - is tested by drawing it directly in a `WidgetHarness`, which is what the tab's
 own delegate does.
 
+### What a Linux-only suite stops seeing
+
+The frame-driven suite runs on Linux alone, and the two tests that first failed elsewhere were
+failing for reasons that had nothing to do with the operating system - which is exactly what a
+one-platform suite is bad at telling you.
+
+`FileBrowserTests` expected the path it made its scratch directory under. macOS reaches the
+temporary directory through `/var`, a symbolic link to `/private/var`, and the working directory
+resolves the link, so the browser answered with the other spelling of the same directory. The test
+now reads the working directory back after setting it, which is a fact about symbolic links rather
+than about macOS.
+
+`MenuTests` clicked a recent file whose menu label was its whole path. A menu is as wide as its
+widest label, and a submenu that will not fit beside the menu that opened it is placed **on top of
+that menu** - which puts the item that opened it under the submenu rather than under the pointer,
+so ImGui takes the pointer to have left and closes the submenu on the frame after it opens. The
+temporary directory being 44 characters deeper on macOS is all that picked which platform noticed:
+any schema saved somewhere deep enough did the same everywhere, and Open Recent was unusable for
+whoever owned it. `SchemaEditor.ElideRecentFileLabel` bounds the label and the tooltip keeps the
+path. Both halves are pinned - the mechanism in `MenuTests.ARecentFileTooDeepToLabelWholeStillOpens`,
+and the elision itself in `Schema.Editor.Test/RecentFileLabelTests.cs`, which needs no frame and so
+runs on every platform. That is the answer to promoting the suite: what was platform-sensitive here
+was a string, and a string can be tested where the rasterizer cannot go.
+
+`EditorHarness.Click` asked whether the probe had **ever** recorded a name, not whether the item was
+on screen now, so an item drawn once and then gone still satisfied the wait and the click failed
+later on a stale rectangle. It now asks `IsOnScreen` on both sides of the settle frames. That is a
+better message, not a fix: with the wrong question it failed inside the click, with the right one it
+fails at the wait, and only the elision makes it pass.
+
 ## Dependencies
 
 - **ktsu.Semantics.Strings/Paths** - Type-safe string and path wrappers

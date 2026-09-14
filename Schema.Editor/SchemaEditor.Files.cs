@@ -38,6 +38,42 @@ public partial class SchemaEditor
 			? "Untitled schema"
 			: Path.GetFileName(CurrentSchemaPath);
 
+	/// <summary>
+	/// The longest label a recent file is offered under, in characters.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A menu is as wide as its widest label, and Open Recent's labels are absolute paths, so its
+	/// width was whatever depth the user happened to have saved at. That is not merely untidy: a
+	/// submenu that does not fit beside the menu that opened it is placed on top of it, and the
+	/// item that opened it is then underneath the submenu rather than under the pointer, which
+	/// ImGui reads as the pointer having left - so the submenu closes on the frame after it opens
+	/// and the menu cannot be used at all.
+	/// </para>
+	/// <para>
+	/// Forty is measured rather than chosen for looks: the submenu opens a little past the File
+	/// menu's own width and grows by about eight pixels a character, so forty leaves it inside the
+	/// 700-pixel window the narrowest of these tests drives, where sixty does not. The whole path
+	/// is still a hover away.
+	/// </para>
+	/// </remarks>
+	internal const int MaxRecentFileLabelLength = 40;
+
+	/// <summary>
+	/// Shortens a path to <see cref="MaxRecentFileLabelLength"/> for display, keeping its end.
+	/// </summary>
+	/// <remarks>
+	/// The end rather than the beginning, because what tells two recent files apart is the file
+	/// name and the directory holding it. What is dropped is the root they are most likely to
+	/// share.
+	/// </remarks>
+	/// <param name="path">The path to label.</param>
+	/// <returns>The path itself if it fits, or its last characters behind an ellipsis.</returns>
+	internal static string ElideRecentFileLabel(string path) =>
+		path.Length <= MaxRecentFileLabelLength
+			? path
+			: $"…{path[^(MaxRecentFileLabelLength - 1)..]}";
+
 	private void ShowRecentFilesMenu()
 	{
 		IReadOnlyList<AbsoluteFilePath> recent = [.. Options.RecentFiles];
@@ -58,11 +94,22 @@ public partial class SchemaEditor
 			}
 
 			anyShown = true;
-			bool clicked = ImGui.MenuItem(path);
+
+			// The whole path is the id and the elided path is the label, so two files with the
+			// same name stay separate items however alike they read.
+			ImGui.PushID(path);
+			bool clicked = ImGui.MenuItem(ElideRecentFileLabel(path));
 
 			// Recorded under the file name rather than the whole path, which a probe name would
 			// otherwise read as a chain of scopes because both are separated by slashes.
 			ImGuiProbes.MarkItem("recent", Path.GetFileName(path));
+
+			if (ImGui.IsItemHovered())
+			{
+				ImGui.SetTooltip(path);
+			}
+
+			ImGui.PopID();
 
 			if (clicked)
 			{
