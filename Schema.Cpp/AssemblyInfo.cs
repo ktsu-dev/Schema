@@ -5,4 +5,5 @@
 // rather than to the one that happens to need them.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Test")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.UITests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.Test")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Cpp.Test")]

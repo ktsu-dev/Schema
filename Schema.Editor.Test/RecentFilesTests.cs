@@ -1,6 +1,6 @@
 // Copyright (c) 2023-2026 ktsu-dev contributors
 
-namespace ktsu.Schema.Editor.UITests;
+namespace ktsu.Schema.Editor.Test;
 
 using System.Linq;
 

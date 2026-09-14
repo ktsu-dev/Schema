@@ -1,0 +1,34 @@
+<Project>
+  <Sdk Name="MSTest.Sdk" />
+  <Import Project="Sdk.props" Sdk="ktsu.Sdk" />
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Schema.Editor\Schema.Editor.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A mock file system for AppDataStorage, so a test never reads or writes the settings of
+         whoever is running it. -->
+    <PackageReference Include="TestableIO.System.IO.Abstractions.TestingHelpers" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
+      <VersionOverride>18.8.0</VersionOverride>
+    </PackageReference>
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="ktsu.Sdk" />
+
+  <!-- Schema.Editor is a net10.0-only application, so this suite is too. Placed after the explicit
+       Sdk.targets import so the project, not the SDK, has the last word - the same reason
+       Schema.Test states its frameworks there. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks></TargetFrameworks>
+  </PropertyGroup>
+</Project>

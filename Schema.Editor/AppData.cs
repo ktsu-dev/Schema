@@ -5,6 +5,7 @@
 // projects, and there are two of them now; which of the two a given project actually needs is not
 // what the rule is checking.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.UITests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.Test")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Test")]
 
 namespace ktsu.Schema.Editor;

@@ -6,6 +6,7 @@
 // what the rule is checking.
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Test")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.UITests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ktsu.Schema.Editor.Test")]
 
 namespace ktsu.Schema.Tool;
 

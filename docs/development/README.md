@@ -46,6 +46,7 @@ dotnet run --project Schema.Editor
 | `Schema/`             | Core schema definition library       |
 | `Schema.Test/`        | MSTest unit tests for the library    |
 | `Schema.Editor/`      | ImGui-based visual editor            |
+| `Schema.Editor.Test/`    | The editor tests that need no frame |
 | `Schema.Editor.UITests/` | Headless UI tests for the editor  |
 | `Schema.Tool/`        | Command line validator and generator |
 | `docs/`               | Markdown documentation               |
