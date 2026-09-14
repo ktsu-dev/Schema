@@ -130,12 +130,37 @@ internal static class CppReflection
 	{
 		Semantic { Declaration: SchemaSemanticType declaration } => Kind(declaration.Representation()),
 
-		// A quantity says what it is stored in directly, so there is no chain to walk: a
-		// Velocity3D over a float is three floats, and the table's reader needs the float.
-		Quantity quantity => Kind(quantity.Storage),
+		Quantity quantity => QuantityRepresentation(quantity),
 
 		_ => Kind(type),
 	};
+
+	/// <summary>
+	/// What the bytes of a quantity are.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A magnitude or a signed scalar is one number, so it is the number it is stored in. A vector
+	/// form is two to four of them laid out side by side, which is a <c>Vector2</c>, <c>Vector3</c>
+	/// or <c>Vector4</c> - and saying <c>Float</c> for one would be false about the bytes, not
+	/// merely less specific.
+	/// </para>
+	/// <para>
+	/// It is false in a way that reads as true, which is why it is worth spelling out. A consumer
+	/// walking the table asks the representation how many lanes a member has; told <c>Float</c>, it
+	/// takes a <c>Velocity3D</c>'s first four bytes for the whole value and checks one component
+	/// against the member's range while the other two go unexamined. A check that quietly examines
+	/// a third of what it was given is worse than one that declines.
+	/// </para>
+	/// </remarks>
+	private static string QuantityRepresentation(Quantity quantity) =>
+		quantity.Resolved?.Components switch
+		{
+			2 => Kind(new Vector2()),
+			3 => Kind(new Vector3()),
+			4 => Kind(new Vector4()),
+			_ => Kind(quantity.Storage),
+		};
 
 	/// <summary>
 	/// How a member's interpolation is named in the table.
