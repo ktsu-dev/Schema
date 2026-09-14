@@ -146,6 +146,15 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			declaration.Members.Add(Narrowing(name, refined.Name.ToString()));
 		}
 
+		// A defaulted operator<=> has std::strong_ordering - or whichever of its siblings the
+		// representation yields - as its return type, so this header depends on <compare>. It
+		// never said so, and nothing noticed: the tests that compile generated C++ include the
+		// whole emitted set as one translation unit, and under libstdc++ another header in that
+		// set reaches <compare> while under libc++ none does. That is the whole reason Apple
+		// clang was the only compiler to refuse it. Required here rather than left to whoever
+		// includes this one, which is the rule the refined header above already follows.
+		mapper.Require("<compare>");
+
 		declaration.Members.Add(Comparison(name, "==", "bool"));
 		declaration.Members.Add(Comparison(name, "<=>", "auto"));
 		declaration.Members.Add(new FieldDeclaration(ValueField, UnderlyingAlias) { Visibility = Visibility.Private });

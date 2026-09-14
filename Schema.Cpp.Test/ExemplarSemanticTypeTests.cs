@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Cpp.Test;
 
+using System.Diagnostics;
+
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
@@ -55,6 +57,7 @@ public sealed class ExemplarSemanticTypeTests
 
 		#pragma once
 
+		#include <compare>
 		#include <cstdint>
 		#include <type_traits>
 
@@ -168,6 +171,124 @@ public sealed class ExemplarSemanticTypeTests
 		Assert.DoesNotContain("ForceMagnitude.gen.hpp", files.Keys);
 		Assert.Contains("EntityId.gen.hpp", files.Keys);
 	}
+
+	/// <summary>
+	/// Every generated header compiles with nothing included ahead of it.
+	/// </summary>
+	/// <remarks>
+	/// The shape of the defect rather than the one header that had it. Every other compiling test
+	/// here includes the whole emitted set as one translation unit, so a header that depends on
+	/// something it never included still compiles as long as some other header in the set reached
+	/// it first. Compiling each one alone is what makes an include the header's own business.
+	/// <para>
+	/// A missing include only fails here if it is needed to <i>declare</i> what the header
+	/// declares, which is why this loop passes an empty <c>main</c> and why it did not, on its
+	/// own, catch the <c>&lt;compare&gt;</c> defect - see the test below.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void EveryGeneratedHeaderCompilesOnItsOwn()
+	{
+		IReadOnlyDictionary<string, string> files = Generate();
+
+		foreach (string header in files.Keys.Order(StringComparer.Ordinal))
+		{
+			AssertCompilesAlone(header, files);
+		}
+	}
+
+	/// <summary>
+	/// Ordering two values of a semantic type compiles with only that type's header included.
+	/// </summary>
+	/// <remarks>
+	/// The comparison is defaulted, so nothing deduces its return type until something orders two
+	/// values: include the header, compile an empty <c>main</c>, and a missing
+	/// <c>&lt;compare&gt;</c> goes unnoticed on every platform. Ordering a pair is what forces
+	/// <c>std::strong_ordering</c> to be named, and neither libstdc++ nor libc++ reaches it
+	/// through <c>&lt;cstdint&gt;</c> or <c>&lt;type_traits&gt;</c> - so with the include removed
+	/// this fails on Linux too, which is what stops the next omission of its kind waiting for a
+	/// macOS run to be found.
+	/// </remarks>
+	[TestMethod]
+	public void OrderingASemanticTypeCompilesWithOnlyItsOwnHeader() =>
+		AssertCompilesAlone(
+			"EntityId.gen.hpp",
+			Generate(),
+			"return (holo::EntityId{} <=> holo::EntityId{}) < 0 ? 1 : 0;");
+
+	/// <summary>
+	/// Writes the whole emitted set so includes between headers still resolve, then compiles a
+	/// translation unit whose only include is the header under test.
+	/// </summary>
+	/// <param name="header">The header to compile.</param>
+	/// <param name="files">Every generated file, by name.</param>
+	/// <param name="body">The body of <c>main</c>, for a header whose defect only a use reveals.</param>
+	private static void AssertCompilesAlone(
+		string header,
+		IReadOnlyDictionary<string, string> files,
+		string body = "return 0;")
+	{
+		string directory = Path.Join(Path.GetTempPath(), $"schema-alone-{Guid.NewGuid():N}");
+
+		Directory.CreateDirectory(directory);
+
+		try
+		{
+			foreach ((string name, string text) in files)
+			{
+				File.WriteAllText(Path.Join(directory, name), text);
+			}
+
+			File.WriteAllText(
+				Path.Join(directory, "only.cpp"),
+				$"#include \"{header}\"\n\nint main()\n{{\n    {body}\n}}\n");
+
+			(int exitCode, string output) = Compile(directory, "only.cpp");
+
+			Assert.AreEqual(0, exitCode, $"{header} should compile with nothing included ahead of it:\n{output}");
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	private static (int ExitCode, string Output) Compile(string directory, string file)
+	{
+		string? compiler = Find("g++") ?? Find("clang++");
+
+		if (compiler is null)
+		{
+			Assert.Inconclusive("no C++ compiler on PATH, so the generated headers were not compiled.");
+		}
+
+		using Process process = new()
+		{
+			StartInfo = new ProcessStartInfo(compiler!)
+			{
+				WorkingDirectory = directory,
+				RedirectStandardError = true,
+				RedirectStandardOutput = true,
+			},
+		};
+
+		foreach (string argument in (string[])["-std=c++20", "-Wall", "-Wextra", "-fsyntax-only", "-I.", file])
+		{
+			process.StartInfo.ArgumentList.Add(argument);
+		}
+
+		process.Start();
+		string output = process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd();
+		process.WaitForExit();
+
+		return (process.ExitCode, output);
+	}
+
+	private static string? Find(string executable) =>
+		(Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+			.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+			.Select(directory => Path.Join(directory, Path.GetFileName(executable)))
+			.FirstOrDefault(File.Exists);
 
 	private static IReadOnlyDictionary<string, string> Generate() => Generate(new CppGeneratorOptions());
 
