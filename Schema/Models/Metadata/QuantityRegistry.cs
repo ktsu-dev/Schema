@@ -222,12 +222,21 @@ public static class QuantityRegistry
 	/// <summary>
 	/// The dimension a closed quantity declares, when it declares one.
 	/// </summary>
+	/// <remarks>
+	/// Written as two guards rather than one conditional. <c>property?.PropertyType == typeof(…)</c>
+	/// is false when the property is absent, so the compact form never dereferenced a null - but
+	/// neither the compiler's null-state analysis nor CodeQL can follow that, and a warning that
+	/// has to be reasoned about every time it is read is worth two lines to remove.
+	/// </remarks>
 	private static DimensionInfo? Declared(Type closed)
 	{
 		PropertyInfo? property = closed.GetProperty("Dimension", BindingFlags.Public | BindingFlags.Instance);
 
-		return property?.PropertyType == typeof(DimensionInfo)
-			? property.GetValue(Activator.CreateInstance(closed)) as DimensionInfo
-			: null;
+		if (property is null || property.PropertyType != typeof(DimensionInfo))
+		{
+			return null;
+		}
+
+		return property.GetValue(Activator.CreateInstance(closed)) as DimensionInfo;
 	}
 }
