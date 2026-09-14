@@ -281,12 +281,60 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		BaseType represented = Represented(member.Type);
 		string literal = Literal(member, member.DefaultValue!, represented);
 
+		if (member.Type is SchemaTypes.Quantity quantity)
+		{
+			return QuantityInitialiser(quantity, literal, mapper);
+		}
+
 		// Written verbatim rather than as a typed literal node, because a typed node would reformat
 		// it - losing the float suffix that stops a braced initialiser refusing the value for
 		// narrowing.
 		return represented == member.Type && member.Type is Bool or Int or Long or Float or Double
 			? new VariableReference(literal)
 			: new ConstructionExpression(mapper.Map(member.Type)) { Arguments = { new VariableReference(literal) } };
+	}
+
+	/// <summary>
+	/// Builds what a quantity member starts at, which takes one more step than anything else here.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A generated quantity refuses a bare number twice over. Its own constructor is explicit -
+	/// "a bare value never becomes a Mass by accident" - and so is the constructor of the
+	/// <c>Quantity</c> that constructor takes, so <c>holo::Mass{ 1.0f }</c> is not one conversion
+	/// the compiler will make but two. What compiles is the step said out loud:
+	/// <c>holo::Mass{ holo::Mass::underlying{ 1.0f } }</c>.
+	/// </para>
+	/// <para>
+	/// A vector form spells the same alias <c>component</c> and takes one per component, so a
+	/// single default starts every component there - the same reading a numeric default on a
+	/// built-in vector already gets.
+	/// </para>
+	/// <para>
+	/// Both alias names are <c>ktsu.Semantics.Cpp</c>'s, which is a coupling rather than a
+	/// deduction: this generator is being told by <see cref="CppGeneratorOptions.Quantities"/>
+	/// that the target's vocabulary came from there. It is not left to be assumed, though -
+	/// <c>QuantityCppTests</c> compiles a class of defaulted quantities against the real headers.
+	/// </para>
+	/// </remarks>
+	private static ConstructionExpression QuantityInitialiser(SchemaTypes.Quantity quantity, string literal, CppTypeMapper mapper)
+	{
+		TypeReference named = mapper.Map(quantity);
+		int components = quantity.Resolved?.Components ?? 0;
+		string alias = components > 1 ? "component" : "underlying";
+
+		ConstructionExpression construction = new(named);
+
+		foreach (int _ in Enumerable.Range(0, Math.Max(components, 1)))
+		{
+			construction.Arguments.Add(
+				new ConstructionExpression(new TypeReference($"{named.Name}::{alias}"))
+				{
+					Arguments = { new VariableReference(literal) },
+				});
+		}
+
+		return construction;
 	}
 
 	/// <summary>
@@ -374,13 +422,18 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			.Replace("\v", "\\v", StringComparison.Ordinal);
 
 	/// <summary>
-	/// Follows a semantic type down to what it is stored as, which is what decides how a literal
-	/// has to be written.
+	/// Follows a semantic type or a quantity down to what it is stored as, which is what decides
+	/// how a literal has to be written.
 	/// </summary>
-	private static BaseType Represented(BaseType type) =>
-		type is Semantic { Declaration: SchemaSemanticType declaration } && declaration.Representation() is not Semantic
-			? declaration.Representation()
-			: type;
+	private static BaseType Represented(BaseType type) => type switch
+	{
+		Semantic { Declaration: SchemaSemanticType declaration } when declaration.Representation() is not Semantic =>
+			declaration.Representation(),
+
+		SchemaTypes.Quantity quantity => quantity.Storage,
+
+		_ => type,
+	};
 
 	/// <summary>
 	/// Builds what a generated type promises that the type itself cannot say.

@@ -552,6 +552,9 @@ dimensions; they have no dimensional formula and no vector form.
 A class that `travelsAsBytes` may hold a quantity, because a quantity is so many of its storage and
 nothing else.
 
+A `defaultValue` on a quantity is a number, and every component starts there — the same reading a
+numeric default on a built-in vector gets.
+
 ### `Interface` - a reference to an interface in this schema
 
 ```json

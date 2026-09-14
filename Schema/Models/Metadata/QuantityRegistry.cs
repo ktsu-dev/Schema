@@ -99,7 +99,7 @@ public static class QuantityRegistry
 				continue;
 			}
 
-			if (Components(type) is not int components)
+			if (ComponentsOf(type) is not int components)
 			{
 				continue;
 			}
@@ -118,7 +118,12 @@ public static class QuantityRegistry
 	/// <summary>
 	/// How many components a value of this quantity has, or null when it is not a quantity.
 	/// </summary>
-	private static int? Components(Type definition)
+	/// <remarks>
+	/// Named for the question rather than the answer, like <see cref="DimensionOf"/> beside it,
+	/// because <c>QuantityInfo.Components</c> is the property a caller reads and a method of the
+	/// same name on the enclosing class would shadow it from inside the record.
+	/// </remarks>
+	private static int? ComponentsOf(Type definition)
 	{
 		foreach (Type contract in definition.GetInterfaces())
 		{
@@ -210,7 +215,7 @@ public static class QuantityRegistry
 
 			if (target.IsGenericType &&
 				target.Assembly == closed.Assembly &&
-				Components(target.GetGenericTypeDefinition()) is not null)
+				ComponentsOf(target.GetGenericTypeDefinition()) is not null)
 			{
 				return target;
 			}

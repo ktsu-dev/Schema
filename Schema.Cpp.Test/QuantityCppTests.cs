@@ -5,6 +5,7 @@ namespace ktsu.Schema.Cpp.Test;
 using System.Diagnostics;
 
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 using ktsu.Semantics.Strings;
@@ -56,10 +57,56 @@ public sealed class QuantityCppTests
 
 		namespace sample
 		{
-			class Mass { public: float value; };
-			class Ratio { public: float value; };
-			class Heading { public: float value; };
-			class Velocity3D { public: float x, y, z; };
+			// Standing in for ktsu.Semantics.Cpp's Quantity<D>: explicit from its storage, so a
+			// bare number never becomes one by accident. That is what makes a defaulted member
+			// need the step said out loud rather than a single brace.
+			struct Rep
+			{
+				float count{};
+				constexpr Rep() noexcept = default;
+				explicit constexpr Rep(float value) noexcept : count(value) {}
+			};
+
+			class Mass
+			{
+			public:
+				using underlying = Rep;
+				constexpr Mass() noexcept = default;
+				explicit constexpr Mass(underlying value) noexcept : value_(value) {}
+			private:
+				underlying value_{};
+			};
+
+			class Ratio
+			{
+			public:
+				using underlying = Rep;
+				constexpr Ratio() noexcept = default;
+				explicit constexpr Ratio(underlying value) noexcept : value_(value) {}
+			private:
+				underlying value_{};
+			};
+
+			class Heading
+			{
+			public:
+				using underlying = Rep;
+				constexpr Heading() noexcept = default;
+				explicit constexpr Heading(underlying value) noexcept : value_(value) {}
+			private:
+				underlying value_{};
+			};
+
+			class Velocity3D
+			{
+			public:
+				using component = Rep;
+				constexpr Velocity3D() noexcept = default;
+				explicit constexpr Velocity3D(component x, component y, component z) noexcept
+					: x_(x), y_(y), z_(z) {}
+			private:
+				component x_{}, y_{}, z_{};
+			};
 		}
 		""";
 
@@ -219,6 +266,53 @@ public sealed class QuantityCppTests
 
 		// length 1, time -1, and nothing on the other six axes.
 		Assert.Contains("{ 1, 0, -1, 0, 0, 0, 0, 0 }", table, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// A member that starts somewhere says so in a way the vocabulary accepts.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A generated quantity refuses a bare number twice over: its own constructor is explicit, and
+	/// so is the constructor of the <c>Quantity</c> that one takes. <c>sample::Mass{ 1.0f }</c> is
+	/// therefore two conversions rather than one, and does not compile - which is why the
+	/// generator writes the step out, and why the stub vocabulary here is explicit in both places
+	/// rather than being an aggregate that would accept either spelling.
+	/// </para>
+	/// <para>
+	/// A vector form takes one per component, so a single default starts every component there -
+	/// the same reading a numeric default on a built-in vector already gets.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void ADefaultIsConstructedTheWayTheVocabularyAcceptsIt()
+	{
+		Schema schema = new();
+		SchemaClass body = schema.AddClass("Body".As<ClassName>())!;
+
+		SchemaMember mass = body.AddMember("Mass".As<MemberName>())!;
+		mass.SetType(new Quantity { QuantityName = "Mass".As<QuantityName>() });
+		mass.DefaultValue = new NumberDefault { Value = 1.0 };
+
+		SchemaMember velocity = body.AddMember("Velocity".As<MemberName>())!;
+		velocity.SetType(new Quantity { QuantityName = "Velocity3D".As<QuantityName>() });
+		velocity.DefaultValue = new NumberDefault { Value = 0.0 };
+
+		Assert.IsEmpty(schema.Validate());
+
+		Schema configured = Configured(schema);
+		string header = Generate(configured, TargetOptions).Values.Single();
+
+		// The nesting rather than its layout: a construction whose arguments are constructions is
+		// written one per line by ktsu.Coder, which is a decision about reading C++ and not about
+		// what the initialiser says.
+		Assert.Contains("sample::Mass::underlying{ 1.0f }", header, StringComparison.Ordinal);
+		Assert.AreEqual(
+			3,
+			header.Split("sample::Velocity3D::component{ 0.0f }").Length - 1,
+			"a vector form takes one per component");
+
+		AssertCompiles(configured, TargetOptions);
 	}
 
 	/// <summary>
