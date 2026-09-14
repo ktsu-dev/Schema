@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Schema.Editor\Schema.Editor.csproj" />
+    <ProjectReference Include="..\..\Schema.Editor\Schema.Editor.csproj" />
   </ItemGroup>
 
   <ItemGroup>
