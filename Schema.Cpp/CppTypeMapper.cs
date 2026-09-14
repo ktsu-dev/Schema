@@ -58,6 +58,7 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 		SchemaTypes.Object objectType => Generated(objectType.ClassName.ToString()),
 		SchemaTypes.Interface interfaceType => Generated(interfaceType.InterfaceName.ToString()),
 		Semantic semantic => MapSemantic(semantic),
+		SchemaTypes.Quantity quantity => MapQuantity(quantity),
 
 		SchemaTypes.Array arrayType => Generic(Fixed("std::vector", "vector"), arrayType.ElementType),
 		Span span => Generic(Fixed("std::span", "span"), span.ElementType),
@@ -135,10 +136,44 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 	{
 		Bool or Int or Long or Float or Double => true,
 		SchemaTypes.Enum or SchemaTypes.Handle => true,
+
+		// A magnitude or a signed scalar is one number under a name; a vector form is two to four,
+		// which is where borrowing starts to pay, so this reads the shape rather than assuming.
+		SchemaTypes.Quantity quantity => quantity.Resolved?.Components <= 1,
 		Semantic { Declaration: SchemaSemanticType declaration } =>
 			declaration.Representation() is not Semantic && IsPassedByValue(declaration.Representation()),
 		_ => false,
 	};
+
+	/// <summary>
+	/// Names a quantity where the target's vocabulary put it.
+	/// </summary>
+	/// <remarks>
+	/// Nothing is generated for it, which is the whole of what separates it from the semantic type
+	/// below: a semantic type is a class this generator writes, and a quantity is one the target
+	/// already has because it ran the same vocabulary generator this schema reads its names from.
+	/// </remarks>
+	private TypeReference MapQuantity(SchemaTypes.Quantity quantity)
+	{
+		if (options.Quantities is not CppQuantitySpelling spelling)
+		{
+			throw new CppGenerationException(
+				$"The schema holds a {quantity.QuantityName}, and this target declares no physical quantities. Set '{CppGeneratorOptionsFile.NameOf(nameof(CppGeneratorOptions.Quantities))}' in the {CppGeneratorOptionsFile.Option} file, or {nameof(CppGeneratorOptions)}.{nameof(CppGeneratorOptions.Quantities)} in a host, to where ktsu.Semantics.Cpp generated them.");
+		}
+
+		// A C++ quantity is a class and not a template, so the storage was fixed when the
+		// vocabulary was generated. C# closes one per member, so the two can disagree - and two
+		// languages disagreeing about the width of a member is exactly what a class promising to
+		// travel as bytes cannot survive.
+		if (!string.Equals(quantity.Storage.TypeName, spelling.Storage, StringComparison.Ordinal))
+		{
+			throw new CppGenerationException(
+				$"The schema stores a {quantity.QuantityName} in a {quantity.Storage.TypeName}, and this target's quantities are generated over {spelling.Storage}. A C++ quantity is a class rather than a template, so there is no {spelling.Storage} vocabulary and a {quantity.Storage.TypeName} one to choose between.");
+		}
+
+		Require(spelling.Include);
+		return new TypeReference(spelling.Qualified(quantity.QuantityName.ToString()));
+	}
 
 	private TypeReference MapSemantic(Semantic semantic)
 	{

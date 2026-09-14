@@ -28,6 +28,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// only fixed-size numbers says so. <c>SameDefinitionsAsTheLegacySet</c> is what keeps the first
 /// half of that sentence true while the second half changes.
 /// </para>
+/// <para>
+/// It is also where the two ways of saying "this number is not just a number" sit beside each
+/// other. <c>Coin</c> is a semantic type, because a price is this schema's own idea and nothing
+/// outside it has heard of one; a weight is a <c>Quantity(Mass)</c> with <c>kg</c> on the member,
+/// because a mass is everybody's. This file declared <c>Kilograms</c>, <c>Metres</c>,
+/// <c>MetresPerSecond</c> and <c>MetresPerSecondSquared</c> before the schema could name a
+/// quantity, which said the unit twice - once as a name nothing read and once as text something
+/// did.
+/// </para>
 /// </remarks>
 [TestClass]
 public sealed class ModernisedSampleTests
@@ -115,9 +124,16 @@ public sealed class ModernisedSampleTests
 		List<SchemaMember> members = [.. modern.Classes.SelectMany(c => c.Members)];
 		List<BaseType> types = [.. members.Select(m => m.Type)];
 
-		Assert.IsNotEmpty(modern.SemanticTypes, "a weight and a price are not bare numbers");
-		Assert.IsNotEmpty(modern.SemanticTypes.Where(s => !string.IsNullOrEmpty(s.Unit)), "a unit lives on the type");
+		// The two ways of saying "this number is not just a number", each where it belongs. A price
+		// is this schema's own idea and nothing outside it has heard of a Coin; a weight is a mass,
+		// which is a name both generators already emit.
+		Assert.IsNotEmpty(modern.SemanticTypes, "a price is not a count of anything else");
 		Assert.IsNotEmpty(types.OfType<Semantic>(), "and a member names it");
+
+		Assert.IsNotEmpty(types.OfType<Quantity>(), "a weight is a mass");
+		Assert.IsNotEmpty(
+			members.Where(m => m.Type is Quantity && !string.IsNullOrEmpty(m.Unit)),
+			"and the kilograms are how its number is read");
 
 		Assert.IsNotEmpty(types.OfType<ColorRGB>().Concat<BaseType>(types.OfType<ColorRGBA>()), "a colour was a string");
 		Assert.IsNotEmpty(types.OfType<Models.Types.Vector2>(), "a vector was a class with an x and a y");

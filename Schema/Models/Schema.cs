@@ -54,8 +54,15 @@ public partial class Schema : ISchema
 	/// when false, and the version moves for the reason the others did: a version 5 reader would
 	/// drop it and generate a signature that promises less than the schema does.
 	/// </para>
+	/// <para>
+	/// Version 7 added <see cref="Types.Quantity"/>, which names one of
+	/// <c>ktsu.Semantics.Quantities</c>' physical quantities. It is a new member of the type
+	/// vocabulary rather than a property, so unlike every step since version 1 a version 6 reader
+	/// does not quietly drop it - it fails to deserialize the member at all, on a discriminator
+	/// it has never heard of. The version moves so that it says so instead.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 6;
+	public const int CurrentFormatVersion = 7;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.

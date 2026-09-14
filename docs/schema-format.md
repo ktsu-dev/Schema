@@ -469,13 +469,19 @@ A vector says how many components it has. `elementType` says what each one is:
 ```json
 {
   "TypeName": "Vector3",
-  "elementType": { "TypeName": "Semantic", "semanticTypeName": "MetresPerSecond" }
+  "elementType": { "TypeName": "Semantic", "semanticTypeName": "EntityId" }
 }
 ```
 
-A velocity is three metres per second and a position is three metres, and a schema that says only
-"three floats" leaves the one fact worth knowing about either of them to a comment. This is the
-argument `Semantic` makes for a single value, applied to three of them.
+A schema that says only "three floats" leaves the one fact worth knowing about the value to a
+comment. This is the argument `Semantic` makes for a single value, applied to three of them.
+
+**For a quantity, use [`Quantity`](#quantity---a-physical-quantity-from-ktsusemanticsquantities)
+instead.** A velocity of three components is `Quantity(Velocity3D)`, not a `Vector3` of a semantic
+type standing in for metres per second: the vocabulary already names the 3D forms, and saying it
+both ways is two spellings of one fact. What is left for `elementType` is a vector of something the
+vocabulary has no name for, which is where a schema's own semantic type belongs — a `Vector3` of an
+`EntityId` is not a quantity and never will be.
 
 `elementType` is optional and omitted when it is `Float`, which is what a vector has always been -
 so a file whose vectors are vectors of floats is written exactly as it was before the property
@@ -502,6 +508,49 @@ other than `Float` on one is refused.
 ```
 
 `semanticTypeName` must name a semantic type in `semanticTypes`.
+
+### `Quantity` - a physical quantity from `ktsu.Semantics.Quantities`
+
+```json
+{ "TypeName": "Quantity", "quantityName": "Velocity3D" }
+{ "TypeName": "Quantity", "quantityName": "Mass", "storage": { "TypeName": "Double" } }
+```
+
+The one named type here whose name is not resolved against this schema. `quantityName` must be one
+of the 212 quantities `ktsu.Semantics.Quantities` declares — `Mass`, `Length`, `Speed`, `Ratio`,
+`Heading`, `Radius`, `Velocity3D`, `Force3D`, and the rest. Nothing in `semanticTypes` declares it
+and nothing is generated for it: both generators already emit the vocabulary, so naming one
+reaches a type the target already has.
+
+That is the difference from `Semantic`, and both are wanted. A semantic type is how a schema says
+that its own two numbers are different things — an entity id is not a texture id, and nothing
+outside the schema has heard of either. A quantity is the opposite: the vocabulary is shared.
+
+**Name the quantity, not the unit.** A member holding a mass says `Quantity(Mass)` and, if it
+matters, `"unit": "kg"` beside it. It does not declare a semantic type called `Kilograms`: the unit
+is how the stored number is read, which is a fact about the field, and stating it as the type's
+name as well makes the wrong copy load-bearing.
+
+`storage` is the number a value is kept in, because every quantity is generic over one —
+`Mass<float>`, `Mass<double>`. It defaults to `Float` and is omitted from the file when it is, the
+same arrangement a vector's `elementType` has. It must be `Int`, `Long`, `Float` or `Double`: a
+quantity is generic under `where T : struct, INumber<T>`, which a semantic type over a float does
+not satisfy, so `Mass<Kilograms>` is not a type anything could write.
+
+A `unit` on a quantity must **measure what the quantity measures**. This is the one check the
+semantic type it replaces could never make: a unit is text resolved through `UnitRegistry` and a
+type called `Kilograms` is a name nothing reads, so the two had no way to disagree. A quantity
+knows its own eight exponents and so does the unit, so the contradiction is arithmetic. The
+exponents are compared and not the names, because 72 of the vocabulary's dimensions share 63
+exponent vectors — a joule and a newton metre are the same eight numbers, and a torque held in
+joules is not something the schema is entitled to refuse.
+
+A logarithmic scale is **not** a quantity and cannot be named as one. A decibel does not add and a
+pH does not scale, which is why `ktsu.Semantics` emits those from `logarithmic.json` rather than as
+dimensions; they have no dimensional formula and no vector form.
+
+A class that `travelsAsBytes` may hold a quantity, because a quantity is so many of its storage and
+nothing else.
 
 ### `Interface` - a reference to an interface in this schema
 
@@ -639,6 +688,7 @@ needs to know about.
 | `4` | Vector component types | `Vector2`, `Vector3` and `Vector4` gain an `elementType`. Omitted when it is `Float`, so a file whose vectors are vectors of floats is unchanged. |
 | `5` | Layout promises and the error type | A class may declare that it `travelsAsBytes`, and the root may name the `errorType` a failed `Result` carries. Additive; the class flag is omitted when false. |
 | `6` | Query functions | A function may declare `isQuery`, saying a call leaves the receiver unchanged. Omitted when false. |
+| `7` | Physical quantities | The type vocabulary gains `Quantity`, which names one of `ktsu.Semantics.Quantities`' quantities. Unlike every step since version 1 this is not something an older reader drops: it fails to deserialize the member at all, on a discriminator it has never heard of. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader

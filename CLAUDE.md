@@ -49,7 +49,7 @@ SchemaChild<TName> (base for named elements)
 BaseType (types, in ktsu.Schema.Models.Types)
 ├── Primitives: Int, Long, Float, Double, String, Bool, DateTime, TimeSpan
 ├── Vectors: Vector2, Vector3, Vector4, ColorRGB, ColorRGBA
-├── Complex: Array, Object, Enum, Interface, Semantic, None, Void
+├── Complex: Array, Object, Enum, Interface, Semantic, Quantity, None, Void
 └── Wrappers: Span, Handle, Result, Optional
 ```
 
@@ -60,16 +60,18 @@ three metres per second and a position is three metres, and a schema that says o
 leaves the one fact worth knowing about either of them to a comment - which is the argument
 `Semantic` makes for a single value, applied to three of them.
 
-**That argument is being overtaken, and by the thing it appeals to.** A consumer generating against
-`ktsu.Semantics.Quantities` finds that library already names the 3D forms - `Velocity3D`,
-`Displacement3D`, `Force3D` - so a member holding one says `Semantic` naming that type rather than
-`Vector3` of a component. Stating it both ways is two spellings of one fact, and the second is the
-one both generators can already map, and now map the same way: `CSharpCodeGenerator` writes
-`System.Numerics.Vector3` for `Vector3 { ElementType: Float }` and `Runtime.Vector3<Kilograms>` for
-a `Semantic` element, so a dimensional vector spelled either way reaches C# as a type rather than as
-an `object?`. Expect `ElementType` to narrow to "which numeric type", with `Vector2/3/4` meaning
-untyped geometry, once that lands. It is documented as it stands rather than as it is heading,
-because the schema has not changed.
+**That argument has been overtaken, and by the thing it appeals to.** `ktsu.Semantics.Quantities`
+already names the 3D forms - `Velocity3D`, `Displacement3D`, `Force3D` - so a member holding one
+says `Quantity` naming that type rather than `Vector3` of a component. Saying it both ways is two
+spellings of one fact, and the first is the one that needs the schema to describe a shape the
+vocabulary has already given a name. So a dimensional vector is a quantity, and `Vector2/3/4` is
+untyped geometry: a position on a screen, a pair of texture coordinates, three channels of
+something that is not a colour.
+
+`ElementType` stays as it is rather than narrowing to "which numeric type", because a vector of a
+schema's own semantic type is still a thing a schema may want - `Vec3<EntityId>` is not a quantity
+and never will be - and both generators already spell it. What changed is which way a *dimensional*
+vector is written, not what the property can hold.
 
 The component must be a number or a `Semantic` over one; anything else is a collection of things
 rather than one value with components, which is what `Array` is for. It defaults to `Float` and is
@@ -116,6 +118,65 @@ A chain that reaches nothing real - a name that does not resolve, or a refinemen
 reported elsewhere" rather than walking further. That is what keeps a cycle a reported error instead
 of a recursion with no bottom, and it is why an unresolved semantic type is one message rather than
 one per property hanging off it.
+
+### Physical quantities
+
+An entity id is a number and so is a texture id, and `SchemaSemanticType` is how the schema says
+they are different things. A *mass* is a different problem: the vocabulary for it already exists.
+`ktsu.Semantics.Quantities` declares 212 physical quantities, `ktsu.Semantics.Cpp` emits the same
+212 as C++ classes, and both are things a target already has. So the `Quantity` type names one
+rather than asking for a copy of it - `Quantity(Mass)`, `Quantity(Velocity3D)`, `Quantity(Ratio)` -
+and nothing is generated for it. That is the whole difference from `Semantic`, and both are wanted:
+a semantic type is the schema's own, a quantity is everybody's.
+
+**Name the quantity, not the unit.** What this replaces is a schema declaring a semantic type
+called `Kilograms` and writing `"unit": "kg"` beside every member of it - the presentation said
+twice, once as a name nothing reads and once as text something does. The kilograms are how the
+stored number is read, which is a fact about the field; the mass is what the value *is*.
+
+`QuantityRegistry` reads the vocabulary out of the assembly, the same arrangement `UnitRegistry`
+has and for the same reason. A quantity is a generic `readonly record struct` implementing one of
+the five `IVectorN` interfaces, and the arity of that interface says how many components a value
+has. Its dimension takes three routes, in order: a magnitude declares one through
+`IPhysicalQuantity`; a vector form does not, so its dimension is what `Magnitude()` answers with;
+and a *named overload* of a vector form answers neither, so what is followed is the implicit
+widening onto what it is an overload of. Six of the 212 are reachable only by that third route, and
+212 is not a number chosen here - it is what the C++ projection emits, so the two counts agreeing
+is what says a schema can name every quantity a C++ target has.
+
+The ten it leaves out are the logarithmic scales and two hand-written audio types. A decibel does
+not add and a pH does not scale, which is why `ktsu.Semantics` emits them from `logarithmic.json`
+rather than as dimensions; they have no dimensional formula and no vector form, so accepting one
+would put a type in the schema whose arithmetic means nothing and whose eight exponents a
+reflection table would have to invent.
+
+Three things follow from a quantity knowing its own dimension.
+
+- **A unit on one has to agree with it.** The check the semantic type could never make: a unit is
+  text and `Kilograms` was a name, so the two had no way to disagree. The *exponents* are compared
+  rather than the names, because 72 of the vocabulary's dimensions share 63 exponent vectors - a
+  joule and a newton metre are the same eight numbers, and refusing what the physics allows is
+  worse than not checking.
+- **The reflection table asks the type first.** The eight exponents used to come from the member's
+  unit text and nowhere else, so a member that measured something but named no unit was written
+  down as dimensionless - indistinguishable from a flag. A `Velocity3D` is a length over a time
+  because of what it is.
+- **`Storage` is the rest of the type.** Every quantity is generic over its storage, so a name
+  alone is not yet something a generator can write. It defaults to `Float` and is omitted from the
+  file when it is, exactly as a vector's `ElementType` is, and it is held to a bare numeric: a
+  generated semantic type is a record struct over a float implementing no `INumber<T>`, so
+  `Mass<Kilograms>` is not a type anything could write.
+
+C# spells it `ktsu.Semantics.Quantities.Mass<float>` and `ClrTypeImporter` reads it straight back
+off the closed type - **the one thing generated C# carries that needs no attribute recording what
+it is**. Everything else does, because a sequential struct or a record struct over a float is a
+shape a hand-written type may have for its own reasons; a `Mass<float>` is not something a target
+happened to write, it is the quantity. C++ spells it wherever the target's vocabulary went, which
+`CppGeneratorOptions.Quantities` says in one entry for all 212 - the target named none of them, it
+ran the generator. That entry also says what the vocabulary is stored in, because a C++ quantity is
+a class rather than a template and the storage was fixed when it was generated: a member the schema
+keeps in a double is refused on a float target rather than emitted as two languages quietly
+disagreeing about the bytes.
 
 ### What a class promises about its representation
 
@@ -440,6 +501,7 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `Schema/Models/ClrTypeImporter.cs` - Reads a .NET type into a schema; the exact inverse of the C# generator
+- `Schema/Models/Metadata/QuantityRegistry.cs` - The 212 quantities a schema may name, read out of the assembly that declares them rather than listed here
 - `Schema/Runtime/SchemaMetadataAttributes.cs` - What generated code carries that its C# types cannot say
 - `Schema.Editor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
 - `Schema.Editor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
@@ -470,7 +532,7 @@ own delegate does.
 ## Dependencies
 
 - **ktsu.Semantics.Strings/Paths** - Type-safe string and path wrappers
-- **ktsu.Semantics.Quantities** - The units a member's values can be measured in
+- **ktsu.Semantics.Quantities** - The quantities a member can hold, and the units its values can be measured in
 - **ktsu.ImGui.App/Widgets/Popups** - ImGui application framework (editor only)
 - **ktsu.AppDataStorage** - Persistent settings storage (editor only)
 - **Polyfill** - .NET compatibility shims for multi-targeting

@@ -61,8 +61,9 @@ representation.
 | --- | --- | --- |
 | `Vector2`, `Vector3`, `IntVector2`, `IntVector3` as classes | the built-in vectors, `elementType` `Float` or `Int` | four classes existed to say "two floats" |
 | `color: string` | `ColorRGBA`, `lightColor: ColorRGB` | the old format had no colour |
-| `weight: float`, `cost: int` | `Semantic(Kilograms)`, `Semantic(Coin)` | a weight is kilograms everywhere, and a price is not a count of anything else |
-| `lightRadius`, `moveSpeedPerSec`, `gravity` | `Metres`, `MetresPerSecond`, `MetresPerSecondSquared` | the unit lives on the type, stated once |
+| `weight: float` | `Quantity(Mass)`, `unit: kg` | a weight is a mass, which is a name both generators already emit |
+| `cost: int` | `Semantic(Coin)` | a price is this schema's own idea, and nothing outside it has heard of a coin |
+| `lightRadius`, `moveSpeedPerSec`, `gravity` | `Quantity(Radius)`, `Quantity(Speed)`, `Quantity(Acceleration1D)` | what the value *is*, with the unit beside it saying how its number is read |
 | `probability: int`, `friction: float` | the same, with ranges and defaults | a probability is not any integer |
 | `points: array<GradientPoint>` | a `map` keyed by `id` | the id was already there |
 | `Rect`, `Line2D`, `CRXP`, … | `travelsAsBytes` | they are only fixed-size numbers |
@@ -74,6 +75,19 @@ the second half, so the file cannot decay back into a transliteration one edit a
 
 It is authored rather than derived — a mechanical rewrite could not decide that a `string` called
 `color` is a colour — which is why the correspondence is a test rather than a regeneration.
+
+**The two ways of saying "this number is not just a number" sit beside each other here**, which is
+the point of keeping `Coin`. A semantic type is the schema's own: nothing outside it has heard of a
+coin, so the schema declares one and a generator emits it. A quantity is everybody's: 212 names
+`ktsu.Semantics` already declares in both languages, so naming one reaches a type the target
+already has.
+
+This file used to say the second thing the first way, and it was wrong in a way worth recording. It
+declared `Kilograms`, `Metres`, `MetresPerSecond` and `MetresPerSecondSquared` — semantic types
+named after units, each carrying the unit as metadata as well. That states the presentation twice
+and makes the wrong copy load-bearing: the unit is how the stored number is read, a fact about the
+field, while the mass is what the value *is*. Naming the quantity and putting `kg` on the member
+says each thing once, and lets validation notice when the two disagree.
 
 **One thing the format cannot say.** `MemberRange.Minimum` and `Maximum` are both non-nullable, so
 a range is always two-sided and there is no way to write "at least zero". Where only one end is

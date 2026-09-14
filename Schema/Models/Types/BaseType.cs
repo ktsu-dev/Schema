@@ -32,6 +32,7 @@ using ktsu.Semantics.Strings;
 [JsonDerivedType(typeof(Object), nameof(Object))]
 [JsonDerivedType(typeof(Interface), nameof(Interface))]
 [JsonDerivedType(typeof(Semantic), nameof(Semantic))]
+[JsonDerivedType(typeof(Quantity), nameof(Quantity))]
 [JsonDerivedType(typeof(Void), nameof(Void))]
 [JsonDerivedType(typeof(Span), nameof(Span))]
 [JsonDerivedType(typeof(Handle), nameof(Handle))]

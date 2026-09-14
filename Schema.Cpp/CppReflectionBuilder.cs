@@ -7,6 +7,7 @@ using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
 using ktsu.Semantics.Quantities;
 
+using Quantity = ktsu.Schema.Models.Types.Quantity;
 using SchemaEnumType = ktsu.Schema.Models.Types.Enum;
 
 /// <summary>
@@ -229,20 +230,26 @@ internal sealed class CppReflectionBuilder(Models.Schema schema, SchemaCodeGener
 	}
 
 	/// <summary>
-	/// The exponents of the unit the member names, or all zeroes when it names none.
+	/// The exponents the member measures in, or all zeroes when it measures nothing.
 	/// </summary>
 	/// <remarks>
-	/// A member that measures nothing — an identifier, a name, a flag — is dimensionless, and so is
-	/// a member whose unit does not resolve. The second is not silently the same as the first:
-	/// <c>Schema.Validate</c> reports an unresolvable unit, so reaching here with one means the
-	/// schema was generated without being validated first.
+	/// <para>
+	/// The member's declared type answers first, and only a <see cref="Quantity"/> can: a
+	/// <c>Velocity3D</c> is a length over a time whether or not anyone wrote a unit beside it. So
+	/// this is the one kind of member whose dimension is not a restatement of its unit, and
+	/// <c>Schema.Validate</c> is what keeps the two from disagreeing when both are there.
+	/// </para>
+	/// <para>
+	/// Otherwise the unit answers. A member that measures nothing — an identifier, a name, a flag —
+	/// is dimensionless, and so is a member whose unit does not resolve. The second is not silently
+	/// the same as the first: <c>Schema.Validate</c> reports an unresolvable unit, so reaching here
+	/// with one means the schema was generated without being validated first.
+	/// </para>
 	/// </remarks>
 	private static ConstructionExpression Dimension(SchemaMember member)
 	{
 		ConstructionExpression dimension = new();
-		Dictionary<string, int> formula = member.TryResolveUnit(out IUnit? unit, out _) && unit is not null
-			? unit.Dimension.DimensionalFormula
-			: new Dictionary<string, int>(StringComparer.Ordinal);
+		Dictionary<string, int> formula = Measured(member);
 
 		foreach (string axis in Axes)
 		{
@@ -251,6 +258,17 @@ internal sealed class CppReflectionBuilder(Models.Schema schema, SchemaCodeGener
 
 		return dimension;
 	}
+
+	/// <summary>
+	/// The dimensional formula a member's values have, from its type where its type knows and from
+	/// its unit otherwise.
+	/// </summary>
+	private static Dictionary<string, int> Measured(SchemaMember member) =>
+		member.Type is Quantity { Resolved: QuantityRegistry.QuantityInfo quantity }
+			? quantity.Dimension.DimensionalFormula
+			: member.TryResolveUnit(out IUnit? unit, out _) && unit is not null
+				? unit.Dimension.DimensionalFormula
+				: new Dictionary<string, int>(StringComparer.Ordinal);
 
 	private static ConstructionExpression Range(MemberRange? range)
 	{

@@ -1,5 +1,5 @@
 {
-  "formatVersion": 6,
+  "formatVersion": 7,
   "errorType": "",
   "classes": [
     {
@@ -213,9 +213,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         },
@@ -249,9 +250,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         }
@@ -278,9 +280,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         }
@@ -377,9 +380,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Metres"
+            "TypeName": "Quantity",
+            "quantityName": "Radius"
           },
+          "unit": "m",
           "name": "lightRadius",
           "description": ""
         },
@@ -479,9 +483,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Metres"
+            "TypeName": "Quantity",
+            "quantityName": "Radius"
           },
+          "unit": "m",
           "name": "hitboxRadius",
           "description": ""
         },
@@ -495,9 +500,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "MetresPerSecond"
+            "TypeName": "Quantity",
+            "quantityName": "Speed"
           },
+          "unit": "m/s",
           "network": {
             "quantise": 0.01,
             "delta": true
@@ -522,9 +528,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "MetresPerSecondSquared"
+            "TypeName": "Quantity",
+            "quantityName": "Acceleration1D"
           },
+          "unit": "m/s²",
           "defaultValue": {
             "DefaultKind": "NumberDefault",
             "value": -9.81
@@ -549,9 +556,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Metres"
+            "TypeName": "Quantity",
+            "quantityName": "Radius"
           },
+          "unit": "m",
           "name": "influenceRadius",
           "description": ""
         }
@@ -1170,9 +1178,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         },
@@ -1387,9 +1396,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         },
@@ -1466,9 +1476,10 @@
         },
         {
           "type": {
-            "TypeName": "Semantic",
-            "semanticTypeName": "Kilograms"
+            "TypeName": "Quantity",
+            "quantityName": "Mass"
           },
+          "unit": "kg",
           "name": "weight",
           "description": ""
         }
@@ -1616,38 +1627,6 @@
       },
       "name": "Coin",
       "description": "A price in the smallest coin. A number of coins is not a number of anything else."
-    },
-    {
-      "underlyingType": {
-        "TypeName": "Float"
-      },
-      "unit": "kg",
-      "name": "Kilograms",
-      "description": "A mass in kilograms."
-    },
-    {
-      "underlyingType": {
-        "TypeName": "Float"
-      },
-      "unit": "m",
-      "name": "Metres",
-      "description": "A distance in metres."
-    },
-    {
-      "underlyingType": {
-        "TypeName": "Float"
-      },
-      "unit": "m/s",
-      "name": "MetresPerSecond",
-      "description": "A speed in metres per second."
-    },
-    {
-      "underlyingType": {
-        "TypeName": "Float"
-      },
-      "unit": "m/s\u00b2",
-      "name": "MetresPerSecondSquared",
-      "description": "An acceleration in metres per second squared."
     }
   ],
   "interfaces": [],
