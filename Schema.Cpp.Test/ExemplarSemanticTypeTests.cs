@@ -55,6 +55,7 @@ public sealed class ExemplarSemanticTypeTests
 
 		#pragma once
 
+		#include <compare>
 		#include <cstdint>
 		#include <type_traits>
 
