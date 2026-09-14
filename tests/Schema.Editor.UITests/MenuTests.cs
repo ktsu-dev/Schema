@@ -225,6 +225,44 @@ public sealed class MenuTests
 		Assert.AreEqual("Recalled", harness.Editor.CurrentClass?.Name.ToString());
 	}
 
+	/// <summary>
+	/// A schema saved somewhere deep is still offered and still opens.
+	/// </summary>
+	/// <remarks>
+	/// Labelled with its whole path, such a file made Open Recent wider than the room beside the
+	/// File menu, and a submenu that does not fit beside the menu that opened it is placed on top
+	/// of it - so the item that opened it sat under the submenu rather than under the pointer,
+	/// ImGui took the pointer to have left, and the submenu closed on the frame after it opened.
+	/// This is the case that found it, in the only form that says what it was: the two tests it
+	/// broke failed on macOS alone, whose temporary directory is 44 characters deeper than
+	/// <c>/tmp</c> and which had nothing else to do with it.
+	/// </remarks>
+	[TestMethod]
+	public void ARecentFileTooDeepToLabelWholeStillOpens()
+	{
+		AbsoluteDirectoryPath deep = scratchDirectory;
+		for (int level = 0; level < 3; level++)
+		{
+			deep /= $"a-directory-named-at-length-{level}".As<DirectoryName>();
+		}
+
+		Directory.CreateDirectory(deep);
+
+		Schema source = new();
+		source.AddClass("Deep".As<ClassName>());
+		AbsoluteFilePath path = deep / "deep.schema.json".As<FileName>();
+		File.WriteAllText(path, SchemaSerializer.Serialize(source));
+		harness.Editor.Options.RecordRecentFile(path);
+
+		Assert.IsGreaterThan(SchemaEditor.MaxRecentFileLabelLength, path.ToString().Length, "The path was not long enough to be the case this pins.");
+
+		harness.ChooseMenuItem("File", "Open Recent");
+		harness.Click("recent/deep.schema.json");
+
+		Assert.AreEqual(path, harness.Editor.CurrentSchemaPath);
+		Assert.AreEqual("Deep", harness.Editor.CurrentClass?.Name.ToString());
+	}
+
 	[TestMethod]
 	public void UndoFromTheEditMenuRevertsTheLastEdit()
 	{

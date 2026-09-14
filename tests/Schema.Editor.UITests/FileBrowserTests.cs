@@ -39,6 +39,12 @@ public sealed class FileBrowserTests
 		previousWorkingDirectory = Directory.GetCurrentDirectory();
 		Directory.SetCurrentDirectory(scratchDirectory);
 
+		// Read the directory back rather than keeping the name it was created under. On macOS the
+		// temporary directory is reached through /var, which is a symbolic link to /private/var,
+		// and the working directory resolves the link - so the browser, which opens on the working
+		// directory, answers with the spelling that the name it was created under is not.
+		scratchDirectory = Directory.GetCurrentDirectory().As<AbsoluteDirectoryPath>();
+
 		harness = EditorHarness.Start();
 	}
 

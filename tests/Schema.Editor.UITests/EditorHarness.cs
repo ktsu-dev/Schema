@@ -100,16 +100,27 @@ internal sealed class EditorHarness : IDisposable
 	/// Waits for a marked item to be drawn, then clicks it.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The frames between the item first appearing and the click are not padding. A modal sizes
 	/// itself from its contents on the frame it appears and is centred on the next, so the
 	/// rectangle recorded for a control on its first frame is not where that control ends up;
 	/// clicking there hits the background instead.
+	/// </para>
+	/// <para>
+	/// Both waits ask <see cref="IsOnScreen(string)"/> rather than whether the probe has ever
+	/// recorded the name, and the second one is why there are two: an item can be drawn once and
+	/// then go away again while those frames run, and the name it left behind is enough to satisfy
+	/// a wait that only asks whether the probe has heard of it. Asked this way, a test that clicks
+	/// something no longer there says so, instead of failing inside the click on a rectangle that
+	/// has since been taken by whatever moved into it.
+	/// </para>
 	/// </remarks>
 	/// <param name="item">A marked name, or the trailing part of one.</param>
 	internal void Click(string item)
 	{
-		StepUntil(() => App.Probe.Matches(item).Count > 0, $"'{item}' appearing");
+		StepUntil(() => IsOnScreen(item), $"'{item}' appearing");
 		App.Step(3);
+		StepUntil(() => IsOnScreen(item), $"'{item}' still being drawn once it had settled");
 		App.Click(item);
 		App.Step(2);
 	}
