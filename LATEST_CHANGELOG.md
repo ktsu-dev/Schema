@@ -1,6 +1,4 @@
-## v1.36.1 (patch)
+## v1.36.1
 
-Changes since v1.36.0:
-
-- Include the error enum in a header that names it [patch] ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.36.1.
 
