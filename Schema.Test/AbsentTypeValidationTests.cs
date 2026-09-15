@@ -228,17 +228,16 @@ public sealed class AbsentTypeValidationTests
 	/// that <c>Void</c> carries no value. One mistake, one message.
 	/// </summary>
 	[TestMethod]
-	public void AVectorOfNothingSaysWhatAComponentHasToBe()
+	[DataRow("Void")]
+	[DataRow("None")]
+	public void AVectorOfNothingSaysWhatAComponentHasToBe(string component)
 	{
-		foreach (BaseType component in new BaseType[] { new Void(), new None() })
-		{
-			Schema schema = HolderOf(new Vector3 { ElementType = component });
+		Schema schema = HolderOf(new Vector3 { ElementType = Absent(component) });
 
-			Collection<SchemaValidationIssue> issues = schema.Validate();
+		Collection<SchemaValidationIssue> issues = schema.Validate();
 
-			Assert.ContainsSingle(issues, string.Join("; ", issues));
-			Assert.Contains("components are numbers", issues[0].Message, StringComparison.Ordinal);
-		}
+		Assert.ContainsSingle(issues, string.Join("; ", issues));
+		Assert.Contains("components are numbers", issues[0].Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -279,6 +278,16 @@ public sealed class AbsentTypeValidationTests
 
 		return schema;
 	}
+
+	/// <summary>
+	/// The two types that describe the absence of a value, by name, so a case can name one.
+	/// </summary>
+	private static BaseType Absent(string type) => type switch
+	{
+		"Void" => new Void(),
+		"None" => new None(),
+		_ => throw new ArgumentOutOfRangeException(nameof(type), type, "Not an absent type."),
+	};
 
 	/// <summary>
 	/// The four carriers that hold one element, by name, so one case covers all of them.
