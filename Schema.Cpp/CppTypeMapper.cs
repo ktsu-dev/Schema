@@ -217,7 +217,11 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 				"A signature returns a Result, but the schema names no error type. Set the schema's error type to an enum it declares.");
 		}
 
-		outcome.TypeArguments.Add(new TypeReference(schema.ErrorType.ToString()));
+		// Through `Generated` rather than as a bare name, so the header carries the enum's
+		// include. It is the one named type a signature can reach without the schema's type
+		// vocabulary naming it -- the error comes from the schema root rather than from the
+		// return type -- which is exactly how it came to be the one that was missed.
+		outcome.TypeArguments.Add(Generated(schema.ErrorType.ToString()));
 		return outcome;
 	}
 
