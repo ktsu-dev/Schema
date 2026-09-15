@@ -1,6 +1,8 @@
-## v1.35.0
+## v1.36.0 (minor)
 
-No significant changes detected since v1.35.0.
+Changes since v1.35.0:
+
+- Stop an unresolved refinement being reported as a cycle [minor] ([@Claude](https://github.com/Claude))
 
 ## v1.35.0 (minor)
 
