@@ -43,6 +43,7 @@ public sealed class ExemplarInterfaceTests
 		#include <span>
 
 		#include "EntityId.gen.hpp"
+		#include "ErrorCode.gen.hpp"
 		#include "Position.gen.hpp"
 		#include "RigidBody.gen.hpp"
 		#include "Seconds.gen.hpp"
@@ -122,6 +123,31 @@ public sealed class ExemplarInterfaceTests
 		string code = Generate()["IPhysicsWorld.gen.hpp"];
 
 		Assert.Contains("holo::Result<holo::Handle<RigidBody>, ErrorCode>", code, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// The header includes the error enum it names, so it compiles on its own.
+	/// </summary>
+	/// <remarks>
+	/// The error type is the one named type a signature reaches without the schema's type
+	/// vocabulary naming it: every other name in a header arrives through <c>Enum</c>,
+	/// <c>Object</c> or <c>Interface</c> and takes its include along the way, while this one comes
+	/// off the schema root because a failure says the same thing everywhere. That asymmetry is how
+	/// it came to be emitted as a bare name with no include -- the header named
+	/// <c>Result&lt;T, ErrorCode&gt;</c> and declared nothing called <c>ErrorCode</c>, so it
+	/// compiled only where something else had already included the enum first.
+	/// <para>
+	/// Asserted on the include rather than on a compile, because a compile in this suite pulls in
+	/// the whole generated set and would pass on the neighbour's include -- which is exactly the
+	/// accident being tested for.
+	/// </para>
+	/// </remarks>
+	[TestMethod]
+	public void TheHeaderIncludesTheErrorEnumItNames()
+	{
+		string code = Generate()["IPhysicsWorld.gen.hpp"];
+
+		Assert.Contains("#include \"ErrorCode.gen.hpp\"", code, StringComparison.Ordinal);
 	}
 
 	/// <summary>
