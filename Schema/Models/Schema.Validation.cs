@@ -111,7 +111,7 @@ public partial class Schema
 					});
 				}
 
-				ValidateType(issues, member.Type, memberPath, member);
+				ValidateType(issues, member.Type, memberPath, member, TypePosition.Declared);
 				ValidateMetadata(issues, member, member.Type, memberPath, member, "member");
 				ValidateTravelsAsBytes(issues, schemaClass, member, memberPath);
 			}
@@ -676,7 +676,7 @@ public partial class Schema
 				return;
 
 			default:
-				ValidateType(issues, function.ReturnType, path, function);
+				ValidateType(issues, function.ReturnType, path, function, TypePosition.Return);
 				return;
 		}
 	}
@@ -707,13 +707,52 @@ public partial class Schema
 				return;
 
 			default:
-				ValidateType(issues, parameter.Type, path, element);
+				ValidateType(issues, parameter.Type, path, element, TypePosition.Declared);
 				return;
 		}
 	}
 
-	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element)
+	/// <summary>
+	/// Where a type was written, which is what decides whether <see cref="Types.Void"/> may stand
+	/// there and who reports a type that was never chosen.
+	/// </summary>
+	private enum TypePosition
 	{
+		/// <summary>
+		/// The type of a member or a parameter, as the author wrote it.
+		/// </summary>
+		/// <remarks>
+		/// A <see cref="None"/> here is reported by the caller, in a message that can name what is
+		/// unfinished - a member, a parameter - rather than describing the hole it left.
+		/// </remarks>
+		Declared,
+
+		/// <summary>
+		/// A function's return type, which is the one place <see cref="Types.Void"/> is a decision
+		/// rather than a gap.
+		/// </summary>
+		Return,
+
+		/// <summary>
+		/// The value a <see cref="Result"/> carries when the call succeeds.
+		/// </summary>
+		/// <remarks>
+		/// <c>Result&lt;Void&gt;</c> is the honest spelling of "can fail, produces nothing", and it
+		/// is a type wherever it is written: C++ spells it <c>std::expected&lt;void, E&gt;</c> and
+		/// C# the one-argument <c>Result&lt;TError&gt;</c>.
+		/// </remarks>
+		ResultValue,
+
+		/// <summary>
+		/// Inside a wrapper, an array or a vector - somewhere a value has to actually be.
+		/// </summary>
+		Nested,
+	}
+
+	private void ValidateType(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element, TypePosition position)
+	{
+		ValidateTypeStandsHere(issues, type, path, element, position);
+
 		switch (type)
 		{
 			case Enum enumType:
@@ -749,17 +788,59 @@ public partial class Schema
 			// call can fail, and what a failure says is the schema's to declare.
 			case Result result:
 				ValidateResultHasAnErrorType(issues, path, element);
-				ValidateType(issues, result.ElementType, path, element);
+				ValidateType(issues, result.ElementType, path, element, TypePosition.ResultValue);
 				break;
 
 			// Every wrapper resolves to whatever it wraps, so a class named inside a Span,
 			// Handle, Result or Optional is checked exactly as one named directly is.
 			case WrapperType wrapper:
-				ValidateType(issues, wrapper.ElementType, path, element);
+				ValidateType(issues, wrapper.ElementType, path, element, TypePosition.Nested);
 				break;
 
 			default:
 				break;
+		}
+	}
+
+	/// <summary>
+	/// Two of the types describe the absence of a value rather than a value, and neither can be
+	/// generated where one has to be.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Asked on the way down rather than at each call site, because a wrapper is transparent to
+	/// everything else here - a class named inside an <see cref="Optional"/> is checked exactly as
+	/// one named directly is - and that transparency is what let these two through. A
+	/// <see cref="Types.Void"/> was refused as a parameter and nowhere else, so a member typed
+	/// <c>Void</c>, or an <c>Optional&lt;Void&gt;</c> or <c>Span&lt;Void&gt;</c> anywhere, validated
+	/// cleanly and then emitted <c>void x{};</c>, <c>std::optional&lt;void&gt;</c> or
+	/// <c>std::span&lt;void&gt;</c> - none of which are types. The compiler that refused them was
+	/// the consumer's, pointing at generated code rather than at the schema that produced it.
+	/// </para>
+	/// <para>
+	/// A <see cref="None"/> is reported here only where the author was not already told: a member,
+	/// a parameter and a return type each say what is unfinished in their own words, and a vector
+	/// says what its components have to be. Below that there was nobody saying anything, so an
+	/// <c>Optional&lt;None&gt;</c> reached the generator and threw.
+	/// </para>
+	/// </remarks>
+	private static void ValidateTypeStandsHere(Collection<SchemaValidationIssue> issues, BaseType type, string path, ISchemaElement? element, TypePosition position)
+	{
+		switch (type)
+		{
+			case Types.Void when position is TypePosition.Return or TypePosition.ResultValue:
+				return;
+
+			case Types.Void:
+				Report(issues, path, element!, "Void carries no value, so nothing can be declared as one. Only a function's return type, or the value a Result carries, may be Void.");
+				return;
+
+			case None when position is TypePosition.Nested or TypePosition.ResultValue:
+				Report(issues, path, element!, "No type was chosen for what this carries, so there is nothing to generate.");
+				return;
+
+			default:
+				return;
 		}
 	}
 
@@ -933,7 +1014,13 @@ public partial class Schema
 	/// </remarks>
 	private void ValidateVectorElement(Collection<SchemaValidationIssue> issues, Vector vectorType, string path, ISchemaElement? element)
 	{
-		ValidateType(issues, vectorType.ElementType, path, element);
+		// A component that is not a type at all is left to the checks below, which name what a
+		// vector's components have to be. Being told instead that Void carries no value is true and
+		// less use, and saying both is two messages for one mistake.
+		if (vectorType.ElementType is not (None or Types.Void))
+		{
+			ValidateType(issues, vectorType.ElementType, path, element, TypePosition.Nested);
+		}
 
 		// A colour's components are the channels, and every consumer of one - a picker, a
 		// shader, a serialiser - reads them as floats. A colour of anything else is a Vector.
@@ -1026,7 +1113,7 @@ public partial class Schema
 
 	private void ValidateArray(Collection<SchemaValidationIssue> issues, Array arrayType, string path, ISchemaElement? element)
 	{
-		ValidateType(issues, arrayType.ElementType, path, element);
+		ValidateType(issues, arrayType.ElementType, path, element, TypePosition.Nested);
 		ValidateArrayContainer(issues, arrayType, path, element);
 
 		if (string.IsNullOrEmpty(arrayType.Key))

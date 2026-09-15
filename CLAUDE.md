@@ -330,6 +330,19 @@ grew annotations until it was a worse version of the language it described; keep
 what stops that. `Schema.Validation.cs` enforces the corollaries - no `Array`, `Result` or `Void`
 parameters, no `None` anywhere generatable.
 
+Both halves of that last sentence are checked **on the way down**, by `ValidateTypeStandsHere`,
+rather than at the top of each declaration. A wrapper is transparent to everything else in
+validation - a class named inside an `Optional` is checked exactly as one named directly is - and
+that transparency is what used to let the two absent types through: a `Void` was refused as a
+parameter and nowhere else, so a member typed `Void`, or an `Optional<Void>` or `Span<Void>`
+anywhere, validated cleanly and then emitted `void x{};`, `std::optional<void>` or
+`std::span<void>`, none of which are types. `TypePosition` is what the descent carries, and it
+names the only two positions an absent type may stand in: a function's **return type**, and the
+**value a `Result` carries**, which is how "can fail, produces nothing" is spelled. A `None` is
+reported there too, but only below a declaration - a member, a parameter and a return type each
+already say what is unfinished in their own words, and a vector says what its components have to
+be, so those keep their own message rather than gaining a second one.
+
 What a failure *says* is global for the same reason: `Schema.ErrorType` names the enum a failed
 `Result` carries, once, rather than every fallible signature choosing its own. An enum rather than
 any type, because an error is one of a closed set of reasons. A schema that never returns a `Result`

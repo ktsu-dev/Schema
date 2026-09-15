@@ -128,6 +128,43 @@ public sealed class CppTypeMappingTests
 	}
 
 	/// <summary>
+	/// <c>Void</c> is the one absent type the mapper has an answer for wherever it is asked, so
+	/// nothing here refuses it and generation cannot be what catches it.
+	/// </summary>
+	/// <remarks>
+	/// Both halves are asserted together on purpose. The first says what the generator writes -
+	/// three spellings that are not types, since <c>void x{};</c> is not a declaration and neither
+	/// <c>std::optional&lt;void&gt;</c> nor <c>std::span&lt;void&gt;</c> is instantiable - and the
+	/// second says the schema refuses the same three before a generator is ever reached. That is
+	/// the difference between an author being told which member is wrong and a consumer's compiler
+	/// pointing at generated code.
+	/// </remarks>
+	[TestMethod]
+	public void VoidIsRefusedByTheSchemaRatherThanByTheMapper()
+	{
+		(BaseType Type, string IllFormed)[] shapes =
+		[
+			(new Void(), "void value{};"),
+			(new Optional { ElementType = new Void() }, "std::optional<void>"),
+			(new Span { ElementType = new Void() }, "std::span<void>"),
+		];
+
+		foreach ((BaseType type, string illFormed) in shapes)
+		{
+			Assert.Contains(illFormed, Generate(type), StringComparison.Ordinal);
+
+			Models.Schema schema = new();
+			schema.AddClass("Holder".As<ClassName>())!.AddMember("Value".As<MemberName>())!.SetType(type);
+
+			Assert.Contains(
+				i => i.Severity == SchemaValidationSeverity.Error
+					&& i.Message.Contains("Void carries no value", StringComparison.Ordinal),
+				schema.Validate(),
+				illFormed);
+		}
+	}
+
+	/// <summary>
 	/// A member's name is spelled the target's way; a type's keeps the schema's, because a type
 	/// name is the same word in both places.
 	/// </summary>
