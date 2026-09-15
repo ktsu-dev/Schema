@@ -191,6 +191,51 @@ public sealed class SchemaSemanticTypeTests
 	}
 
 	/// <summary>
+	/// A chain of refinement ending at a name the schema does not declare is that one unresolved
+	/// name, and nothing else.
+	/// </summary>
+	/// <remarks>
+	/// Walking the chain stops both at a type already seen and at a link naming nothing, so the two
+	/// used to be indistinguishable to whoever asked: <c>A</c> was told it refined itself through a
+	/// cycle that does not exist, and the declaration to fix - <c>B</c>, which names the missing
+	/// type - was the one the message did not name. Depth one never reaches that branch, which is
+	/// why the case above did not catch it.
+	/// </remarks>
+	[TestMethod]
+	public void AnUnresolvedRefinementDeeperInAChainIsNotACycle()
+	{
+		Schema schema = new();
+		SchemaSemanticType weight = schema.AddSemanticType("Weight".As<SemanticTypeName>())!;
+		SchemaSemanticType force = schema.AddSemanticType("ForceMagnitude".As<SemanticTypeName>())!;
+		weight.SetUnderlyingType(new Semantic { SemanticTypeName = "ForceMagnitude".As<SemanticTypeName>() });
+		force.SetUnderlyingType(new Semantic { SemanticTypeName = "Missing".As<SemanticTypeName>() });
+
+		SchemaValidationIssue issue = schema.Validate().Single();
+
+		Assert.Contains("does not declare", issue.Message, StringComparison.Ordinal);
+		Assert.AreSame(force, issue.Element);
+		Assert.IsFalse(weight.RefinesItself());
+	}
+
+	/// <summary>
+	/// A cycle is still a cycle when the type that closes it is not the one asked.
+	/// </summary>
+	[TestMethod]
+	public void ARefinementChainThatRevisitsATypeStillReportsItself()
+	{
+		Schema schema = new();
+		SchemaSemanticType a = schema.AddSemanticType("A".As<SemanticTypeName>())!;
+		SchemaSemanticType b = schema.AddSemanticType("B".As<SemanticTypeName>())!;
+		SchemaSemanticType c = schema.AddSemanticType("C".As<SemanticTypeName>())!;
+		a.SetUnderlyingType(new Semantic { SemanticTypeName = "B".As<SemanticTypeName>() });
+		b.SetUnderlyingType(new Semantic { SemanticTypeName = "C".As<SemanticTypeName>() });
+		c.SetUnderlyingType(new Semantic { SemanticTypeName = "B".As<SemanticTypeName>() });
+
+		Assert.IsTrue(a.RefinesItself());
+		Assert.Contains(i => i.Message.Contains("refines itself", StringComparison.Ordinal), schema.Validate());
+	}
+
+	/// <summary>
 	/// A semantic type with no underlying type chosen is not generatable.
 	/// </summary>
 	[TestMethod]

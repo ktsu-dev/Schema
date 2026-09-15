@@ -125,6 +125,27 @@ public class SchemaSemanticType : SchemaChild<SemanticTypeName>, ISchemaMetadata
 	}
 
 	/// <summary>
+	/// Gets whether the chain of refinement from this type comes back to a type already seen.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Refines()"/> stops for two reasons, and the chain looks the same from the outside
+	/// either way: a type it has already seen, which is a cycle, and a link naming something this
+	/// schema does not declare, which is not. Only the first is this type's to answer for — an
+	/// unresolved name is reported at the declaration that names it, which is where the fix is — so
+	/// telling the two apart is what stops a typo being reported as a cycle that does not exist.
+	/// <para>
+	/// The chain ended on a cycle exactly when the deepest type it reached still refines something
+	/// that resolves, since that is the link <see cref="Refines()"/> refused to follow a second time.
+	/// </para>
+	/// </remarks>
+	/// <returns><see langword="true"/> when the chain revisits a type.</returns>
+	public bool RefinesItself()
+	{
+		SchemaSemanticType deepest = Refines().LastOrDefault() ?? this;
+		return deepest.UnderlyingType is Semantic semantic && semantic.Declaration is not null;
+	}
+
+	/// <summary>
 	/// Gets the type values of this one are ultimately stored as, following any chain of
 	/// refinement down to the first type that is not itself semantic.
 	/// </summary>

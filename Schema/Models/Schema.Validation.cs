@@ -585,9 +585,12 @@ public partial class Schema
 			return;
 		}
 
-		// Refines() stops at the first type it has already seen, so a cycle shows up as a chain
-		// that never reaches a non-semantic type rather than as a hang.
-		if (!semanticType.Refines().Any(refined => refined.UnderlyingType is not Semantic))
+		// Asked whether the chain reached anything real, a chain ending at a name the schema does
+		// not declare answers the same as a cycle, and the author is sent looking for one that is
+		// not there. RefinesItself() asks the question this message makes: whether the chain came
+		// back to a type it had already seen. The unresolved tail is reported at the declaration
+		// naming it, which is the declaration to fix.
+		if (semanticType.RefinesItself())
 		{
 			Report(issues, path, semanticType, $"Semantic type '{semanticType.Name}' refines itself, directly or through a cycle, so it is represented as nothing.");
 		}
