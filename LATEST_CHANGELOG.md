@@ -1,8 +1,6 @@
-## v1.36.0 (minor)
+## v1.36.1 (patch)
 
-Changes since v1.35.0:
+Changes since v1.36.0:
 
-- test: split the vector case into a row per absent type ([@Claude](https://github.com/Claude))
-- Refuse Void anywhere but a return type or a Result's value [minor] ([@Claude](https://github.com/Claude))
-- Stop an unresolved refinement being reported as a cycle [minor] ([@Claude](https://github.com/Claude))
+- Include the error enum in a header that names it [patch] ([@Claude](https://github.com/Claude))
 
