@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Models;
 
 using ktsu.Semantics.Paths;
+using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Resolving the relative paths a schema holds.
@@ -19,6 +20,15 @@ using ktsu.Semantics.Paths;
 /// Resolution goes through <c>AsAbsolute</c> rather than the <c>/</c> combine operator: a schema
 /// may reach a sibling directory through <c>..</c>, and only the former normalises those segments
 /// away. The operator joins, which hands back a route to the file rather than the file.
+///
+/// The anchor is still taken with <see cref="Path.GetDirectoryName(string)"/> rather than
+/// <c>AbsoluteFilePath.AbsoluteDirectoryPath</c>, which would read better. Reading that property
+/// mutates the instance it is read from: in <c>ktsu.Semantics.Paths</c> 5.4.2 an
+/// <c>AbsoluteFilePath</c> stops comparing equal to an identical one, and its hash code changes,
+/// once the property has been touched, while its text stays the same. Callers hand the same
+/// instance on afterwards - the editor records it as a recent file - so reading it here corrupted
+/// equality for a value this code does not own. <c>AsAbsolute</c> carries no such hazard, which is
+/// why only the resolution moved.
 /// </remarks>
 public partial class Schema
 {
@@ -74,12 +84,10 @@ public partial class Schema
 	/// the directory containing it becomes the anchor.
 	/// </remarks>
 	/// <param name="schemaFilePath">The path of the <c>.schema.json</c> file this schema came from.</param>
-	/// <exception cref="ArgumentNullException"><paramref name="schemaFilePath"/> is null.</exception>
 	public void SetSourceFile(AbsoluteFilePath schemaFilePath)
 	{
-		Ensure.NotNull(schemaFilePath);
-
-		SourceDirectory = schemaFilePath.AbsoluteDirectoryPath;
+		string? directory = Path.GetDirectoryName((string)schemaFilePath);
+		SourceDirectory = string.IsNullOrEmpty(directory) ? new() : directory.As<AbsoluteDirectoryPath>();
 		SourceFileName = Path.GetFileName((string)schemaFilePath);
 	}
 }

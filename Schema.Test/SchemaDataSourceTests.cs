@@ -153,9 +153,24 @@ public class SchemaDataSourceTests
 		Assert.AreEqual("test.schema.json", schema.SourceFileName);
 	}
 
+	/// <summary>
+	/// Anchoring a schema must not disturb the path it was handed. Callers pass an instance they
+	/// keep using - the editor records the same one as a recent file straight afterwards - and
+	/// reading <c>AbsoluteFilePath.AbsoluteDirectoryPath</c> to find the anchor silently breaks
+	/// equality and the hash code of the instance it is read from (ktsu.Semantics.Paths 5.4.2),
+	/// while leaving its text alone. That is why the anchor is still taken from the string.
+	/// </summary>
 	[TestMethod]
-	public void TestSetSourceFileRefusesNull() =>
-		Assert.ThrowsExactly<ArgumentNullException>(() => new Schema().SetSourceFile(null!));
+	public void TestSettingTheSourceFileLeavesTheCallersPathEqualToItself()
+	{
+		AbsoluteFilePath handedIn = SchemaPath;
+		AbsoluteFilePath untouched = SchemaPath;
+
+		new Schema().SetSourceFile(handedIn);
+
+		Assert.AreEqual(untouched, handedIn, "Anchoring the schema changed the path it was given.");
+		Assert.AreEqual(untouched.GetHashCode(), handedIn.GetHashCode(), "Anchoring the schema changed the hash code of the path it was given.");
+	}
 
 	[TestMethod]
 	public void TestLoadWithASourcePathAnchorsTheSchema()
