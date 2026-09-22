@@ -1,7 +1,6 @@
-## v1.36.6 (patch)
+## v1.36.7 (patch)
 
-Changes since v1.36.5:
+Changes since v1.36.6:
 
-- Keep taking the anchor from the string, not AbsoluteDirectoryPath [patch] ([@Claude](https://github.com/Claude))
-- Resolve a schema's relative paths through Semantics.Paths [patch] ([@Claude](https://github.com/Claude))
+- Dispatch editor shortcuts through ktsu.Keybinding.Core [patch] ([@Claude](https://github.com/Claude))
 
