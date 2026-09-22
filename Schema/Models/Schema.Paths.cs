@@ -16,6 +16,19 @@ using ktsu.Semantics.Strings;
 /// The anchor is supplied by whoever read the file, so the serializer itself stays free of the
 /// filesystem. A schema that was never read from a file has no anchor and cannot resolve
 /// anything, which every resolution API reports rather than guessing at the working directory.
+///
+/// Resolution goes through <c>AsAbsolute</c> rather than the <c>/</c> combine operator: a schema
+/// may reach a sibling directory through <c>..</c>, and only the former normalises those segments
+/// away. The operator joins, which hands back a route to the file rather than the file.
+///
+/// The anchor is still taken with <see cref="Path.GetDirectoryName(string)"/> rather than
+/// <c>AbsoluteFilePath.AbsoluteDirectoryPath</c>, which would read better. Reading that property
+/// mutates the instance it is read from: in <c>ktsu.Semantics.Paths</c> 5.4.2 an
+/// <c>AbsoluteFilePath</c> stops comparing equal to an identical one, and its hash code changes,
+/// once the property has been touched, while its text stays the same. Callers hand the same
+/// instance on afterwards - the editor records it as a recent file - so reading it here corrupted
+/// equality for a value this code does not own. <c>AsAbsolute</c> carries no such hazard, which is
+/// why only the resolution moved.
 /// </remarks>
 public partial class Schema
 {
@@ -40,7 +53,7 @@ public partial class Schema
 			return false;
 		}
 
-		resolved = Path.GetFullPath(Path.Combine(SourceDirectory, relativePath)).As<AbsoluteFilePath>();
+		resolved = relativePath.AsAbsolute(SourceDirectory);
 		return true;
 	}
 
@@ -59,7 +72,7 @@ public partial class Schema
 			return false;
 		}
 
-		resolved = Path.GetFullPath(Path.Combine(SourceDirectory, relativePath)).As<AbsoluteDirectoryPath>();
+		resolved = relativePath.AsAbsolute(SourceDirectory);
 		return true;
 	}
 
