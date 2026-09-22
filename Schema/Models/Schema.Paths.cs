@@ -3,7 +3,6 @@
 namespace ktsu.Schema.Models;
 
 using ktsu.Semantics.Paths;
-using ktsu.Semantics.Strings;
 
 /// <summary>
 /// Resolving the relative paths a schema holds.
@@ -16,6 +15,10 @@ using ktsu.Semantics.Strings;
 /// The anchor is supplied by whoever read the file, so the serializer itself stays free of the
 /// filesystem. A schema that was never read from a file has no anchor and cannot resolve
 /// anything, which every resolution API reports rather than guessing at the working directory.
+///
+/// Resolution goes through <c>AsAbsolute</c> rather than the <c>/</c> combine operator: a schema
+/// may reach a sibling directory through <c>..</c>, and only the former normalises those segments
+/// away. The operator joins, which hands back a route to the file rather than the file.
 /// </remarks>
 public partial class Schema
 {
@@ -40,7 +43,7 @@ public partial class Schema
 			return false;
 		}
 
-		resolved = Path.GetFullPath(Path.Combine(SourceDirectory, relativePath)).As<AbsoluteFilePath>();
+		resolved = relativePath.AsAbsolute(SourceDirectory);
 		return true;
 	}
 
@@ -59,7 +62,7 @@ public partial class Schema
 			return false;
 		}
 
-		resolved = Path.GetFullPath(Path.Combine(SourceDirectory, relativePath)).As<AbsoluteDirectoryPath>();
+		resolved = relativePath.AsAbsolute(SourceDirectory);
 		return true;
 	}
 
@@ -71,10 +74,12 @@ public partial class Schema
 	/// the directory containing it becomes the anchor.
 	/// </remarks>
 	/// <param name="schemaFilePath">The path of the <c>.schema.json</c> file this schema came from.</param>
+	/// <exception cref="ArgumentNullException"><paramref name="schemaFilePath"/> is null.</exception>
 	public void SetSourceFile(AbsoluteFilePath schemaFilePath)
 	{
-		string? directory = Path.GetDirectoryName((string)schemaFilePath);
-		SourceDirectory = string.IsNullOrEmpty(directory) ? new() : directory.As<AbsoluteDirectoryPath>();
+		Ensure.NotNull(schemaFilePath);
+
+		SourceDirectory = schemaFilePath.AbsoluteDirectoryPath;
 		SourceFileName = Path.GetFileName((string)schemaFilePath);
 	}
 }

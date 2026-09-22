@@ -107,6 +107,56 @@ public class SchemaDataSourceTests
 		Assert.AreEqual(Path.GetFullPath(Path.Combine(workingDirectory, "generated")), resolved.ToString());
 	}
 
+	/// <summary>
+	/// A resolved path is normalised, not merely concatenated. A schema beside the data it
+	/// describes is the easy case; one that reaches a sibling directory through <c>..</c> is the
+	/// case that tells a resolver from a string join, and the resolved value is compared,
+	/// displayed and used as a key, so it has to come back as the directory it names rather than
+	/// as a route to it.
+	/// </summary>
+	[TestMethod]
+	public void TestFilePathsResolveThroughTraversalSegments()
+	{
+		Schema schema = CreateAnchoredSchema("../shared/./items.json");
+
+		Assert.IsTrue(schema.GetDataSource("Items".As<DataSourceName>())!.TryResolveFile(out AbsoluteFilePath resolved));
+		Assert.AreEqual(
+			Path.GetFullPath(Path.Combine(workingDirectory, "../shared/./items.json")),
+			resolved.ToString());
+		Assert.IsFalse(resolved.ToString().Contains("..", StringComparison.Ordinal), resolved.ToString());
+	}
+
+	[TestMethod]
+	public void TestDirectoryPathsResolveThroughTraversalSegments()
+	{
+		Schema schema = CreateAnchoredSchema();
+		SchemaCodeGenerator generator = schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>())!;
+		generator.OutputPath = "../build/./generated".As<RelativeDirectoryPath>();
+
+		Assert.IsTrue(generator.TryResolveOutputPath(out AbsoluteDirectoryPath resolved));
+		Assert.AreEqual(
+			Path.GetFullPath(Path.Combine(workingDirectory, "../build/./generated")),
+			resolved.ToString());
+		Assert.IsFalse(resolved.ToString().Contains("..", StringComparison.Ordinal), resolved.ToString());
+	}
+
+	/// <summary>
+	/// The anchor is the directory holding the schema file, and nothing else about the file.
+	/// </summary>
+	[TestMethod]
+	public void TestTheAnchorIsTheSchemaFilesDirectory()
+	{
+		Schema schema = new();
+		schema.SetSourceFile(SchemaPath);
+
+		Assert.AreEqual(workingDirectory, schema.SourceDirectory.ToString());
+		Assert.AreEqual("test.schema.json", schema.SourceFileName);
+	}
+
+	[TestMethod]
+	public void TestSetSourceFileRefusesNull() =>
+		Assert.ThrowsExactly<ArgumentNullException>(() => new Schema().SetSourceFile(null!));
+
 	[TestMethod]
 	public void TestLoadWithASourcePathAnchorsTheSchema()
 	{
