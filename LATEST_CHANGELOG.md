@@ -1,6 +1,4 @@
-## v1.36.7 (patch)
+## v1.36.7
 
-Changes since v1.36.6:
-
-- Dispatch editor shortcuts through ktsu.Keybinding.Core [patch] ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.36.7.
 
