@@ -26,6 +26,7 @@
     <PackageReference Include="ktsu.Coder" />
     <!-- The name types a schema element carries are semantic strings, so reading one is a direct
          use of the package that declares them rather than an incidental one. -->
+    <PackageReference Include="ktsu.DeepClone" VersionOverride="2.1.8" />
     <PackageReference Include="ktsu.Semantics.Strings" />
     <!-- The dimension a reflection table carries is the unit's own, read off the registry rather
          than restated here, which is a direct use of the package that declares units. -->
