@@ -353,10 +353,13 @@ Changes since v1.7.0:
 - docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 - docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 - Fix build errors from ktsu.Sdk 2.26/2.27 analyzers ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dependabot-merge.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove stale files ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.7.10 (patch)
@@ -407,10 +410,13 @@ Changes since v1.7.3:
 Changes since v1.7.2:
 
 - Fix build errors from ktsu.Sdk 2.26/2.27 analyzers ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dependabot-merge.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.7.2 (patch)
 
@@ -464,6 +470,7 @@ Changes since v1.4.0:
 - Fold owner decisions into roadmap ([@Claude](https://github.com/Claude))
 - Add project roadmap based on codebase analysis ([@Claude](https://github.com/Claude))
 - Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
 - [minor] Add keyboard shortcuts for common editor operations ([@matt-edmondson](https://github.com/matt-edmondson))
 - [minor] Integrate ktsu.UndoRedo for undoable schema mutations ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -491,6 +498,7 @@ Changes since v1.3.0:
 - [minor] Complete DataSource and CodeGenerator models, fix Reassociate ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update README.md with comprehensive project details and usage examples ([@matt-edmondson](https://github.com/matt-edmondson))
 - compatibility suppressions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package versions, refactor classes, and add file persistence functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 - migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -563,7 +571,11 @@ Changes since v1.3.4-pre.1:
 
 ## v1.3.4-pre.1 (prerelease)
 
-No significant changes detected since v1.3.4.
+Changes since v1.3.3:
+
+- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.3 (patch)
 
@@ -602,7 +614,9 @@ Changes since v1.3.2-pre.1:
 
 ## v1.3.2-pre.1 (prerelease)
 
-No significant changes detected since v1.3.2.
+Changes since v1.3.1:
+
+- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.1 (patch)
 
@@ -632,7 +646,13 @@ Changes since v1.2.1-pre.1:
 
 ## v1.2.1-pre.1 (prerelease)
 
-No significant changes detected since v1.2.1.
+Changes since v1.2.0:
+
+- Sync scripts\make-version.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\make-changelog.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync Directory.Build.targets ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.2.0 (minor)
 
@@ -731,7 +751,7 @@ No significant changes detected since v1.0.0-pre.1.
 
 ## v1.0.0-pre.1 (prerelease)
 
-No significant changes detected since v1.0.0.
+No significant changes detected since v0.0.1-pre.1.
 
 ## v0.0.1-pre.1 (prerelease)
 
