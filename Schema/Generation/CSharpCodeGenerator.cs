@@ -754,25 +754,71 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// <summary>
 	/// Gets the initialiser for a member's default, or null when it has none that fits.
 	/// </summary>
+	private static string? DefaultInitialiserFor(SchemaMember member) =>
+		member.DefaultValue is { } value && DefaultLiteralFor(value, member.Type) is string literal
+			? $" = {literal};"
+			: null;
+
+	/// <summary>
+	/// Writes a default as an expression of the given type, or null when it has none that fits.
+	/// </summary>
 	/// <remarks>
+	/// Validation reads a default through a semantic type to its representation, and lets a single
+	/// number stand for every component of a vector, so both are written here the way the C++
+	/// generator writes them: a semantic type through its explicit conversion, and a vector with the
+	/// number in each component.
+	/// <para>
 	/// A default of a kind the member cannot hold is a validation error, and generation is refused
 	/// for a schema that has one - so the mismatched cases here are only reachable by calling this
 	/// generator directly on a schema that was never validated. They fall through to the type's
 	/// own initialiser rather than emitting source that does not compile.
+	/// </para>
 	/// </remarks>
-	private static string? DefaultInitialiserFor(SchemaMember member) => (member.DefaultValue, member.Type) switch
+	private static string? DefaultLiteralFor(MemberDefault value, BaseType type) => (value, type) switch
 	{
-		(NumberDefault number, Int) => $" = {(long)number.Value};",
-		(NumberDefault number, Long) => $" = {(long)number.Value}L;",
-		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $" = float.{NonFinite(number.Value)};",
-		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $" = double.{NonFinite(number.Value)};",
-		(NumberDefault number, Float) => $" = {number.Value.ToString("R", CultureInfo.InvariantCulture)}f;",
-		(NumberDefault number, Double) => $" = {Literal(number.Value)};",
-		(BooleanDefault boolean, Bool) => $" = {(boolean.Value ? "true" : "false")};",
-		(TextDefault text, Models.Types.String) => $" = {Quote(text.Value)};",
-		(TextDefault text, Models.Types.Enum enumType) => $" = {CSharpKeywords.Identifier(enumType.EnumName)}.{CSharpKeywords.Identifier(text.Value)};",
+		(NumberDefault number, Int) => $"{(long)number.Value}",
+		(NumberDefault number, Long) => $"{(long)number.Value}L",
+		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $"float.{NonFinite(number.Value)}",
+		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $"double.{NonFinite(number.Value)}",
+		(NumberDefault number, Float) => $"{number.Value.ToString("R", CultureInfo.InvariantCulture)}f",
+		(NumberDefault number, Double) => Literal(number.Value),
+		(BooleanDefault boolean, Bool) => boolean.Value ? "true" : "false",
+		(TextDefault text, Models.Types.String) => Quote(text.Value),
+		(TextDefault text, Models.Types.Enum enumType) => $"{CSharpKeywords.Identifier(enumType.EnumName)}.{CSharpKeywords.Identifier(text.Value)}",
+
+		// The colours before their vector bases, as in MapType: ColorRGB derives from Vector3.
+		(NumberDefault, ColorRGB or ColorRGBA) => ComponentsLiteral(value, type, new Float()),
+		(NumberDefault, Vector vector) => ComponentsLiteral(value, vector, vector.ElementType),
+
+		// A representation that is itself a semantic type is a refinement chain that never reached
+		// anything real, which validation reports; following it again would have no bottom.
+		(_, Semantic { Declaration: SchemaSemanticType declaration } semantic)
+			when declaration.Representation() is not Semantic
+			&& DefaultLiteralFor(value, declaration.Representation()) is string represented
+			=> $"({MapType(semantic)})({represented})",
+
 		_ => null,
 	};
+
+	/// <summary>
+	/// Writes a vector or colour default: one number, in every component.
+	/// </summary>
+	private static string? ComponentsLiteral(MemberDefault value, BaseType type, BaseType elementType)
+	{
+		if (DefaultLiteralFor(value, elementType) is not string component)
+		{
+			return null;
+		}
+
+		int count = type switch
+		{
+			Vector2 => 2,
+			Vector3 => 3,
+			_ => 4,
+		};
+
+		return $"new {MapType(type)}({string.Join(", ", Enumerable.Repeat(component, count))})";
+	}
 
 	/// <summary>
 	/// Names one of the two values a floating-point number can hold that has no literal.
