@@ -231,6 +231,37 @@ public class CodeGenerationRoundTripTests
 	}
 
 	/// <summary>
+	/// A string default holding control characters compiles, and comes back as the same string.
+	/// </summary>
+	/// <remarks>
+	/// A raw line break in a regular literal is CS1010, so this does not compile unless the
+	/// generator escapes it; comparing the value is what catches an escape that compiles but
+	/// spells a different string.
+	/// </remarks>
+	[TestMethod]
+	public void TestAStringDefaultWithControlCharactersCompilesAndKeepsItsValue()
+	{
+		const string text = "line1\nline2\r\n\ttab \0 nul \u0001 \u2028 \"quoted\" \\ end";
+
+		Schema original = new();
+		SchemaClass note = original.AddClass("Note".As<ClassName>())!;
+		SchemaMember body = note.AddMember("Body".As<MemberName>())!;
+		body.SetType(new Models.Types.String());
+		body.DefaultValue = new TextDefault { Value = text };
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(original, CodeGenerationTests.ConfigureGenerator(original));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		Type generated = GeneratedSourceCompiler.Compile(result.Files).GetType("Generated.Note", throwOnError: true)!;
+		Assert.AreEqual(text, generated.GetProperty("Body")!.GetValue(Activator.CreateInstance(generated)));
+
+		Schema reimported = new();
+		reimported.AddClass(generated);
+		SchemaMember reimportedBody = reimported.GetClass("Note".As<ClassName>())!.GetMember("Body".As<MemberName>())!;
+		Assert.AreEqual(text, (reimportedBody.DefaultValue as TextDefault)?.Value);
+	}
+
+	/// <summary>
 	/// A class that travels as bytes, holding one that does the same - which is what the promise
 	/// permits and what the C# side could not represent before.
 	/// </summary>

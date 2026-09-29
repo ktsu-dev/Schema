@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Generation;
 
 using System.Globalization;
+using System.Text;
 
 using ktsu.CodeBlocker;
 using ktsu.Schema.Models;
@@ -585,8 +586,35 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// <summary>
 	/// Writes text as a C# string literal.
 	/// </summary>
-	private static string Quote(string text) =>
-		$"\"{text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
+	/// <remarks>
+	/// A raw line break inside a regular literal does not compile (CS1010), and a raw tab or NUL
+	/// compiles but lands in the source invisibly, so every control character is escaped - the same
+	/// set the C++ generator escapes, plus the Unicode line separators C# also ends a line at.
+	/// </remarks>
+	private static string Quote(string text)
+	{
+		StringBuilder literal = new(text.Length + 2);
+		literal.Append('"');
+		foreach (char c in text)
+		{
+			string? escaped = c switch
+			{
+				'\\' => "\\\\",
+				'"' => "\\\"",
+				'\n' => "\\n",
+				'\r' => "\\r",
+				'\t' => "\\t",
+				'\0' => "\\0",
+				_ when c is < ' ' or '\u0085' or '\u2028' or '\u2029' => $"\\u{(int)c:X4}",
+				_ => null,
+			};
+
+			_ = escaped is null ? literal.Append(c) : literal.Append(escaped);
+		}
+
+		literal.Append('"');
+		return literal.ToString();
+	}
 
 	private static string Escape(string text) =>
 		text.Replace("&", "&amp;", StringComparison.Ordinal)
