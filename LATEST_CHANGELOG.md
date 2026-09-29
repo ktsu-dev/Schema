@@ -1,7 +1,7 @@
-## v1.36.8 (patch)
+## v1.36.9 (patch)
 
-Changes since v1.36.7:
+Changes since v1.36.8:
 
-- Give semantic, vector and colour members their default in generated C# [patch] ([@Claude](https://github.com/Claude))
-- Reject Long defaults outside the 64-bit range [patch] ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into fix/217-quote-control-characters ([@Claude](https://github.com/Claude))
+- Escape control characters in generated C# string literals [patch] ([@Claude](https://github.com/Claude))
 
