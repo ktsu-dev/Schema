@@ -248,6 +248,36 @@ public class MemberMetadataTests
 		AssertMentions(Errors(schema), "outside the 32-bit range");
 	}
 
+	/// <summary>
+	/// 9223372036854775807 is long.MaxValue as written, but as a double it rounds to 2^63, which
+	/// no Long can hold.
+	/// </summary>
+	[TestMethod]
+	[DataRow(1e19)]
+	[DataRow(-1e19)]
+	[DataRow(9223372036854775807.0)]
+	public void ADefaultOutsideInt64RangeOnALongMemberIsAnError(double value)
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = value };
+
+		AssertMentions(Errors(schema), "outside the 64-bit range");
+	}
+
+	/// <summary>
+	/// The largest double below 2^63, and the smallest Long, are both representable.
+	/// </summary>
+	[TestMethod]
+	[DataRow(9223372036854774784.0)]
+	[DataRow(-9223372036854775808.0)]
+	public void ADefaultInsideInt64RangeOnALongMemberIsAccepted(double value)
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = value };
+
+		Assert.AreEqual(0, Errors(schema).Count);
+	}
+
 	[TestMethod]
 	public void ADefaultOfTheWrongKindIsAnError()
 	{
