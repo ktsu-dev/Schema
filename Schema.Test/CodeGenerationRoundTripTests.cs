@@ -231,6 +231,68 @@ public class CodeGenerationRoundTripTests
 	}
 
 	/// <summary>
+	/// A member of a semantic type, of a vector or of a colour starts at its declared default,
+	/// the value the C++ generator starts it at.
+	/// </summary>
+	/// <remarks>
+	/// Validation accepts a numeric default on all of these, and the attribute carrying it was
+	/// always written - but with no initialiser, a fresh instance started at zero. Reading the
+	/// attribute back cannot see that; only constructing an instance can.
+	/// </remarks>
+	/// <param name="travelsAsBytes">Whether the class is a struct, which needs a constructor
+	/// before its members may have initialisers.</param>
+	[TestMethod]
+	[DataRow(false)]
+	[DataRow(true)]
+	public void TestSemanticVectorAndColourMembersStartAtTheirDefaults(bool travelsAsBytes)
+	{
+		Schema original = new();
+		original.AddSemanticType("Kilograms".As<SemanticTypeName>())!.SetUnderlyingType(new Models.Types.Float());
+		original.AddSemanticType("Count".As<SemanticTypeName>())!.SetUnderlyingType(new Models.Types.Int());
+		original.AddSemanticType("Heavy".As<SemanticTypeName>())!.SetUnderlyingType(
+			new Models.Types.Semantic { SemanticTypeName = "Kilograms".As<SemanticTypeName>() });
+
+		SchemaClass body = original.AddClass("Body".As<ClassName>())!;
+		body.TravelsAsBytes = travelsAsBytes;
+		AddDefaulted(body, "Mass", new Models.Types.Semantic { SemanticTypeName = "Kilograms".As<SemanticTypeName>() }, 2.5);
+		AddDefaulted(body, "Offset", new Models.Types.Semantic { SemanticTypeName = "Kilograms".As<SemanticTypeName>() }, -1.5);
+		AddDefaulted(body, "Parts", new Models.Types.Semantic { SemanticTypeName = "Count".As<SemanticTypeName>() }, 3);
+		AddDefaulted(body, "Ballast", new Models.Types.Semantic { SemanticTypeName = "Heavy".As<SemanticTypeName>() }, 4);
+		AddDefaulted(body, "Scale", new Models.Types.Vector3(), 1);
+		AddDefaulted(body, "Cell", new Models.Types.Vector2 { ElementType = new Models.Types.Int() }, 2);
+		AddDefaulted(body, "Tint", new Models.Types.ColorRGBA(), 0.5);
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(original, CodeGenerationTests.ConfigureGenerator(original));
+		Assert.IsTrue(result.IsSuccess, result.Message);
+
+		Assembly assembly = GeneratedSourceCompiler.Compile(result.Files);
+		Type type = assembly.GetType("Generated.Body", throwOnError: true)!;
+		object instance = Activator.CreateInstance(type)!;
+
+		Assert.AreEqual(2.5f, SemanticValue(instance, "Mass"));
+		Assert.AreEqual(-1.5f, SemanticValue(instance, "Offset"));
+		Assert.AreEqual(3, SemanticValue(instance, "Parts"));
+		Assert.AreEqual(4f, SemanticValue(instance, "Ballast"));
+		Assert.AreEqual(new System.Numerics.Vector3(1f), type.GetProperty("Scale")!.GetValue(instance));
+		Assert.AreEqual(Activator.CreateInstance(type.GetProperty("Cell")!.PropertyType, 2, 2), type.GetProperty("Cell")!.GetValue(instance));
+		Assert.AreEqual(new Runtime.ColorRgba(0.5f, 0.5f, 0.5f, 0.5f), type.GetProperty("Tint")!.GetValue(instance));
+
+		static void AddDefaulted(SchemaClass owner, string name, Models.Types.BaseType memberType, double value)
+		{
+			SchemaMember member = owner.AddMember(name.As<MemberName>())!;
+			member.SetType(memberType);
+			member.DefaultValue = new NumberDefault { Value = value };
+		}
+
+		// A semantic member's value, read through the Value property of the type it holds.
+		static object SemanticValue(object owner, string property)
+		{
+			object held = owner.GetType().GetProperty(property)!.GetValue(owner)!;
+			return held.GetType().GetProperty("Value")!.GetValue(held)!;
+		}
+	}
+
+	/// <summary>
 	/// A class that travels as bytes, holding one that does the same - which is what the promise
 	/// permits and what the C# side could not represent before.
 	/// </summary>
