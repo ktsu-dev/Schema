@@ -14,7 +14,7 @@
     <PackageVersion Include="ktsu.ImGui.Styler" Version="3.59.1" />
     <PackageVersion Include="ktsu.ThemeProvider" Version="3.1.1" />
     <PackageVersion Include="ktsu.IntervalAction" Version="1.5.1" />
-    <PackageVersion Include="ktsu.Keybinding.Core" Version="1.0.54" />
+    <PackageVersion Include="ktsu.Keybinding" Version="2.1.5" />
     <PackageVersion Include="ktsu.UndoRedo.Core" Version="1.1.4" />
     <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.73" />
     <PackageVersion Include="ktsu.Semantics.Quantities" Version="5.11.0" />
