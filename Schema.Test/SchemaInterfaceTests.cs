@@ -30,7 +30,7 @@ public sealed class SchemaInterfaceTests
 
 		Assert.AreSequenceEqual(
 			ExpectedParameterOrder,
-			function.Parameters.Select(p => p.Name.ToString()).ToArray());
+			[.. function.Parameters.Select(p => p.Name.ToString())]);
 	}
 
 	/// <summary>
