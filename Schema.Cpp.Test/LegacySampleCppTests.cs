@@ -123,7 +123,7 @@ public sealed class LegacySampleCppTests
 	/// this at all.
 	/// <para>
 	/// The four quantities are here for the same reason and stand in for the same thing a real
-	/// target would have: <c>ktsu.Semantics.Cpp</c> emits all 212 of them, and a schema that names
+	/// target would have: <c>ktsu.Semantics.Cpp</c> emits all 220 of them, and a schema that names
 	/// one is naming a class the program already has rather than asking for one.
 	/// </para>
 	/// </remarks>
