@@ -20,7 +20,7 @@ using ktsu.Schema.Models.Names;
 /// This is the difference from <see cref="Semantic"/>, and both are wanted. A semantic type is
 /// how a schema says that its own two numbers are different things - an entity id is not a texture
 /// id - and nothing outside the schema has heard of either. A quantity is the opposite: the
-/// vocabulary is shared, 212 names that both generators already emit, so naming one here reaches
+/// vocabulary is shared, 220 names that both generators already emit, so naming one here reaches
 /// a type the target already has rather than a copy this schema asked for.
 /// </para>
 /// <para>

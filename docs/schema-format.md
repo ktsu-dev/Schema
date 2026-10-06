@@ -517,7 +517,7 @@ other than `Float` on one is refused.
 ```
 
 The one named type here whose name is not resolved against this schema. `quantityName` must be one
-of the 212 quantities `ktsu.Semantics.Quantities` declares — `Mass`, `Length`, `Speed`, `Ratio`,
+of the 220 quantities `ktsu.Semantics.Quantities` declares — `Mass`, `Length`, `Speed`, `Ratio`,
 `Heading`, `Radius`, `Velocity3D`, `Force3D`, and the rest. Nothing in `semanticTypes` declares it
 and nothing is generated for it: both generators already emit the vocabulary, so naming one
 reaches a type the target already has.
@@ -541,7 +541,7 @@ A `unit` on a quantity must **measure what the quantity measures**. This is the 
 semantic type it replaces could never make: a unit is text resolved through `UnitRegistry` and a
 type called `Kilograms` is a name nothing reads, so the two had no way to disagree. A quantity
 knows its own eight exponents and so does the unit, so the contradiction is arithmetic. The
-exponents are compared and not the names, because 72 of the vocabulary's dimensions share 63
+exponents are compared and not the names, because 75 of the vocabulary's dimensions share 64
 exponent vectors — a joule and a newton metre are the same eight numbers, and a torque held in
 joules is not something the schema is entitled to refuse.
 

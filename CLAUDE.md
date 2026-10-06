@@ -124,8 +124,8 @@ one per property hanging off it.
 
 An entity id is a number and so is a texture id, and `SchemaSemanticType` is how the schema says
 they are different things. A *mass* is a different problem: the vocabulary for it already exists.
-`ktsu.Semantics.Quantities` declares 212 physical quantities, `ktsu.Semantics.Cpp` emits the same
-212 as C++ classes, and both are things a target already has. So the `Quantity` type names one
+`ktsu.Semantics.Quantities` declares 220 physical quantities, `ktsu.Semantics.Cpp` emits the same
+220 as C++ classes, and both are things a target already has. So the `Quantity` type names one
 rather than asking for a copy of it - `Quantity(Mass)`, `Quantity(Velocity3D)`, `Quantity(Ratio)` -
 and nothing is generated for it. That is the whole difference from `Semantic`, and both are wanted:
 a semantic type is the schema's own, a quantity is everybody's.
@@ -141,8 +141,8 @@ the five `IVectorN` interfaces, and the arity of that interface says how many co
 has. Its dimension takes three routes, in order: a magnitude declares one through
 `IPhysicalQuantity`; a vector form does not, so its dimension is what `Magnitude()` answers with;
 and a *named overload* of a vector form answers neither, so what is followed is the implicit
-widening onto what it is an overload of. Six of the 212 are reachable only by that third route, and
-212 is not a number chosen here - it is what the C++ projection emits, so the two counts agreeing
+widening onto what it is an overload of. Six of the 220 are reachable only by that third route, and
+220 is not a number chosen here - it is what the C++ projection emits, so the two counts agreeing
 is what says a schema can name every quantity a C++ target has.
 
 The ten it leaves out are the logarithmic scales and two hand-written audio types. A decibel does
@@ -155,7 +155,7 @@ Three things follow from a quantity knowing its own dimension.
 
 - **A unit on one has to agree with it.** The check the semantic type could never make: a unit is
   text and `Kilograms` was a name, so the two had no way to disagree. The *exponents* are compared
-  rather than the names, because 72 of the vocabulary's dimensions share 63 exponent vectors - a
+  rather than the names, because 75 of the vocabulary's dimensions share 64 exponent vectors - a
   joule and a newton metre are the same eight numbers, and refusing what the physics allows is
   worse than not checking.
 - **The reflection table asks the type first.** The eight exponents used to come from the member's
@@ -183,7 +183,7 @@ off the closed type - **the one thing generated C# carries that needs no attribu
 it is**. Everything else does, because a sequential struct or a record struct over a float is a
 shape a hand-written type may have for its own reasons; a `Mass<float>` is not something a target
 happened to write, it is the quantity. C++ spells it wherever the target's vocabulary went, which
-`CppGeneratorOptions.Quantities` says in one entry for all 212 - the target named none of them, it
+`CppGeneratorOptions.Quantities` says in one entry for all 220 - the target named none of them, it
 ran the generator. That entry also says what the vocabulary is stored in, because a C++ quantity is
 a class rather than a template and the storage was fixed when it was generated: a member the schema
 keeps in a double is refused on a float target rather than emitted as two languages quietly
@@ -525,7 +525,7 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
 - `Schema/Models/ClrTypeImporter.cs` - Reads a .NET type into a schema; the exact inverse of the C# generator
-- `Schema/Models/Metadata/QuantityRegistry.cs` - The 212 quantities a schema may name, read out of the assembly that declares them rather than listed here
+- `Schema/Models/Metadata/QuantityRegistry.cs` - The 220 quantities a schema may name, read out of the assembly that declares them rather than listed here
 - `Schema/Runtime/SchemaMetadataAttributes.cs` - What generated code carries that its C# types cannot say
 - `Schema.Editor/SchemaEditor.cs` - Main editor application using `ktsu.ImGui.App`
 - `Schema.Editor/MemberGridPanel.cs` - The grid of member rows: add, reorder, retype, remove, and the two folds each row opens
