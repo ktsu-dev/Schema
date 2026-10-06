@@ -78,7 +78,7 @@ It is authored rather than derived — a mechanical rewrite could not decide tha
 
 **The two ways of saying "this number is not just a number" sit beside each other here**, which is
 the point of keeping `Coin`. A semantic type is the schema's own: nothing outside it has heard of a
-coin, so the schema declares one and a generator emits it. A quantity is everybody's: 212 names
+coin, so the schema declares one and a generator emits it. A quantity is everybody's: 220 names
 `ktsu.Semantics` already declares in both languages, so naming one reaches a type the target
 already has.
 

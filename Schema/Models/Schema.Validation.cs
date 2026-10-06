@@ -993,7 +993,7 @@ public partial class Schema
 	/// Whether two dimensions are the same eight exponents.
 	/// </summary>
 	/// <remarks>
-	/// The exponents rather than the name, because 72 of the vocabulary's dimensions share 63
+	/// The exponents rather than the name, because 75 of the vocabulary's dimensions share 64
 	/// exponent vectors: <c>Torque</c> and <c>Energy</c> are one vector between two names, and a
 	/// newton metre is as good a unit for either. Comparing names would refuse that, and refusing
 	/// what the physics allows is worse than not checking.
