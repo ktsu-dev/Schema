@@ -102,8 +102,8 @@ public sealed class DiagnosticsPanelTests
 
 		// In any order: the panel sorts its rows by severity, which is what the next test is about.
 		Assert.AreSequenceEqual(
-			harness.Editor.Diagnostics.Select(i => $"{i.Severity}:{i.Path}").Distinct().ToArray(),
-			ListedIssues.Distinct().ToArray(),
+			[.. harness.Editor.Diagnostics.Select(i => $"{i.Severity}:{i.Path}").Distinct()],
+			[.. ListedIssues.Distinct()],
 			SequenceOrder.InAnyOrder);
 	}
 

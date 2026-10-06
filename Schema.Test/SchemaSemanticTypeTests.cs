@@ -70,7 +70,7 @@ public sealed class SchemaSemanticTypeTests
 
 		Assert.AreSequenceEqual(
 			ExpectedRefinementChain,
-			weight.Refines().Select(t => t.Name.ToString()).ToArray());
+			[.. weight.Refines().Select(t => t.Name.ToString())]);
 		Assert.IsInstanceOfType<Float>(weight.Representation());
 	}
 
