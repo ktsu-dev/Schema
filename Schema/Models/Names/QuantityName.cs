@@ -10,7 +10,7 @@ using ktsu.Semantics.Strings;
 /// <remarks>
 /// Not an <c>ISchemaRootName</c>, and that is the difference from every other name here: a
 /// quantity is not something the schema declares, so there is nothing in the document for the
-/// name to be unique against. It names one of <c>ktsu.Semantics.Quantities</c>' 212 quantities,
+/// name to be unique against. It names one of <c>ktsu.Semantics.Quantities</c>' 220 quantities,
 /// and <c>QuantityRegistry</c> is what resolves it.
 /// </remarks>
 public sealed record class QuantityName : SemanticString<QuantityName> { }
