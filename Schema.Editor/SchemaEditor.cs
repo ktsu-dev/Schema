@@ -225,7 +225,7 @@ public partial class SchemaEditor
 	}
 
 	/// <summary>
-	/// Whether the key <c>ktsu.Keybinding.Core</c> names was pressed on this frame.
+	/// Whether the key <c>ktsu.Keybinding</c> names was pressed on this frame.
 	/// </summary>
 	/// <remarks>
 	/// The library spells the keys a chord is built from ("N", "S") exactly as ImGui names them in

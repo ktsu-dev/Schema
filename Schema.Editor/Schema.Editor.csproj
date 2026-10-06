@@ -21,7 +21,7 @@
     <PackageReference Include="ktsu.ImGui.NodeEditor" />
     <PackageReference Include="ktsu.NodeGraph" />
     <PackageReference Include="ktsu.IntervalAction" />
-    <PackageReference Include="ktsu.Keybinding.Core" />
+    <PackageReference Include="ktsu.Keybinding" />
     <PackageReference Include="ktsu.Semantics.Paths" />
     <PackageReference Include="ktsu.Semantics.Quantities" />
     <PackageReference Include="ktsu.ThemeProvider" />
