@@ -71,7 +71,7 @@ ExistingTypes = new Dictionary<string, CppTypeSpelling>(StringComparer.Ordinal)
 }
 ```
 
-`Quantities` is the third kind of answer, and the one that covers a whole vocabulary in a line. A schema member may hold one of `ktsu.Semantics.Quantities`' 212 physical quantities, and if your program ran `ktsu.Semantics.Cpp` it already has all of them - so what you say is where they went, not what each one is called. It called each one what the schema calls it:
+`Quantities` is the third kind of answer, and the one that covers a whole vocabulary in a line. A schema member may hold one of `ktsu.Semantics.Quantities`' 220 physical quantities, and if your program ran `ktsu.Semantics.Cpp` it already has all of them - so what you say is where they went, not what each one is called. It called each one what the schema calls it:
 
 ```csharp
 Quantities = new CppQuantitySpelling("holo", "<holotype/quantities/quantities.hpp>"),

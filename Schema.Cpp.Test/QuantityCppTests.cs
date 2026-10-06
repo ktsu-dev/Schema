@@ -19,7 +19,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// <para>
 /// The C++ side of a quantity is the side where it stops resembling a semantic type. A semantic
 /// type is a class this generator writes; a quantity is a class the target already has, because
-/// <c>ktsu.Semantics.Cpp</c> emitted all 212 of them into the target's tree. So what a target says
+/// <c>ktsu.Semantics.Cpp</c> emitted all 220 of them into the target's tree. So what a target says
 /// is where it put them - one entry for the whole vocabulary, since it named none of them.
 /// </para>
 /// <para>
@@ -326,8 +326,8 @@ public sealed class QuantityCppTests
 	/// bytes for the whole value and checks one component while the other two go unexamined.
 	/// <para>
 	/// All five arities the vocabulary has are pinned rather than the two that would carry the
-	/// argument. Every one of them is a real quantity - 148 magnitudes, 27 signed scalars, and 8,
-	/// 22 and 7 of two, three and four components - so none of these arms is defensive code, and
+	/// argument. Every one of them is a real quantity - 153 magnitudes, 29 signed scalars, and 8,
+	/// 23 and 7 of two, three and four components - so none of these arms is defensive code, and
 	/// a reader of this test can see the whole rule instead of inferring it from a sample of it.
 	/// </para>
 	/// </remarks>

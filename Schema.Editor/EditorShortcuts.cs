@@ -22,7 +22,7 @@ using ktsu.Keybinding.Core.Services;
 /// <see cref="Label"/> renders the menu's text from the same binding that fires the command.
 /// </para>
 /// <para>
-/// The matching itself is <c>ktsu.Keybinding.Core</c>'s, which this project already referenced and
+/// The matching itself is <c>ktsu.Keybinding</c>'s, which this project already referenced and
 /// did not use. Its <see cref="Chord"/> equality is insensitive to the order the modifiers are
 /// written in and to case, and <see cref="Chord.ToString"/> renders a chord in the same spelling
 /// the menu used to hard-code - so adopting it leaves the menu reading exactly as it did.
@@ -87,7 +87,7 @@ internal sealed class EditorShortcuts
 	private readonly KeybindingService keybindings;
 
 	/// <summary>
-	/// The keys a chord can be built around, each named as <c>ktsu.Keybinding.Core</c> spells it.
+	/// The keys a chord can be built around, each named as <c>ktsu.Keybinding</c> spells it.
 	/// Derived from <see cref="Bindings"/> so that adding a shortcut needs no second edit here.
 	/// </summary>
 	private readonly string[] primaryKeys;

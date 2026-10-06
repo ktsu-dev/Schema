@@ -7,7 +7,7 @@ namespace ktsu.Schema.Cpp;
 /// </summary>
 /// <remarks>
 /// <para>
-/// One entry for 212 types, which is what makes a quantity different from every other spelling
+/// One entry for 220 types, which is what makes a quantity different from every other spelling
 /// this generator is handed. A <see cref="CppTypeSpelling"/> names one type because the target
 /// wrote one type; the quantities are a vocabulary <c>ktsu.Semantics.Cpp</c> emits whole, so what
 /// a target has to say is where it put them, not what it called each one. It called each one what

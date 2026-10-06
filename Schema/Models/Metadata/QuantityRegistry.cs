@@ -161,7 +161,7 @@ public static class QuantityRegistry
 	/// <c>Displacement3D</c> under another name and the vocabulary gives it no <c>Magnitude()</c>
 	/// of its own, so the thing to follow is the one relationship it does declare: an overload
 	/// widens implicitly to what it is an overload of. Six of the vocabulary's vector forms are
-	/// reached only this way, which is the difference between 206 quantities and 212.
+	/// reached only this way, which is the difference between 214 quantities and 220.
 	/// </para>
 	/// </remarks>
 	private static DimensionInfo? DimensionOf(Type definition) => DimensionOfClosed(definition.MakeGenericType(typeof(double)), 0);
