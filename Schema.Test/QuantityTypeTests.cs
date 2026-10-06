@@ -39,15 +39,15 @@ public sealed class QuantityTypeTests
 	/// The whole vocabulary is nameable, and it is the vocabulary the C++ projection emits.
 	/// </summary>
 	/// <remarks>
-	/// 212 is not a number this repository chose: it is what <c>ktsu.Semantics.Cpp</c> writes -
-	/// 148 magnitudes, 27 signed scalars and 37 vectors - and the two counts agreeing is what says
-	/// a schema can name every quantity a C++ target has. It was 206 while six named vector
+	/// 220 is not a number this repository chose: it is what <c>ktsu.Semantics.Cpp</c> writes -
+	/// 153 magnitudes, 29 signed scalars and 38 vectors - and the two counts agreeing is what says
+	/// a schema can name every quantity a C++ target has. It would be 214 if the six named vector
 	/// overloads went unregistered, which is the case <see cref="ANamedVectorOverloadIsAQuantity"/>
 	/// pins directly.
 	/// </remarks>
 	[TestMethod]
 	public void TheVocabularyIsTheOneBothGeneratorsHave() =>
-		Assert.HasCount(212, QuantityRegistry.All);
+		Assert.HasCount(220, QuantityRegistry.All);
 
 	/// <summary>
 	/// A magnitude, a signed scalar and a vector each report their own shape.
@@ -196,7 +196,7 @@ public sealed class QuantityTypeTests
 	/// Two names for one set of exponents are both good units for either.
 	/// </summary>
 	/// <remarks>
-	/// 72 of the vocabulary's dimensions share 63 exponent vectors - <c>Torque</c> and
+	/// 75 of the vocabulary's dimensions share 64 exponent vectors - <c>Torque</c> and
 	/// <c>Energy</c> are one vector between two names - so the check compares the exponents and
 	/// not the names. A joule and a newton metre are the same eight numbers, and a schema holding
 	/// a torque in joules is saying nothing the physics refuses.
