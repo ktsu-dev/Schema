@@ -107,6 +107,71 @@ public class SchemaDataSourceTests
 		Assert.AreEqual(Path.GetFullPath(Path.Combine(workingDirectory, "generated")), resolved.ToString());
 	}
 
+	/// <summary>
+	/// A resolved path is normalised, not merely concatenated. A schema beside the data it
+	/// describes is the easy case; one that reaches a sibling directory through <c>..</c> is the
+	/// case that tells a resolver from a string join, and the resolved value is compared,
+	/// displayed and used as a key, so it has to come back as the directory it names rather than
+	/// as a route to it.
+	/// </summary>
+	[TestMethod]
+	public void TestFilePathsResolveThroughTraversalSegments()
+	{
+		Schema schema = CreateAnchoredSchema("../shared/./items.json");
+
+		Assert.IsTrue(schema.GetDataSource("Items".As<DataSourceName>())!.TryResolveFile(out AbsoluteFilePath resolved));
+		Assert.AreEqual(
+			Path.GetFullPath(Path.Combine(workingDirectory, "../shared/./items.json")),
+			resolved.ToString());
+		Assert.IsFalse(resolved.ToString().Contains("..", StringComparison.Ordinal), resolved.ToString());
+	}
+
+	[TestMethod]
+	public void TestDirectoryPathsResolveThroughTraversalSegments()
+	{
+		Schema schema = CreateAnchoredSchema();
+		SchemaCodeGenerator generator = schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>())!;
+		generator.OutputPath = "../build/./generated".As<RelativeDirectoryPath>();
+
+		Assert.IsTrue(generator.TryResolveOutputPath(out AbsoluteDirectoryPath resolved));
+		Assert.AreEqual(
+			Path.GetFullPath(Path.Combine(workingDirectory, "../build/./generated")),
+			resolved.ToString());
+		Assert.IsFalse(resolved.ToString().Contains("..", StringComparison.Ordinal), resolved.ToString());
+	}
+
+	/// <summary>
+	/// The anchor is the directory holding the schema file, and nothing else about the file.
+	/// </summary>
+	[TestMethod]
+	public void TestTheAnchorIsTheSchemaFilesDirectory()
+	{
+		Schema schema = new();
+		schema.SetSourceFile(SchemaPath);
+
+		Assert.AreEqual(workingDirectory, schema.SourceDirectory.ToString());
+		Assert.AreEqual("test.schema.json", schema.SourceFileName);
+	}
+
+	/// <summary>
+	/// Anchoring a schema must not disturb the path it was handed. Callers pass an instance they
+	/// keep using - the editor records the same one as a recent file straight afterwards - and
+	/// reading <c>AbsoluteFilePath.AbsoluteDirectoryPath</c> to find the anchor silently breaks
+	/// equality and the hash code of the instance it is read from (ktsu.Semantics.Paths 5.4.2),
+	/// while leaving its text alone. That is why the anchor is still taken from the string.
+	/// </summary>
+	[TestMethod]
+	public void TestSettingTheSourceFileLeavesTheCallersPathEqualToItself()
+	{
+		AbsoluteFilePath handedIn = SchemaPath;
+		AbsoluteFilePath untouched = SchemaPath;
+
+		new Schema().SetSourceFile(handedIn);
+
+		Assert.AreEqual(untouched, handedIn, "Anchoring the schema changed the path it was given.");
+		Assert.AreEqual(untouched.GetHashCode(), handedIn.GetHashCode(), "Anchoring the schema changed the hash code of the path it was given.");
+	}
+
 	[TestMethod]
 	public void TestLoadWithASourcePathAnchorsTheSchema()
 	{

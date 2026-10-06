@@ -1,6 +1,53 @@
-## v1.36.4
+## v1.36.11-pre.1 (prerelease)
 
-No significant changes detected since v1.36.4.
+No significant changes detected since v1.36.11-pre.1.
+
+## v1.36.11-pre.1 (prerelease)
+
+Changes since v1.36.10:
+
+- Bump TestableIO.System.IO.Abstractions.TestingHelpers from 22.2.0 to 22.3.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.4.0 to 11.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.36.10 (patch)
+
+Changes since v1.36.9:
+
+- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+
+## v1.36.9 (patch)
+
+Changes since v1.36.8:
+
+- Merge remote-tracking branch 'origin/main' into fix/217-quote-control-characters ([@Claude](https://github.com/Claude))
+- Escape control characters in generated C# string literals [patch] ([@Claude](https://github.com/Claude))
+
+## v1.36.8 (patch)
+
+Changes since v1.36.7:
+
+- Give semantic, vector and colour members their default in generated C# [patch] ([@Claude](https://github.com/Claude))
+- Reject Long defaults outside the 64-bit range [patch] ([@Claude](https://github.com/Claude))
+
+## v1.36.7 (patch)
+
+Changes since v1.36.6:
+
+- Dispatch editor shortcuts through ktsu.Keybinding.Core [patch] ([@Claude](https://github.com/Claude))
+
+## v1.36.6 (patch)
+
+Changes since v1.36.5:
+
+- Keep taking the anchor from the string, not AbsoluteDirectoryPath [patch] ([@Claude](https://github.com/Claude))
+- Resolve a schema's relative paths through Semantics.Paths [patch] ([@Claude](https://github.com/Claude))
+
+## v1.36.5 (patch)
+
+Changes since v1.36.4:
+
+- Bump Polyfill from 11.3.0 to 11.4.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 28 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
 ## v1.36.4 (patch)
 
@@ -333,10 +380,13 @@ Changes since v1.7.0:
 - docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 - docs: correct README, DESCRIPTION and TAGS metadata ([@matt-edmondson](https://github.com/matt-edmondson))
 - Fix build errors from ktsu.Sdk 2.26/2.27 analyzers ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dependabot-merge.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove stale files ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.7.10 (patch)
@@ -387,10 +437,13 @@ Changes since v1.7.3:
 Changes since v1.7.2:
 
 - Fix build errors from ktsu.Sdk 2.26/2.27 analyzers ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .runsettings ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .gitattributes ([@KtsuTools](https://github.com/KtsuTools))
 - Sync global.json ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dependabot-merge.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.7.2 (patch)
 
@@ -444,6 +497,7 @@ Changes since v1.4.0:
 - Fold owner decisions into roadmap ([@Claude](https://github.com/Claude))
 - Add project roadmap based on codebase analysis ([@Claude](https://github.com/Claude))
 - Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
 - [minor] Add keyboard shortcuts for common editor operations ([@matt-edmondson](https://github.com/matt-edmondson))
 - [minor] Integrate ktsu.UndoRedo for undoable schema mutations ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -471,6 +525,7 @@ Changes since v1.3.0:
 - [minor] Complete DataSource and CodeGenerator models, fix Reassociate ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update README.md with comprehensive project details and usage examples ([@matt-edmondson](https://github.com/matt-edmondson))
 - compatibility suppressions ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
 - Update package versions, refactor classes, and add file persistence functionality ([@matt-edmondson](https://github.com/matt-edmondson))
 - migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -543,7 +598,11 @@ Changes since v1.3.4-pre.1:
 
 ## v1.3.4-pre.1 (prerelease)
 
-No significant changes detected since v1.3.4.
+Changes since v1.3.3:
+
+- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.3 (patch)
 
@@ -582,7 +641,9 @@ Changes since v1.3.2-pre.1:
 
 ## v1.3.2-pre.1 (prerelease)
 
-No significant changes detected since v1.3.2.
+Changes since v1.3.1:
+
+- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.1 (patch)
 
@@ -612,7 +673,13 @@ Changes since v1.2.1-pre.1:
 
 ## v1.2.1-pre.1 (prerelease)
 
-No significant changes detected since v1.2.1.
+Changes since v1.2.0:
+
+- Sync scripts\make-version.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\make-changelog.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync Directory.Build.targets ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.2.0 (minor)
 
@@ -711,7 +778,7 @@ No significant changes detected since v1.0.0-pre.1.
 
 ## v1.0.0-pre.1 (prerelease)
 
-No significant changes detected since v1.0.0.
+No significant changes detected since v0.0.1-pre.1.
 
 ## v0.0.1-pre.1 (prerelease)
 

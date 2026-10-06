@@ -369,6 +369,11 @@ public partial class Schema
 					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}).");
 				}
 
+				if (type is Long && isWholeNumber && !FitsInt64(number.Value))
+				{
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}).");
+				}
+
 				// A wrapping range is a period rather than a bound, so a value outside it is
 				// un-normalised rather than wrong -- the same reading a validator must take of
 				// live data, applied here to the default.
@@ -488,6 +493,12 @@ public partial class Schema
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
 
 	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
+
+	/// <summary>
+	/// The upper bound is exclusive because (double)long.MaxValue rounds up to 2^63, which is
+	/// already one past the range: an inclusive check would pass the one value it most needs to stop.
+	/// </summary>
+	private static bool FitsInt64(double value) => value is >= -9223372036854775808.0 and < 9223372036854775808.0;
 
 	/// <summary>
 	/// Formats a number for a message, culture-invariantly: a validation message that says

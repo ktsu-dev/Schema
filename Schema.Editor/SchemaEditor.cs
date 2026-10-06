@@ -37,6 +37,12 @@ public partial class SchemaEditor
 	private ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
 
 	internal IUndoRedoService UndoRedo { get; }
+
+	/// <summary>
+	/// The keyboard shortcuts, read both to dispatch a chord and to label the menu items it fires.
+	/// </summary>
+	internal EditorShortcuts Shortcuts { get; } = new();
+
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
@@ -192,41 +198,42 @@ public partial class SchemaEditor
 			return;
 		}
 
-		bool ctrl = io.KeyCtrl;
-		bool shift = io.KeyShift;
-
-		if (ctrl && ImGui.IsKeyPressed(ImGuiKey.Z, false))
+		switch (Shortcuts.FindCommand(io.KeyCtrl, io.KeyShift, io.KeyAlt, WasKeyPressed))
 		{
-			if (shift)
-			{
-				Redo();
-			}
-			else
-			{
+			case EditorShortcuts.New:
+				New();
+				break;
+			case EditorShortcuts.Open:
+				Open();
+				break;
+			case EditorShortcuts.Save:
+				Save();
+				break;
+			case EditorShortcuts.SaveAs:
+				SaveAs();
+				break;
+			case EditorShortcuts.Undo:
 				Undo();
-			}
-		}
-		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.Y, false))
-		{
-			Redo();
-		}
-		else if (ctrl && shift && ImGui.IsKeyPressed(ImGuiKey.S, false))
-		{
-			SaveAs();
-		}
-		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
-		{
-			Save();
-		}
-		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.N, false))
-		{
-			New();
-		}
-		else if (ctrl && ImGui.IsKeyPressed(ImGuiKey.O, false))
-		{
-			Open();
+				break;
+			case EditorShortcuts.Redo:
+			case EditorShortcuts.RedoAlternate:
+				Redo();
+				break;
+			default:
+				break;
 		}
 	}
+
+	/// <summary>
+	/// Whether the key <c>ktsu.Keybinding.Core</c> names was pressed on this frame.
+	/// </summary>
+	/// <remarks>
+	/// The library spells the keys a chord is built from ("N", "S") exactly as ImGui names them in
+	/// <see cref="ImGuiKey"/>, so the two meet at a parse. A key the enum does not know counts as
+	/// not pressed, rather than throwing on every frame.
+	/// </remarks>
+	private static bool WasKeyPressed(string key) =>
+		Enum.TryParse(key, ignoreCase: true, out ImGuiKey imGuiKey) && ImGui.IsKeyPressed(imGuiKey, false);
 
 	internal void OnRender(float dt)
 	{
@@ -328,12 +335,12 @@ public partial class SchemaEditor
 			return;
 		}
 
-		if (MenuItem("New", "Ctrl+N"))
+		if (MenuItem("New", Shortcuts.Label(EditorShortcuts.New)))
 		{
 			New();
 		}
 
-		if (MenuItem("Open", "Ctrl+O"))
+		if (MenuItem("Open", Shortcuts.Label(EditorShortcuts.Open)))
 		{
 			Open();
 		}
@@ -342,14 +349,14 @@ public partial class SchemaEditor
 
 		ImGui.Separator();
 
-		if (MenuItem("Save", "Ctrl+S", CurrentSchema is not null))
+		if (MenuItem("Save", Shortcuts.Label(EditorShortcuts.Save), CurrentSchema is not null))
 		{
 			Save();
 		}
 
 		// Always available while a schema is open: without it there is no way to save a copy
 		// somewhere else once the schema has a path.
-		if (MenuItem("Save As...", "Ctrl+Shift+S", CurrentSchema is not null))
+		if (MenuItem("Save As...", Shortcuts.Label(EditorShortcuts.SaveAs), CurrentSchema is not null))
 		{
 			SaveAs();
 		}
@@ -383,12 +390,12 @@ public partial class SchemaEditor
 			return;
 		}
 
-		if (MenuItem("Undo", "Ctrl+Z", UndoRedo.CanUndo))
+		if (MenuItem("Undo", Shortcuts.Label(EditorShortcuts.Undo), UndoRedo.CanUndo))
 		{
 			Undo();
 		}
 
-		if (MenuItem("Redo", "Ctrl+Y", UndoRedo.CanRedo))
+		if (MenuItem("Redo", Shortcuts.Label(EditorShortcuts.Redo), UndoRedo.CanRedo))
 		{
 			Redo();
 		}
