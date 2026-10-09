@@ -34,6 +34,10 @@ internal sealed class ClassGraphView
 	// changes. Rebuilding every frame would reset the force-directed layout and node positions.
 	private string lastSignature = string.Empty;
 
+	// Set by RequestFitToView and spent on the next frame drawn, which is the first moment the size
+	// of the canvas is known.
+	private bool fitToViewRequested;
+
 	public ClassGraphView() =>
 		// The force-directed layout is disabled by default; enable it so the graph self-arranges.
 		engine.UpdatePhysicsSettings(engine.PhysicsSettings with { Enabled = true });
@@ -74,6 +78,12 @@ internal sealed class ClassGraphView
 		// Advance the layout using the drag state captured during the previous frame's render.
 		engine.SetDraggedNodes(renderer.CurrentlyDraggedNodes);
 		engine.UpdatePhysics(deltaTime);
+
+		if (fitToViewRequested)
+		{
+			renderer.FitToView(engine, editorSize);
+			fitToViewRequested = false;
+		}
 
 		renderer.Render(engine, editorSize);
 
@@ -220,6 +230,16 @@ internal sealed class ClassGraphView
 		float roomOnCanvas = MathF.Min(centre.X, centre.Y) * 0.7f;
 		return roomOnCanvas > 0.0f ? MathF.Min(wanted, roomOnCanvas) : wanted;
 	}
+
+	/// <summary>
+	/// Brings the whole graph into view on the next frame drawn: centred, and zoomed out far enough
+	/// to fit.
+	/// </summary>
+	/// <remarks>
+	/// Nothing in the editor asks for this yet; the gallery does, so that a picture of the graph
+	/// shows all of it rather than whatever part of a wide layout happens to fall on the canvas.
+	/// </remarks>
+	internal void RequestFitToView() => fitToViewRequested = true;
 
 	/// <summary>
 	/// Gets where the nodes sit, measured from the canvas's top-left corner.

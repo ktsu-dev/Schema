@@ -5,7 +5,10 @@
 namespace ktsu.Schema.Editor;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Numerics;
 
 using Hexa.NET.ImGui;
 
@@ -48,11 +51,15 @@ public partial class SchemaEditor
 	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
 
 	private MemberGridPanel MemberGrid { get; init; }
-	private ClassGraphView ClassGraph { get; } = new();
+	internal ClassGraphView ClassGraph { get; } = new();
 	private ImGuiWidgets.TabPanel MainTabs { get; }
 
 	// The tab whose label carries the validation counts.
 	private readonly string diagnosticsTabId;
+
+	// The name each main tab is recorded under, by tab id: its first label, so the diagnostics tab
+	// is found by what it is rather than by the counts its label carries at the time.
+	private readonly Dictionary<string, string> mainTabNames = [];
 
 	// Tab content delegates are parameterless, so the current frame's delta is stashed here for them.
 	private float currentDeltaTime;
@@ -77,9 +84,9 @@ public partial class SchemaEditor
 		// The tab bar lives inside the right divider zone, which is already a child window, so the tab
 		// content flows from the cursor without overlapping the bar. The left zone keeps the schema tree.
 		MainTabs = new ImGuiWidgets.TabPanel("MainViews", closable: false, reorderable: false);
-		MainTabs.AddTab("Editor", ShowEditorPanel);
-		MainTabs.AddTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
-		diagnosticsTabId = MainTabs.AddTab(DiagnosticsTab.Name, ShowDiagnosticsPanel);
+		AddMainTab("Editor", ShowEditorPanel);
+		AddMainTab("Class Graph", () => ClassGraph.Show(CurrentSchema, currentDeltaTime));
+		diagnosticsTabId = AddMainTab(DiagnosticsTab.Name, ShowDiagnosticsPanel);
 
 		Options = AppData.LoadOrCreate();
 		Popups = Options.Popups;
@@ -260,7 +267,46 @@ public partial class SchemaEditor
 	private void ShowRightPanel(float dt)
 	{
 		DiagnosticsTab.ShowCounts(MainTabs, diagnosticsTabId, ErrorCount, WarningCount);
+		MarkMainTabs();
 		MainTabs.Draw();
+	}
+
+	private string AddMainTab(string name, Action content)
+	{
+		string id = MainTabs.AddTab(name, content);
+		mainTabNames[id] = name;
+		return id;
+	}
+
+	/// <summary>
+	/// Records where each of the main tabs is about to be drawn.
+	/// </summary>
+	/// <remarks>
+	/// The tab bar comes from a widget library that neither records its tabs nor takes a selection
+	/// from outside, so without this nothing behind the Class Graph or Diagnostics tab could be
+	/// reached the way a user reaches it. Each tab is measured the way Dear ImGui sizes a tab with no
+	/// close button - its label, the frame padding either side and one pixel - and the tabs sit end to
+	/// end, the inner item spacing apart. A tab bar only shrinks its tabs when they do not fit, which
+	/// three short labels across three quarters of the window do not need. Nothing is measured when no
+	/// probe is listening, which is every run that is not a test.
+	/// </remarks>
+	private void MarkMainTabs()
+	{
+		if (!ImGuiProbes.IsRecording)
+		{
+			return;
+		}
+
+		ImGuiStylePtr style = ImGui.GetStyle();
+		Vector2 tabMin = ImGui.GetCursorScreenPos();
+		float tabHeight = ImGui.GetFrameHeight();
+
+		foreach (ImGuiWidgets.Tab tab in MainTabs.Tabs.Where(tab => tab.IsVisible))
+		{
+			float tabWidth = ImGui.CalcTextSize(tab.Label).X + (style.FramePadding.X * 2f) + 1f;
+			ImGuiProbes.MarkRegion($"main-tab/{mainTabNames[tab.Id]}", tabMin, tabMin + new Vector2(tabWidth, tabHeight));
+			tabMin.X += tabWidth + style.ItemInnerSpacing.X;
+		}
 	}
 
 	private void ShowEditorPanel()

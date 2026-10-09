@@ -75,9 +75,8 @@ public partial class SchemaEditor
 	/// Draws the issue list behind the diagnostics tab.
 	/// </summary>
 	/// <remarks>
-	/// Internal so a test can draw it directly. The tab bar hosting it comes from a widget library
-	/// that neither records its tabs for a probe nor takes a selection from outside, so there is no
-	/// tab for a test to click; drawing the panel is what the tab delegate does either way.
+	/// Internal so a test can draw it directly, which is what the tab delegate does either way and
+	/// is quicker than reaching it through the tab, recorded by <see cref="MarkMainTabs"/>.
 	/// </remarks>
 	internal void ShowDiagnosticsPanel()
 	{
