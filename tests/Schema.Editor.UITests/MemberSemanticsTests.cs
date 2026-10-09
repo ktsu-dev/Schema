@@ -59,15 +59,17 @@ public sealed class MemberSemanticsTests
 	/// <remarks>
 	/// The registry holds close to two hundred units and the popup draws all of them, so a unit
 	/// past the first screenful is recorded at a position outside the popup and cannot be clicked.
-	/// Typing into the search box is what a person does too, and the selection is confirmed rather
-	/// than applied by the click that makes it.
+	/// Typing into the search box is what a person does too. Picking an entry is the choice: the
+	/// popup confirms and closes on that click, so there is no OK to press afterwards. That was
+	/// always the popup's behaviour, but before ktsu.ImGui.Popups re-ranked the list as the term
+	/// was typed the click missed the entry, and an OK confirming the best match is what passed.
 	/// </remarks>
 	private void ChooseUnit(string search, string option)
 	{
 		harness.Click("memberSpeed/Unit");
 		harness.TypeInto("searchable-list/search", search);
 		harness.Click($"searchable-list/{option}");
-		harness.Click("searchable-list/ok");
+		harness.StepUntil(() => !harness.IsOnScreen("searchable-list/search"), "the unit picker closing once a unit was picked");
 	}
 
 	[TestMethod]
