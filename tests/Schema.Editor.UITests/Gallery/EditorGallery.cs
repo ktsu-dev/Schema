@@ -35,7 +35,7 @@ public sealed class EditorGallery
 	internal static readonly HarnessOptions Display = new() { Width = 1440, Height = 900 };
 
 	private static readonly Lazy<string> TemporaryOutput = new(() =>
-		Path.Combine(Path.GetTempPath(), $"schema-gallery-{Guid.NewGuid():N}"));
+		Path.Join(Path.GetTempPath(), $"schema-gallery-{Guid.NewGuid():N}"));
 
 	/// <summary>Gets or sets the context the runner reports through.</summary>
 	public TestContext TestContext { get; set; } = null!;
@@ -81,7 +81,7 @@ public sealed class EditorGallery
 			Bitmap32 picture = Crop(frame, region);
 
 			Directory.CreateDirectory(OutputDirectory);
-			string path = Path.Combine(OutputDirectory, entry.Slug + ".png");
+			string path = Path.Join(OutputDirectory, entry.Slug + ".png");
 			picture.SavePng(path);
 			TestContext.WriteLine($"Wrote {path} ({picture.Width}x{picture.Height}).");
 		}
@@ -98,7 +98,7 @@ public sealed class EditorGallery
 		Assert.HasCount(slugs.Length, slugs.Distinct(StringComparer.Ordinal), "Two gallery entries would write the same file.");
 
 		Directory.CreateDirectory(OutputDirectory);
-		File.WriteAllText(Path.Combine(OutputDirectory, "README.md"), GalleryIndex.Render(GalleryCatalog.Entries));
+		File.WriteAllText(Path.Join(OutputDirectory, "README.md"), GalleryIndex.Render(GalleryCatalog.Entries));
 	}
 
 	/// <summary>Copies a rectangle out of a frame, clamped to its edges.</summary>
