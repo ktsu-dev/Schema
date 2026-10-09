@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ktsu.DeepClone" />
     <PackageReference Update="Microsoft.Testing.Extensions.CodeCoverage">
       <VersionOverride>18.8.0</VersionOverride>
     </PackageReference>
