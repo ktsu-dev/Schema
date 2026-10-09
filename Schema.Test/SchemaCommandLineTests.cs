@@ -312,6 +312,34 @@ public class SchemaCommandLineTests
 	}
 
 	[TestMethod]
+	[DataRow("--generator")]
+	[DataRow("--generator=")]
+	[DataRow("--generator", "--verbose")]
+	public void TestGeneratorOptionWithoutANameFailsAndWritesNothing(params string[] option)
+	{
+		string path = WriteSchema("noname.schema.json", ValidSchema);
+		Result result = Run(["generate", path, .. option]);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Error.Contains("'--generator' needs a code generator name", StringComparison.Ordinal), result.Error);
+		Assert.IsFalse(Directory.Exists(Path.Combine(workingDirectory, "out")), "Nothing should have been written.");
+	}
+
+	[TestMethod]
+	public void TestGeneratorOptionAcceptsTheEqualsForm()
+	{
+		string path = WriteSchema("equals.schema.json", ValidSchema);
+
+		Result matched = Run("generate", path, "--generator=CSharp");
+		Assert.AreEqual(SchemaCommandLine.Success, matched.ExitCode, matched.Error);
+		Assert.IsTrue(File.Exists(Path.Combine(workingDirectory, "out", "Item.g.cs")), matched.Output);
+
+		Result unmatched = Run("generate", path, "--generator=Cpp");
+		Assert.AreEqual(SchemaCommandLine.Failure, unmatched.ExitCode);
+		Assert.IsTrue(unmatched.Error.Contains("no code generator named 'Cpp'", StringComparison.Ordinal), unmatched.Error);
+	}
+
+	[TestMethod]
 	public void TestOptionsDoNotGetMistakenForTheSchemaPath()
 	{
 		// The path is the first argument that is not an option, whatever order they arrive in.
