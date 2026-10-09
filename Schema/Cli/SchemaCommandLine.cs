@@ -105,12 +105,14 @@ public static class SchemaCommandLine
 
 	private static int Generate(string[] args, TextWriter output, TextWriter error)
 	{
-		if (!TryLoad(args, error, out Models.Schema? schema, out string? schemaPath))
+		// Read the filter before anything is loaded or written: a filter that cannot be read must
+		// fail the command, never fall back to running every generator.
+		if (!TryGetGeneratorFilter(args, error, out string? only)
+			|| !TryLoad(args, error, out Models.Schema? schema, out string? schemaPath))
 		{
 			return Failure;
 		}
 
-		string? only = GetOption(args, GeneratorOption);
 		List<SchemaCodeGenerator> generators = [.. schema.CodeGenerators
 			.Where(g => only is null || string.Equals(g.Name, only, StringComparison.OrdinalIgnoreCase))];
 
@@ -230,9 +232,47 @@ public static class SchemaCommandLine
 	private static bool TakesAValue(string option) =>
 		string.Equals(option, GeneratorOption, StringComparison.OrdinalIgnoreCase);
 
-	private static string? GetOption(string[] args, string name)
+	/// <summary>
+	/// Reads the <c>--generator</c> filter, written either as <c>--generator Name</c> or
+	/// <c>--generator=Name</c>.
+	/// </summary>
+	/// <returns>
+	/// <see langword="false"/> when the option is present without a name. <paramref name="name"/> is
+	/// <see langword="null"/> only when the option is absent, which is the one case that means every
+	/// generator.
+	/// </returns>
+	private static bool TryGetGeneratorFilter(string[] args, TextWriter error, out string? name)
 	{
-		int index = Array.FindIndex(args, a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
-		return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+		name = null;
+		string prefix = GeneratorOption + "=";
+
+		for (int index = 0; index < args.Length; index++)
+		{
+			string argument = args[index];
+			if (string.Equals(argument, GeneratorOption, StringComparison.OrdinalIgnoreCase))
+			{
+				// A following option is not a name: "--generator --verbose" lost its value.
+				name = index + 1 < args.Length && !args[index + 1].StartsWith('-') ? args[index + 1] : null;
+			}
+			else if (argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+			{
+				name = argument[prefix.Length..];
+			}
+			else
+			{
+				continue;
+			}
+
+			if (string.IsNullOrWhiteSpace(name))
+			{
+				error.WriteLine($"'{GeneratorOption}' needs a code generator name.");
+				name = null;
+				return false;
+			}
+
+			return true;
+		}
+
+		return true;
 	}
 }
