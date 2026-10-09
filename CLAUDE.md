@@ -548,10 +548,21 @@ The names are qualified by the ImGui window and any pushed scope, and a test mat
 part: `menu/New`, `field/ClassNameUser`, `memberId/Delete`, `diagnostic/Error:Users`. Rows that share
 a label push a probe scope alongside `ImGui.PushID`, so two members' fields do not collide.
 
-One thing has no name to click: the right-hand tab bar comes from a widget library that neither
-records its tabs nor takes a selection from outside. A panel behind it - the class graph, the
-diagnostics list - is tested by drawing it directly in a `WidgetHarness`, which is what the tab's
-own delegate does.
+The right-hand tab bar comes from a widget library that neither records its tabs nor takes a
+selection from outside, so the editor measures them itself: `MarkMainTabs` records each one as
+`main-tab/<name>`, sized the way Dear ImGui sizes a tab, and only when a probe is listening. That is
+what lets the gallery reach the class graph and the diagnostics list by clicking. The tests of those
+panels predate it and draw them directly in a `WidgetHarness`, which is what the tab's own delegate
+does; that is still the quicker route to a panel's behaviour.
+
+### The gallery
+
+`tests/Schema.Editor.UITests/Gallery` stages the editor over a sample schema and photographs it.
+The scenarios are ordinary tests, so a pull request proves every picture can still be staged; they
+write to a temporary directory unless `SCHEMA_GALLERY_OUT` names one. `editor-gallery.yml` runs them
+into `docs/gallery` after CI passes on `main` and commits the result, so neither the pictures nor
+their `README.md` are written by hand. A picture has to come out byte-identical run to run: no
+clock, no machine path (the sample schema's path is made up), nothing random.
 
 ### What a Linux-only suite stops seeing
 

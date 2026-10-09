@@ -18,10 +18,10 @@ using SchemaTypes = ktsu.Schema.Models.Types;
 /// The class graph, which draws the schema's classes and the references between them.
 /// </summary>
 /// <remarks>
-/// Driven through <see cref="WidgetHarness"/> rather than through the editor, because the graph
-/// lives behind a tab and the tab bar comes from a widget library that does not record its tabs -
-/// so there is no name for a test to click. Drawing the view directly reaches the same code, and
-/// is the same thing the editor's tab delegate does.
+/// Driven through <see cref="WidgetHarness"/> rather than through the editor. The graph lives
+/// behind a tab, which the editor records as <c>main-tab/Class Graph</c> and the gallery clicks,
+/// but drawing the view directly reaches the same code with nothing else on screen, and is the same
+/// thing the editor's tab delegate does.
 /// </remarks>
 [TestClass]
 public sealed class ClassGraphTests

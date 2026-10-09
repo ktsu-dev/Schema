@@ -4,6 +4,8 @@
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
+    <!-- The gallery adds ImGuiApp's font through FontHelper, which takes a glyph range pointer. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
