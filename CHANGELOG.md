@@ -1,3 +1,35 @@
+## v1.37.0 (minor)
+
+Changes since v1.36.0:
+
+- Use Path.Join for the gallery's output paths ([@Claude](https://github.com/Claude))
+- Add a headless gallery of the Schema editor ([@Claude](https://github.com/Claude))
+- Stop pressing OK after picking a unit in the semantics tests ([@Claude](https://github.com/Claude))
+- Stop pressing OK after picking a unit in the semantics tests ([@Claude](https://github.com/Claude))
+- Fail generate when --generator has no name, and accept --generator=Name [patch] ([@Claude](https://github.com/Claude))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@Claude](https://github.com/Claude))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@Claude](https://github.com/Claude))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update the quantity vocabulary count to 220 for ktsu.Semantics.Quantities ([@matt-edmondson](https://github.com/matt-edmondson))
+- Merge main into dependabot/nuget/ktsu-d4dd856f99 ([@Claude](https://github.com/Claude))
+- Merge main into dependabot/nuget/ktsu-cc4bb25e5b ([@Claude](https://github.com/Claude))
+- Use collection expressions where IDE0305 asks for them ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into dependabot/nuget/MSTest.Sdk-4.4.1 ([@Claude](https://github.com/Claude))
+- Replace ktsu.Keybinding.Core with its successor ktsu.Keybinding ([@Claude](https://github.com/Claude))
+- Replace ktsu.Keybinding.Core with its successor ktsu.Keybinding ([@Claude](https://github.com/Claude))
+- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into fix/217-quote-control-characters ([@Claude](https://github.com/Claude))
+- Give semantic, vector and colour members their default in generated C# [patch] ([@Claude](https://github.com/Claude))
+- Escape control characters in generated C# string literals [patch] ([@Claude](https://github.com/Claude))
+- Reject Long defaults outside the 64-bit range [patch] ([@Claude](https://github.com/Claude))
+- Dispatch editor shortcuts through ktsu.Keybinding.Core [patch] ([@Claude](https://github.com/Claude))
+- Keep taking the anchor from the string, not AbsoluteDirectoryPath [patch] ([@Claude](https://github.com/Claude))
+- Resolve a schema's relative paths through Semantics.Paths [patch] ([@Claude](https://github.com/Claude))
+- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
+- Include the error enum in a header that names it [patch] ([@Claude](https://github.com/Claude))
+
 ## v1.36.12 (patch)
 
 Changes since v1.36.11:
