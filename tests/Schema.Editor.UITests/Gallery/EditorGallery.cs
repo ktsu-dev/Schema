@@ -31,8 +31,18 @@ public sealed class EditorGallery
 	/// <summary>The environment variable naming the directory the gallery is written to.</summary>
 	internal const string OutputVariable = "SCHEMA_GALLERY_OUT";
 
-	/// <summary>The display the gallery is drawn at: larger than a test's, so the panels have room.</summary>
-	internal static readonly HarnessOptions Display = new() { Width = 1440, Height = 900 };
+	/// <summary>
+	/// The display the gallery is drawn at: larger than a test's, so the panels have room, and no
+	/// taller than the sample schema's tree, so a picture is of the editor rather than of the empty
+	/// space under it.
+	/// </summary>
+	internal static readonly HarnessOptions Display = new() { Width = 1480, Height = 620 };
+
+	/// <summary>
+	/// The share of the window the schema tree is given in the gallery: enough that the tree's
+	/// tab labels, Code Generators included, are drawn whole rather than elided.
+	/// </summary>
+	private const float LeftPaneShare = 0.27f;
 
 	private static readonly Lazy<string> TemporaryOutput = new(() =>
 		Path.Join(Path.GetTempPath(), $"schema-gallery-{Guid.NewGuid():N}"));
@@ -66,10 +76,11 @@ public sealed class EditorGallery
 		GalleryEntry entry = GalleryCatalog.Entries.Single(candidate => candidate.Name == name);
 
 		EditField.Reset();
-		using EditorHarness harness = EditorHarness.Start(Display);
+		using EditorHarness harness = EditorHarness.Start(entry.Display ?? Display);
 		try
 		{
 			Assert.IsTrue(GalleryFonts.Load(), "ImGuiApp's own font could not be found, so the pictures would not look like the editor.");
+			harness.Editor.DividerContainerCols.SetSizesFromList([LeftPaneShare, 1f - LeftPaneShare]);
 			harness.App.Mouse.MoveTo(-100f, -100f);
 			harness.App.Step(2);
 

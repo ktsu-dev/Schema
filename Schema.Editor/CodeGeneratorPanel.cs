@@ -134,7 +134,7 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 	{
 		if (!schema.CanResolvePaths)
 		{
-			using (EditorTheme.Warning())
+			using (EditorTheme.SeverityText(SchemaValidationSeverity.Warning))
 			{
 				ImGui.TextUnformatted("Save the schema before generating: output paths are relative to it.");
 			}
