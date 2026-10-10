@@ -235,6 +235,8 @@ Use `SchemaSerializer` for JSON serialization with `System.Text.Json`. The seria
 The **Schema.Editor** is an ImGui-based desktop application for visually creating and editing `.schema.json` files.
 The [editor gallery](docs/gallery/README.md) shows what it looks like, regenerated from `main` on every build.
 
+[![The member grid with a member's unit, range, default and interpolation open](docs/gallery/member-metadata.png)](docs/gallery/README.md)
+
 ### Running the Editor
 
 ```shell

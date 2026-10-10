@@ -94,7 +94,7 @@ internal sealed class Popups
 		{
 			List<IUnit> choices = [.. units];
 			IUnit? selected = UnitRegistry.TryResolve(current, out IUnit? resolved, out _) ? resolved : null;
-			PopupUnitList.Open(title, label, choices, selected, unit => $"{unit.Name} ({unit.Symbol})", onConfirm!);
+			PopupUnitList.Open(title, label, choices, selected, unit => UnitText.ForDisplay($"{unit.Name} ({unit.Symbol})"), onConfirm!);
 		});
 
 	internal void Update()

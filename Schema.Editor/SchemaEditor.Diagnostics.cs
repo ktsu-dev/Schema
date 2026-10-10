@@ -110,7 +110,7 @@ public partial class SchemaEditor
 	{
 		bool isError = issue.Severity == SchemaValidationSeverity.Error;
 
-		using (EditorTheme.Severity(issue.Severity))
+		using (EditorTheme.SeverityText(issue.Severity))
 		{
 			ImGui.TextUnformatted(isError ? "Error" : "Warning");
 		}

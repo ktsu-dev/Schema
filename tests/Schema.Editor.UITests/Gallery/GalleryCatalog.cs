@@ -28,11 +28,14 @@ internal static class GalleryCatalog
 			"The editor opens on whatever was open last, or on nothing. The File menu creates, opens and saves `.schema.json` files and keeps the recent ones to hand.",
 			harness =>
 			{
+				// Open Recent is disabled until something has been opened, so the picture starts
+				// from an editor that has been used rather than one just installed.
+				harness.Editor.Options.RecordRecentFile(GallerySchema.Path);
 				harness.OpenMenu("File");
 				Park(harness);
 			})
 		{
-			Crop = _ => new Rectangle(0, 0, 720, 450),
+			Crop = _ => new Rectangle(0, 0, 560, 200),
 		},
 		new(
 			"Editing a class",
@@ -126,7 +129,11 @@ internal static class GalleryCatalog
 				harness.StepUntil(() => harness.IsOnScreen("theme-card/Dracula"), "the theme browser opening");
 				harness.App.Step(3);
 				Park(harness);
-			}),
+			})
+		{
+			// The browser is a fixed size, taller than the editor's own pictures.
+			Display = new() { Width = 1480, Height = 800 },
+		},
 	];
 
 	/// <summary>Opens the sample schema with its main class selected, as a user would find it.</summary>

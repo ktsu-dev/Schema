@@ -114,13 +114,13 @@ internal sealed class MemberSemanticsPanel(SchemaEditor schemaEditor)
 	{
 		ShowMetadataLabel("Unit:");
 
-		bool clicked = ImGui.Button(member.Unit is null ? SchemaEditor.NoneOption : member.Unit.ToString(), new Vector2(FieldWidth, 0));
+		bool clicked = ImGui.Button(member.Unit is null ? SchemaEditor.NoneOption : UnitText.ForDisplay(member.Unit), new Vector2(FieldWidth, 0));
 		ImGuiProbes.MarkItem("Unit");
 
 		if (member.Unit is not null && ImGui.IsItemHovered())
 		{
 			ImGui.SetTooltip(UnitRegistry.TryResolve(member.Unit, out IUnit? resolved, out string error)
-				? $"{resolved!.Name} ({resolved.Symbol})"
+				? UnitText.ForDisplay($"{resolved!.Name} ({resolved.Symbol})")
 				: error);
 		}
 

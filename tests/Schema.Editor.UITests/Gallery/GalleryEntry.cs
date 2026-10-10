@@ -24,6 +24,11 @@ internal sealed record GalleryEntry(string Name, string Description, Action<Edit
 	/// </summary>
 	public Func<EditorHarness, Rectangle?>? Crop { get; init; }
 
+	/// <summary>
+	/// Gets the display this picture is drawn at, or null for <see cref="EditorGallery.Display"/>.
+	/// </summary>
+	public HarnessOptions? Display { get; init; }
+
 	/// <summary>Gets the file name the picture is written under, without its extension.</summary>
 	public string Slug => MakeSlug(Name);
 

@@ -37,7 +37,7 @@ public partial class SchemaEditor
 #pragma warning disable IDE0052 // Remove unread private member - reference needed to prevent GC
 	private readonly IntervalAction? autoSaveOptionsAction;
 #pragma warning restore IDE0052
-	private ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
+	internal ImGuiWidgets.DividerContainer DividerContainerCols { get; init; }
 
 	internal IUndoRedoService UndoRedo { get; }
 
