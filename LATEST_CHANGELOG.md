@@ -1,8 +1,6 @@
-## v1.38.1-pre.2 (prerelease)
+## v1.38.1 (patch)
 
-Changes since v1.38.1-pre.1:
+Changes since v1.38.0:
 
-- Bump the system group with 1 update (dependabot[bot])
-- Bump the microsoft group with 2 updates (dependabot[bot])
-- Bump the ktsu group with 12 updates (dependabot[bot])
+- Merge remote-tracking branch 'origin/main' into dependabot/nuget/Polyfill-11.4.5 (matt-edmondson)
 
