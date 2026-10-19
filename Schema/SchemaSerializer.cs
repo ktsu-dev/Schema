@@ -18,6 +18,11 @@ public static class SchemaSerializer
 		WriteIndented = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+
+		// A type's "TypeName" and a default's "DefaultKind" are ordinary properties to anyone
+		// editing a file by hand, and JSON objects are unordered. Without this, a discriminator
+		// that is not the first property threw NotSupportedException out of Load.
+		AllowOutOfOrderMetadataProperties = true,
 		Converters = { new RoundTripStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
@@ -220,6 +225,18 @@ public static class SchemaSerializer
 				Status = SchemaLoadStatus.InvalidJson,
 				FileFormatVersion = declaredVersion,
 				Message = $"The schema is not valid JSON: {ex.Message}",
+			};
+		}
+		catch (NotSupportedException ex)
+		{
+			// The serializer reports a shape it cannot construct - a polymorphic object with no
+			// discriminator, or one it does not recognise - as NotSupportedException rather than
+			// JsonException. The file is no less unreadable for that, and Load promises a result.
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema could not be read: {ex.Message}",
 			};
 		}
 	}

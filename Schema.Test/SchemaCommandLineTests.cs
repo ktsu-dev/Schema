@@ -200,6 +200,19 @@ public class SchemaCommandLineTests
 	}
 
 	[TestMethod]
+	public void TestASchemaWithATypeMissingItsDiscriminatorIsAFailure()
+	{
+		string path = WriteSchema("no-discriminator.schema.json", ValidSchema.Replace(
+			"{ \"TypeName\": \"String\" }",
+			"{ \"typeName\": \"String\" }",
+			StringComparison.Ordinal));
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
 	public void TestSchemaFromANewerVersionSaysSoRatherThanCallingItCorrupt()
 	{
 		string path = WriteSchema("future.schema.json", ValidSchema.Replace(

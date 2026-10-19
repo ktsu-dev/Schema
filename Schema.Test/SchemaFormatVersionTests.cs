@@ -238,4 +238,61 @@ public class SchemaFormatVersionTests
 			Assert.IsTrue(result.IsSuccess, $"{file}: {result.Message}");
 		}
 	}
+
+	/// <summary>
+	/// A type discriminator written after the type's other properties still loads.
+	/// </summary>
+	[TestMethod]
+	public void TestADiscriminatorThatIsNotFirstStillLoads()
+	{
+		const string json = """
+			{
+			  "classes": [
+			    {
+			      "name": "Body",
+			      "description": "",
+			      "members": [
+			        {
+			          "name": "mass",
+			          "description": "",
+			          "type": { "storage": { "TypeName": "Double" }, "quantityName": "Mass", "TypeName": "Quantity" },
+			          "defaultValue": { "value": 1.0, "DefaultKind": "NumberDefault" }
+			        }
+			      ]
+			    }
+			  ]
+			}
+			""";
+
+		SchemaLoadResult result = SchemaSerializer.Load(json);
+
+		Assert.AreEqual(SchemaLoadStatus.Success, result.Status, result.Message);
+		SchemaMember? member = result.Schema!.GetClass("Body".As<ClassName>())?.Members[0];
+		Assert.IsNotNull(member);
+		Assert.IsInstanceOfType<SchemaTypes.Quantity>(member.Type);
+		Assert.IsNotNull(member.DefaultValue);
+	}
+
+	/// <summary>
+	/// A type with no discriminator the serializer recognises is a failed load rather than an exception.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""{ "typeName": "Int" }""", DisplayName = "Discriminator in camelCase")]
+	[DataRow("""{}""", DisplayName = "No discriminator")]
+	public void TestATypeWithNoRecognisedDiscriminatorIsReportedAsInvalid(string type)
+	{
+		string json = $$"""
+			{
+			  "classes": [
+			    { "name": "User", "description": "", "members": [ { "name": "Name", "description": "", "type": {{type}} } ] }
+			  ]
+			}
+			""";
+
+		SchemaLoadResult result = SchemaSerializer.Load(json);
+
+		Assert.AreEqual(SchemaLoadStatus.InvalidJson, result.Status, result.Message);
+		Assert.IsNull(result.Schema);
+		Assert.IsFalse(string.IsNullOrWhiteSpace(result.Message));
+	}
 }
