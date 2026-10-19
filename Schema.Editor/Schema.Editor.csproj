@@ -26,7 +26,7 @@
     <PackageReference Include="ktsu.Semantics.Quantities" />
     <PackageReference Include="ktsu.ThemeProvider" />
     <PackageReference Include="ktsu.Semantics.Strings" />
-    <PackageReference Include="ktsu.UndoRedo.Core" />
+    <PackageReference Include="ktsu.UndoRedo" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" />
     <PackageReference Include="Microsoft.SourceLink.AzureRepos.Git" />
     <PackageReference Include="Polyfill" PrivateAssets="all" />
