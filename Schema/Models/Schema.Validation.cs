@@ -116,6 +116,100 @@ public partial class Schema
 				ValidateTravelsAsBytes(issues, schemaClass, member, memberPath);
 			}
 		}
+
+		ValidateContainmentCycles(issues);
+	}
+
+	/// <summary>
+	/// Reports every class that holds itself by value, directly or through other classes.
+	/// </summary>
+	/// <remarks>
+	/// A class that contains itself has no finite size. Generated C# either constructs one member
+	/// inside the next until the stack overflows, which no handler can catch, or fails CS0523 when
+	/// the classes are structs; generated C++ declares a field of an incomplete type. So the
+	/// schema is refused here rather than at whichever compiler or process meets it first.
+	/// <para>
+	/// The walk passes through an <see cref="Optional"/> and a <see cref="Result"/>, which hold
+	/// what they wrap inline, and stops at an <see cref="Array"/>, a <see cref="Handle"/> and an
+	/// <see cref="Interface"/>, each of which reaches its element by indirection and is how a
+	/// cycle is meant to be written. Each class is explored once and the classes on the current
+	/// path are tracked, so a cycle is one reported issue at the member that closes it, and
+	/// validating it cannot hang.
+	/// </para>
+	/// </remarks>
+	private void ValidateContainmentCycles(Collection<SchemaValidationIssue> issues)
+	{
+		HashSet<SchemaClass> explored = [];
+		List<(SchemaClass Class, SchemaMember Member)> path = [];
+
+		foreach (SchemaClass schemaClass in ClassesInternal)
+		{
+			FindContainmentCycles(issues, schemaClass, explored, path);
+		}
+	}
+
+	private void FindContainmentCycles(Collection<SchemaValidationIssue> issues, SchemaClass schemaClass, HashSet<SchemaClass> explored, List<(SchemaClass Class, SchemaMember Member)> path)
+	{
+		if (!explored.Add(schemaClass))
+		{
+			return;
+		}
+
+		foreach (SchemaMember member in schemaClass.Members)
+		{
+			foreach (SchemaClass held in ClassesHeldByValue(member.Type))
+			{
+				path.Add((schemaClass, member));
+
+				int start = path.FindIndex(step => ReferenceEquals(step.Class, held));
+				if (start >= 0)
+				{
+					ReportContainmentCycle(issues, [.. path.Skip(start)], held);
+				}
+				else
+				{
+					FindContainmentCycles(issues, held, explored, path);
+				}
+
+				path.RemoveAt(path.Count - 1);
+			}
+		}
+	}
+
+	private static void ReportContainmentCycle(Collection<SchemaValidationIssue> issues, List<(SchemaClass Class, SchemaMember Member)> cycle, SchemaClass closedOn)
+	{
+		(SchemaClass closingClass, SchemaMember closingMember) = cycle[^1];
+		string route = string.Join(" → ", cycle.Select(step => $"{step.Class.Name}.{step.Member.Name}"));
+		Report(
+			issues,
+			$"{PathSegment(closingClass.Name)}.{PathSegment(closingMember.Name)}",
+			closingMember,
+			$"Class '{closedOn.Name}' holds itself by value ({route} → {closedOn.Name}), so it has no finite size. Hold one of these through an Array or a Handle instead.");
+	}
+
+	/// <summary>
+	/// The classes a member's type contains inline, looking through the wrappers that hold what
+	/// they wrap in place.
+	/// </summary>
+	private IEnumerable<SchemaClass> ClassesHeldByValue(BaseType type)
+	{
+		switch (type)
+		{
+			case Types.Object objectType when TryGetClass(objectType.ClassName, out SchemaClass? held) && held is not null:
+				yield return held;
+				break;
+
+			case Optional or Result:
+				foreach (SchemaClass held in ClassesHeldByValue(((WrapperType)type).ElementType))
+				{
+					yield return held;
+				}
+
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	/// <summary>
