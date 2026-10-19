@@ -62,6 +62,12 @@ public static class CppGeneratorOptionsFile
 		ReadCommentHandling = JsonCommentHandling.Skip,
 		AllowTrailingCommas = true,
 		UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+
+		// A JSON null in a property the options declare non-nullable would otherwise be written
+		// straight in, and fail later as a NullReferenceException with nothing pointing at the file.
+		// This covers properties and constructor parameters; dictionary values are checked in
+		// IsSpelled, because the serializer does not apply annotations to a type argument.
+		RespectNullableAnnotations = true,
 		Converters = { new JsonStringEnumConverter() },
 	};
 
@@ -130,9 +136,9 @@ public static class CppGeneratorOptionsFile
 			}
 		}
 
-		foreach ((string schemaName, CppTypeSpelling spelling) in options.ExistingTypes)
+		foreach ((string schemaName, CppTypeSpelling? spelling) in options.ExistingTypes)
 		{
-			if (string.IsNullOrWhiteSpace(spelling.Name))
+			if (spelling is null || string.IsNullOrWhiteSpace(spelling.Name))
 			{
 				message = $"'existingTypes.{schemaName}' has no name.";
 				return false;

@@ -149,6 +149,44 @@ public sealed class CppGeneratorOptionsFileTests
 	}
 
 	/// <summary>
+	/// A null in place of the whole table is refused by name rather than escaping as a
+	/// NullReferenceException.
+	/// </summary>
+	[TestMethod]
+	public void RefusesANullExistingTypesTable()
+	{
+		const string json = """{ "existingTypes": null }""";
+
+		Assert.IsFalse(CppGeneratorOptionsFile.TryParse(json, out CppGeneratorOptions? _, out string? message));
+		Assert.Contains("existingTypes", message, StringComparison.Ordinal);
+	}
+
+	/// <summary>The same, for one entry in the table.</summary>
+	[TestMethod]
+	public void RefusesANullExistingType()
+	{
+		const string json = """{ "existingTypes": { "Kilograms": null } }""";
+
+		Assert.IsFalse(CppGeneratorOptionsFile.TryParse(json, out CppGeneratorOptions? _, out string? message));
+		Assert.Contains("existingTypes.Kilograms", message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// A null anywhere else the options need a value is refused too, so no other key reaches the
+	/// generator as a null it was never written to expect.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""{ "generatedBy": null }""", "generatedBy")]
+	[DataRow("""{ "headerExtension": null }""", "headerExtension")]
+	[DataRow("""{ "vector3": { "name": "holo::Vec3", "include": null } }""", "include")]
+	[DataRow("""{ "quantities": { "namespace": "holo", "include": "q.hpp", "storage": null } }""", "storage")]
+	public void RefusesANullWhereAValueIsNeeded(string json, string key)
+	{
+		Assert.IsFalse(CppGeneratorOptionsFile.TryParse(json, out CppGeneratorOptions? _, out string? message));
+		Assert.Contains(key, message, StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
 	/// Malformed JSON reports where it went wrong, which is the whole of what makes a message about
 	/// a hand-written file useful.
 	/// </summary>
