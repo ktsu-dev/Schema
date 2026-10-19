@@ -72,6 +72,72 @@ public sealed class SchemaFileTests
 		Assert.IsTrue(File.Exists(path));
 	}
 
+	/// <summary>
+	/// A write that fails partway leaves the previous save as it was. Writing straight over the target
+	/// truncated it first, so a full disk or a dropped share destroyed the only saved copy.
+	/// </summary>
+	[TestMethod]
+	public void AFailedWriteLeavesThePreviousSaveIntact()
+	{
+		AbsoluteFilePath path = ScratchFile("kept.schema.json");
+		Schema original = new();
+		original.AddClass("User".As<ClassName>());
+		Assert.IsTrue(SchemaFile.TrySave(original, path));
+		byte[] before = File.ReadAllBytes(path);
+
+		Schema edited = new();
+		edited.AddClass("Order".As<ClassName>());
+		bool saved = SchemaFile.TrySave(edited, path, static (target, content) =>
+		{
+			File.WriteAllText(target, content[..(content.Length / 2)]);
+			throw new IOException("The disk is full.");
+		});
+
+		Assert.IsFalse(saved);
+		Assert.AreSequenceEqual(before, File.ReadAllBytes(path));
+	}
+
+	/// <summary>
+	/// The temporary file a failed save wrote into is removed, so failures do not litter the folder
+	/// the schema lives in.
+	/// </summary>
+	[TestMethod]
+	public void AFailedWriteLeavesNoTemporaryFileBehind()
+	{
+		AbsoluteFilePath path = ScratchFile("tidy.schema.json");
+
+		bool saved = SchemaFile.TrySave(new Schema(), path, static (target, content) =>
+		{
+			File.WriteAllText(target, content);
+			throw new IOException("The share went away.");
+		});
+
+		Assert.IsFalse(saved);
+		Assert.HasCount(0, Directory.GetFiles(scratchDirectory));
+	}
+
+	/// <summary>
+	/// Saving over an existing file replaces its content and leaves only that file in the folder.
+	/// </summary>
+	[TestMethod]
+	public void SavingOverAnExistingFileReplacesIt()
+	{
+		AbsoluteFilePath path = ScratchFile("replaced.schema.json");
+		Schema first = new();
+		first.AddClass("User".As<ClassName>());
+		Schema second = new();
+		second.AddClass("Order".As<ClassName>());
+
+		Assert.IsTrue(SchemaFile.TrySave(first, path));
+		Assert.IsTrue(SchemaFile.TrySave(second, path));
+		Assert.IsTrue(SchemaFile.TryLoad(path, out Schema? loaded));
+
+		Assert.IsNotNull(loaded);
+		Assert.IsNotNull(loaded.GetClass("Order".As<ClassName>()));
+		Assert.IsNull(loaded.GetClass("User".As<ClassName>()));
+		Assert.HasCount(1, Directory.GetFiles(scratchDirectory));
+	}
+
 	[TestMethod]
 	public void SavingWithNoPathFails() =>
 		Assert.IsFalse(SchemaFile.TrySave(new Schema(), new AbsoluteFilePath()));
