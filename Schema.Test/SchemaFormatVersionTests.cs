@@ -165,4 +165,77 @@ public class SchemaFormatVersionTests
 			Assert.IsTrue(json.Contains($"\"{property}\"", StringComparison.Ordinal), $"Root property '{property}' is missing from {json}");
 		}
 	}
+
+	/// <summary>
+	/// A file whose root the model does not read is refused rather than loaded as an empty schema.
+	/// </summary>
+	/// <remarks>
+	/// Loading the legacy files reported "Migrated from format version 0" with nothing in the
+	/// schema, so validation passed and saving from the editor replaced the file with an empty one.
+	/// </remarks>
+	[TestMethod]
+	public void TestALegacyFileIsRefusedRatherThanLoadedEmpty()
+	{
+		string path = Path.Join(LegacySchemaMigrationTests.SamplesDirectory, "legacy", "dungeoneer", "weapon.schema.json");
+
+		SchemaLoadResult result = SchemaSerializer.Load(File.ReadAllText(path));
+
+		Assert.AreEqual(SchemaLoadStatus.InvalidJson, result.Status, result.Message);
+		Assert.IsNull(result.Schema);
+		Assert.Contains("'Classes'", result.Message);
+		Assert.Contains("'classes'", result.Message);
+	}
+
+	/// <summary>
+	/// No committed legacy file loads as a success, so none of them can be mistaken for an empty schema.
+	/// </summary>
+	[TestMethod]
+	public void TestNoLegacyFileLoads()
+	{
+		string[] files = Directory.GetFiles(Path.Join(LegacySchemaMigrationTests.SamplesDirectory, "legacy"), "*.schema.json", SearchOption.AllDirectories);
+		Assert.IsNotEmpty(files);
+
+		foreach (string file in files)
+		{
+			Assert.IsFalse(SchemaSerializer.Load(File.ReadAllText(file)).IsSuccess, file);
+		}
+	}
+
+	/// <summary>
+	/// A root property with no camelCase counterpart is named without a casing hint.
+	/// </summary>
+	[TestMethod]
+	public void TestAnUnknownRootPropertyIsNamed()
+	{
+		SchemaLoadResult result = SchemaSerializer.Load("""{ "formatVersion": 1, "widgets": [] }""");
+
+		Assert.AreEqual(SchemaLoadStatus.InvalidJson, result.Status);
+		Assert.Contains("'widgets'", result.Message);
+		Assert.DoesNotContain("camelCase", result.Message);
+	}
+
+	/// <summary>
+	/// A file from a newer version is still told apart from one this build cannot read, even when
+	/// the newer version added a root property this build has never heard of.
+	/// </summary>
+	[TestMethod]
+	public void TestAFutureFileWithANewRootPropertyIsStillReportedAsFuture()
+	{
+		SchemaLoadResult result = SchemaSerializer.Load($$"""{ "formatVersion": {{Schema.CurrentFormatVersion + 1}}, "somethingNew": [] }""");
+
+		Assert.AreEqual(SchemaLoadStatus.UnsupportedFutureVersion, result.Status);
+	}
+
+	/// <summary>
+	/// Every committed modern sample still loads, so the root check refuses nothing the format allows.
+	/// </summary>
+	[TestMethod]
+	public void TestEveryModernSampleStillLoads()
+	{
+		foreach (string file in Directory.GetFiles(LegacySchemaMigrationTests.SamplesDirectory, "*.schema.json"))
+		{
+			SchemaLoadResult result = SchemaSerializer.Load(File.ReadAllText(file));
+			Assert.IsTrue(result.IsSuccess, $"{file}: {result.Message}");
+		}
+	}
 }

@@ -176,6 +176,17 @@ public static class SchemaSerializer
 			};
 		}
 
+		string? unrecognised = FindUnrecognisedRootProperty(json);
+		if (unrecognised is not null)
+		{
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = DescribeUnrecognisedRootProperty(unrecognised),
+			};
+		}
+
 		try
 		{
 			Schema? schema = JsonSerializer.Deserialize<Schema>(json, JsonOptions);
@@ -211,6 +222,47 @@ public static class SchemaSerializer
 				Message = $"The schema is not valid JSON: {ex.Message}",
 			};
 		}
+	}
+
+	/// <summary>
+	/// The names a schema document's root may hold, as the serializer itself spells them.
+	/// </summary>
+	/// <remarks>
+	/// Read from the serializer's own contract rather than listed here, so a property added to
+	/// <see cref="Schema"/> is accepted the moment it can be read.
+	/// </remarks>
+	private static readonly Lazy<HashSet<string>> RootPropertyNames = new(() =>
+		[.. JsonOptions.GetTypeInfo(typeof(Schema)).Properties.Select(property => property.Name)]);
+
+	/// <summary>
+	/// Finds the first property at the document root that the model does not read, if there is one.
+	/// </summary>
+	/// <remarks>
+	/// The serializer skips a property it does not recognise, so a document written with
+	/// <c>Classes</c> rather than <c>classes</c> used to load as an empty schema reported as a
+	/// successful migration, and saving it from the editor then replaced the file with nothing.
+	/// Refusing the document is what keeps a file this build cannot read from being taken for an
+	/// empty one. A file from a newer version is refused before this runs, with its own message,
+	/// so an unrecognised property here is never one a newer writer added.
+	/// </remarks>
+	private static string? FindUnrecognisedRootProperty(string json)
+	{
+		using JsonDocument document = JsonDocument.Parse(json);
+		HashSet<string> known = RootPropertyNames.Value;
+
+		return document.RootElement.EnumerateObject()
+			.Select(property => property.Name)
+			.FirstOrDefault(name => !known.Contains(name));
+	}
+
+	private static string DescribeUnrecognisedRootProperty(string name)
+	{
+		string? differentlyCased = RootPropertyNames.Value
+			.FirstOrDefault(known => string.Equals(known, name, StringComparison.OrdinalIgnoreCase));
+
+		return differentlyCased is null
+			? $"The schema has a property '{name}' that this build does not recognise, so it cannot be read without losing data."
+			: $"The schema has a property '{name}' that this build does not recognise: property names are camelCase, so it would be '{differentlyCased}'.";
 	}
 
 	/// <summary>
