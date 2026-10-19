@@ -1,7 +1,6 @@
-## v1.38.1 (patch)
+## v1.38.2-pre.1 (prerelease)
 
-Changes since v1.38.0:
+Changes since v1.38.1:
 
-- Regenerate API compatibility suppressions so packing succeeds again (Claude)
-- Merge remote-tracking branch 'origin/main' into dependabot/nuget/Polyfill-11.4.5 (matt-edmondson)
+- Bump the ktsu group with 7 updates (dependabot[bot])
 
