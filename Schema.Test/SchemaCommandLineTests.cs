@@ -213,6 +213,16 @@ public class SchemaCommandLineTests
 	}
 
 	[TestMethod]
+	public void TestASchemaWithANullClassIsAFailure()
+	{
+		string path = WriteSchema("null-class.schema.json", """{ "formatVersion": 1, "classes": [null] }""");
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
 	public void TestSchemaFromANewerVersionSaysSoRatherThanCallingItCorrupt()
 	{
 		string path = WriteSchema("future.schema.json", ValidSchema.Replace(

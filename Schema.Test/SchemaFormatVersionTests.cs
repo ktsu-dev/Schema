@@ -295,4 +295,54 @@ public class SchemaFormatVersionTests
 		Assert.IsNull(result.Schema);
 		Assert.IsFalse(string.IsNullOrWhiteSpace(result.Message));
 	}
+
+	/// <summary>
+	/// A null element in any list is refused by its path rather than throwing out of the load.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""{ "classes": [null] }""", "$.classes[0]", DisplayName = "Null class")]
+	[DataRow("""{ "codeGenerators": [null] }""", "$.codeGenerators[0]", DisplayName = "Null code generator")]
+	[DataRow("""{ "classes": [ { "name": "A", "members": [ null ] } ] }""", "$.classes[0].members[0]", DisplayName = "Null member")]
+	[DataRow("""{ "enums": [ { "name": "E", "values": [ "One", null ] } ] }""", "$.enums[0].values[1]", DisplayName = "Null enum value")]
+	public void TestANullElementIsReportedByItsPath(string json, string path)
+	{
+		SchemaLoadResult result = SchemaSerializer.Load(json);
+
+		Assert.AreEqual(SchemaLoadStatus.InvalidJson, result.Status, result.Message);
+		Assert.IsNull(result.Schema);
+		Assert.Contains(path, result.Message);
+	}
+
+	/// <summary>
+	/// A null property reads as an omitted one, so the load succeeds and validation, which must not
+	/// throw, says what is missing.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""{ "classes": null }""", DisplayName = "Null classes")]
+	[DataRow("""{ "enums": null, "interfaces": null, "dataSources": null, "codeGenerators": null }""", DisplayName = "Null collections")]
+	[DataRow("""{ "classes": [ { "name": "A", "members": null } ] }""", DisplayName = "Null members")]
+	[DataRow("""{ "classes": [ { "name": null } ] }""", DisplayName = "Null class name")]
+	[DataRow("""{ "classes": [ { "name": "A", "members": [ { "name": "x", "type": null } ] } ] }""", DisplayName = "Null member type")]
+	[DataRow("""{ "classes": [ { "name": "A", "members": [ { "name": null, "type": { "TypeName": "Int" } } ] } ] }""", DisplayName = "Null member name")]
+	[DataRow("""{ "interfaces": [ { "name": "I", "functions": [ { "name": "F", "parameters": null, "returnType": null } ] } ] }""", DisplayName = "Null function parts")]
+	public void TestANullPropertyLoadsAsIfOmitted(string json)
+	{
+		SchemaLoadResult result = SchemaSerializer.Load(json);
+
+		Assert.AreEqual(SchemaLoadStatus.Success, result.Status, result.Message);
+		Assert.IsNotNull(result.Schema);
+		_ = result.Schema.Validate();
+	}
+
+	/// <summary>
+	/// A null name is reported by validation the same way an omitted one is.
+	/// </summary>
+	[TestMethod]
+	public void TestANullClassNameIsAValidationError()
+	{
+		SchemaLoadResult result = SchemaSerializer.Load("""{ "classes": [ { "name": null } ] }""");
+
+		Assert.IsTrue(result.IsSuccess, result.Message);
+		Assert.IsTrue(result.Schema!.Validate().Any(issue => issue.Message.Contains("empty name", StringComparison.Ordinal)));
+	}
 }

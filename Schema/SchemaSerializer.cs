@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using ktsu.RoundTripStringJsonConverter;
@@ -192,9 +193,21 @@ public static class SchemaSerializer
 			};
 		}
 
+		JsonNode? document = JsonNode.Parse(json);
+		string? nullElement = RemoveNulls(document, "$");
+		if (nullElement is not null)
+		{
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema has a null at {nullElement}, where a list holds only elements.",
+			};
+		}
+
 		try
 		{
-			Schema? schema = JsonSerializer.Deserialize<Schema>(json, JsonOptions);
+			Schema? schema = document.Deserialize<Schema>(JsonOptions);
 			if (schema is null)
 			{
 				return new()
@@ -238,6 +251,59 @@ public static class SchemaSerializer
 				FileFormatVersion = declaredVersion,
 				Message = $"The schema could not be read: {ex.Message}",
 			};
+		}
+	}
+
+	/// <summary>
+	/// Reads every null property in a document as an omitted one, and finds the first null element.
+	/// </summary>
+	/// <remarks>
+	/// The serializer never writes a null, so a null in a file was written by hand. Read as given, a
+	/// null collection, name or type reached the model as a null its non-nullable properties never
+	/// expect, and <see cref="Schema.Reassociate"/> or <see cref="Schema.Validate"/> then threw
+	/// rather than reporting anything. Omitting a property already means "the default": an empty
+	/// collection, an empty name the validator reports, an unfinished type. A null element in a list
+	/// has no default to stand for, so it is refused by its path.
+	/// </remarks>
+	/// <param name="node">The node to clean, which is modified in place.</param>
+	/// <param name="path">Where <paramref name="node"/> sits in the document.</param>
+	/// <returns>The path of the first null element, or <see langword="null"/> when there is none.</returns>
+	private static string? RemoveNulls(JsonNode? node, string path)
+	{
+		switch (node)
+		{
+			case JsonObject jsonObject:
+				foreach (string name in jsonObject.Where(property => property.Value is null).Select(property => property.Key).ToList())
+				{
+					jsonObject.Remove(name);
+				}
+
+				foreach (KeyValuePair<string, JsonNode?> property in jsonObject)
+				{
+					string? found = RemoveNulls(property.Value, $"{path}.{property.Key}");
+					if (found is not null)
+					{
+						return found;
+					}
+				}
+
+				return null;
+
+			case JsonArray jsonArray:
+				for (int index = 0; index < jsonArray.Count; index++)
+				{
+					string elementPath = $"{path}[{index}]";
+					string? found = jsonArray[index] is null ? elementPath : RemoveNulls(jsonArray[index], elementPath);
+					if (found is not null)
+					{
+						return found;
+					}
+				}
+
+				return null;
+
+			default:
+				return null;
 		}
 	}
 

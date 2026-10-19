@@ -5,7 +5,8 @@ serializer actually emits, the version field and its migration path, and what ma
 future release.
 
 The format is JSON, written by `System.Text.Json` with camel-cased property names and indentation.
-Nulls are omitted. Round-tripping is the contract: loading a file and saving it again must not
+Nulls are omitted, and a null written by hand reads as if the property were omitted; a null element
+in a list is refused, with its path in the message. Round-tripping is the contract: loading a file and saving it again must not
 lose information.
 
 ## Root
