@@ -123,7 +123,8 @@ public sealed class SchemaPathRebase
 
 	/// <summary>
 	/// The route from <paramref name="directory"/> to <paramref name="target"/>, written with
-	/// forward slashes so the file reads the same whichever platform saved it.
+	/// forward slashes. The semantic path type it becomes respells the separator for the host,
+	/// so on Windows the stored value carries backslashes like any other path the type holds.
 	/// </summary>
 	private static bool TryRelativeTo(string directory, string target, out string relative)
 	{

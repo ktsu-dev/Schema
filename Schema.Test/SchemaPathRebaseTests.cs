@@ -30,6 +30,14 @@ public class SchemaPathRebaseTests
 		return schema;
 	}
 
+	/// <summary>
+	/// How the path type spells <paramref name="path"/> on this host. The rebase writes forward
+	/// slashes, but a semantic path respells them with the host separator, so on Windows the
+	/// expectation has to go through the same type.
+	/// </summary>
+	private static string Spelled<TPath>(string path)
+		where TPath : SemanticPath<TPath>, new() => path.As<TPath>().ToString();
+
 	[TestMethod]
 	public void SavingIntoTheParentKeepsEveryPathOnItsFile()
 	{
@@ -43,8 +51,8 @@ public class SchemaPathRebaseTests
 		schema.SetSourceFile(moved);
 
 		Assert.AreEqual(2, rebase.Count);
-		Assert.AreEqual("sub/data.json", dataSource.File.ToString());
-		Assert.AreEqual("sub/generated", generator.OutputPath.ToString());
+		Assert.AreEqual(Spelled<RelativeFilePath>("sub/data.json"), dataSource.File.ToString());
+		Assert.AreEqual(Spelled<RelativeDirectoryPath>("sub/generated"), generator.OutputPath.ToString());
 		Assert.IsTrue(dataSource.TryResolveFile(out AbsoluteFilePath fileAfter));
 		Assert.IsTrue(generator.TryResolveOutputPath(out AbsoluteDirectoryPath outputAfter));
 		Assert.AreEqual(fileBefore.ToString(), fileAfter.ToString());
@@ -58,7 +66,7 @@ public class SchemaPathRebaseTests
 
 		SchemaPathRebase.Plan(schema, At("other", "items.schema.json")).Apply();
 
-		Assert.AreEqual("../sub/data.json", dataSource.File.ToString());
+		Assert.AreEqual(Spelled<RelativeFilePath>("../sub/data.json"), dataSource.File.ToString());
 	}
 
 	[TestMethod]
