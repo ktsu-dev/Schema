@@ -204,7 +204,9 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			code.WriteLine($"public const string SchemaJson = {Quote(SchemaSerializer.Serialize(schema))};");
 			code.NewLine();
 			WriteSummary(code, $"Where the schema says the {Escape(dataSource.Name)} data file is, relative to the schema.");
-			code.WriteLine($"public const string RelativeFilePath = {Quote(dataSource.File)};");
+			// Written with forward slashes whatever the host: the path type takes the platform's separator,
+			// and generated source has to be the same bytes on every machine that generates it.
+			code.WriteLine($"public const string RelativeFilePath = {Quote(((string)dataSource.File).Replace('\\', '/'))};");
 			code.NewLine();
 			WriteSummary(code, "Creates an editor holding no data.");
 			code.WriteLine($"public {name}()");
