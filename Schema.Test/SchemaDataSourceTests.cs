@@ -279,6 +279,47 @@ public class SchemaDataSourceTests
 			string.Join("; ", issues));
 	}
 
+	/// <summary>
+	/// A member is found whatever the casing, so the property it was found under is accounted for
+	/// too. camelCase is what System.Text.Json writes with its web defaults.
+	/// </summary>
+	[TestMethod]
+	public void TestCamelCaseDataProducesNoIssues()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "id": "s", "count": 1, "status": "Active", "tint": [1,1,1] }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(0, issues.Count, string.Join("; ", issues));
+	}
+
+	[TestMethod]
+	public void TestAnUnknownPropertyInCamelCaseDataIsStillAWarning()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "id": "s", "count": 1, "status": "Active", "tint": [1,1,1], "extra": 5 }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(1, issues.Count, string.Join("; ", issues));
+		Assert.AreEqual(SchemaValidationSeverity.Warning, issues[0].Severity);
+		StringAssert.Contains(issues[0].Message, "'extra'");
+	}
+
+	/// <summary>
+	/// Only the property a member matched is accounted for, so a second spelling of the same name
+	/// is reported rather than silently ignored.
+	/// </summary>
+	[TestMethod]
+	public void TestASecondCasingOfAMatchedPropertyIsAWarning()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "Id": "s", "id": "t", "Count": 1, "Status": "Active", "Tint": [1,1,1] }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(1, issues.Count, string.Join("; ", issues));
+		StringAssert.Contains(issues[0].Message, "'id'");
+	}
+
 	[TestMethod]
 	public void TestWrongScalarTypeIsAnError()
 	{
