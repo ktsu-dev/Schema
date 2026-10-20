@@ -47,6 +47,46 @@ public partial class Schema
 		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
+		ReportNamesSharedAcrossKinds(issues);
+	}
+
+	/// <summary>
+	/// Reports a name used by more than one kind of type, which the generators would write to the
+	/// same file - one silently overwriting the other.
+	/// </summary>
+	/// <remarks>
+	/// Classes, enums, interfaces and semantic types are all emitted as a type named for the element,
+	/// one file each, so two of different kinds sharing a name collide in the output even though each
+	/// kind's own list is unique. A name repeated within one kind keeps the message above alone.
+	/// </remarks>
+	private void ReportNamesSharedAcrossKinds(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<(string Name, string Kind)> types =
+		[
+			.. ClassesInternal.Select(c => (c.Name.ToString(), "a class")),
+			.. EnumsInternal.Select(e => (e.Name.ToString(), "an enum")),
+			.. InterfacesInternal.Select(i => (i.Name.ToString(), "an interface")),
+			.. SemanticTypesInternal.Select(t => (t.Name.ToString(), "a semantic type")),
+		];
+
+		foreach (IGrouping<string, string> shared in types.GroupBy(t => t.Name, t => t.Kind))
+		{
+			List<string> kinds = [.. shared.Distinct()];
+			if (kinds.Count < 2)
+			{
+				continue;
+			}
+
+			string joined = kinds.Count == 2
+				? $"both {kinds[0]} and {kinds[1]}"
+				: $"{string.Join(", ", kinds.Take(kinds.Count - 1))} and {kinds[^1]}";
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = shared.Key,
+				Message = $"Name '{shared.Key}' is used by {joined}; the generated types would overwrite each other.",
+			});
+		}
 	}
 
 	private static void ReportDuplicates(Collection<SchemaValidationIssue> issues, IEnumerable<string> names, string kind)
@@ -68,8 +108,8 @@ public partial class Schema
 	private static string PathSegment(string name) => string.IsNullOrEmpty(name) ? "(unnamed)" : name;
 
 	/// <summary>
-	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
-	/// duplicate detection only catches multiple empty names by accident.
+	/// Reports an element whose name is empty, or is not an identifier. Such an element cannot be
+	/// code-generated, and duplicate detection only catches multiple empty names by accident.
 	/// </summary>
 	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path, ISchemaElement? element)
 	{
@@ -83,6 +123,43 @@ public partial class Schema
 				Element = element,
 			});
 		}
+		else if (!IsIdentifier(name))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"{kind} name '{name}' is not an identifier. Use letters, digits and underscores, starting with a letter or an underscore.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Whether a name can be written as an identifier in every target language, and as a file name
+	/// that stays inside the directory it is written to.
+	/// </summary>
+	/// <remarks>
+	/// ASCII only, because that is the set every generator's target accepts. A name with a space, a
+	/// hyphen or a leading digit generates code that does not compile, and one with a separator or
+	/// <c>..</c> names a file outside the output directory.
+	/// </remarks>
+	internal static bool IsIdentifier(string name)
+	{
+		if (string.IsNullOrEmpty(name) || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+		{
+			return false;
+		}
+
+		foreach (char character in name)
+		{
+			if (!(char.IsAsciiLetterOrDigit(character) || character == '_'))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void ValidateClasses(Collection<SchemaValidationIssue> issues)
@@ -806,6 +883,8 @@ public partial class Schema
 
 	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
 	{
+		ValidateNameNotEmpty(issues, parameter.Name, "Parameter", path, element);
+
 		switch (parameter.Type)
 		{
 			case None:

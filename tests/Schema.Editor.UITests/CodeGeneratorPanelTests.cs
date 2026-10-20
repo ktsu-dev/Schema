@@ -206,4 +206,36 @@ public sealed class CodeGeneratorPanelTests
 		Assert.IsFalse(Directory.Exists(scratchDirectory / "generated".As<DirectoryName>()), "A schema with errors in it was generated anyway.");
 		Assert.IsTrue(IsShowing("prompt/OK"), "The refusal was not reported.");
 	}
+
+	/// <summary>
+	/// The editor hosts the C++ generator as the command line tool does, so the picker offers it.
+	/// </summary>
+	[TestMethod]
+	public void TheLanguagePickerOffersCpp()
+	{
+		harness.Click("language-selector/CSharp");
+
+		Assert.IsTrue(IsShowing("language-option/cpp"), "The language picker did not offer C++.");
+	}
+
+	/// <summary>
+	/// A schema using only standard types needs nothing from the target, so the default options
+	/// are enough to generate it.
+	/// </summary>
+	[TestMethod]
+	public void GeneratingCppForAStandardSchemaWritesHeaders()
+	{
+		schema.AddClass("User".As<ClassName>())!.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		generator.Language = "cpp".As<LanguageName>();
+		generator.Namespace = "contoso".As<CodeNamespace>();
+		generator.OutputPath = "generated".As<RelativeDirectoryPath>();
+		SaveSchemaTo("cpp.schema.json");
+
+		harness.Click("generate/CSharp");
+		harness.App.Step(3);
+
+		AbsoluteDirectoryPath output = scratchDirectory / "generated".As<DirectoryName>();
+		Assert.IsTrue(Directory.Exists(output), "Nothing was written.");
+		Assert.IsTrue(Directory.EnumerateFiles(output, "User.*", SearchOption.AllDirectories).Any(), "No header was written for the class.");
+	}
 }

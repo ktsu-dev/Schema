@@ -33,5 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Schema\Schema.csproj" />
+    <ProjectReference Include="..\Schema.Cpp\Schema.Cpp.csproj" />
   </ItemGroup>
 </Project>

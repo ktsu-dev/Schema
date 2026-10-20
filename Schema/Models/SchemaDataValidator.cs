@@ -174,18 +174,20 @@ public static class SchemaDataValidator
 			return;
 		}
 
+		// The names of the properties a member matched, in the casing the data spelled them. A member
+		// is found case-insensitively, so recording the member's own name instead would report every
+		// property of camelCase data as unknown straight after validating it.
 		HashSet<string> accountedFor = [];
 
 		foreach (SchemaMember member in schemaClass.Members)
 		{
-			accountedFor.Add(member.Name);
-
-			if (!TryGetMemberProperty(element, member.Name, out JsonElement value))
+			if (!TryGetMemberProperty(element, member.Name, out string matchedName, out JsonElement value))
 			{
 				issues.Add(Error($"{path}.{member.Name}", $"Required member '{member.Name}' of class '{schemaClass.Name}' is missing."));
 				continue;
 			}
 
+			accountedFor.Add(matchedName);
 			ValidateValue(member.Type, value, $"{path}.{member.Name}", issues);
 		}
 
@@ -198,7 +200,8 @@ public static class SchemaDataValidator
 	}
 
 	/// <summary>
-	/// Looks a member up in the data, accepting the casing the serializer would have written.
+	/// Looks a member up in the data, accepting the casing the serializer would have written, and
+	/// reports the name of the property it matched.
 	/// </summary>
 	/// <remarks>
 	/// The loop stops at the first match, which is the whole point of a lookup. Enumerating a
@@ -207,20 +210,23 @@ public static class SchemaDataValidator
 	/// runs once per member per object in a data file.
 	/// </remarks>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1751:Loops with at most one iteration should be refactored", Justification = "A first-match lookup terminates on the first iteration by design; see the remarks.")]
-	private static bool TryGetMemberProperty(JsonElement element, string memberName, out JsonElement value)
+	private static bool TryGetMemberProperty(JsonElement element, string memberName, out string matchedName, out JsonElement value)
 	{
 		if (element.TryGetProperty(memberName, out value))
 		{
+			matchedName = memberName;
 			return true;
 		}
 
 		foreach (JsonProperty property in element.EnumerateObject()
 			.Where(candidate => string.Equals(candidate.Name, memberName, StringComparison.OrdinalIgnoreCase)))
 		{
+			matchedName = property.Name;
 			value = property.Value;
 			return true;
 		}
 
+		matchedName = memberName;
 		return false;
 	}
 
@@ -460,7 +466,7 @@ public static class SchemaDataValidator
 	{
 		if (string.IsNullOrEmpty(arrayType.Key) ||
 			entry.Value.ValueKind != JsonValueKind.Object ||
-			!TryGetMemberProperty(entry.Value, arrayType.Key, out JsonElement keyValue))
+			!TryGetMemberProperty(entry.Value, arrayType.Key, out _, out JsonElement keyValue))
 		{
 			return;
 		}

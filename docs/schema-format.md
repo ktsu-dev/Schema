@@ -9,6 +9,11 @@ Nulls are omitted, and a null written by hand reads as if the property were omit
 in a list is refused, with its path in the message. Round-tripping is the contract: loading a file and saving it again must not
 lose information.
 
+A file is usually written by hand, so it is read with `//` and `/* */` comments and trailing commas
+allowed, the same dialect as a C++ generator options file. The serializer never writes either, so
+comments do not survive being loaded and saved again; they are the one thing in a file that is not
+part of the schema.
+
 ## Root
 
 ```json
@@ -61,7 +66,7 @@ when empty. It is the natural source for a doc comment in generated code.
 | --- | --- | --- |
 | `members` | array of [member](#member) | The class's members, **in declaration order**. |
 | `travelsAsBytes` | bool | Whether an instance is copied whole, without anyone reading a field on the way. Omitted when false. See below. |
-| `name` | string | The class name. Unique among classes. |
+| `name` | string | The class name. Unique among classes, enums, interfaces and semantic types, since each becomes a generated type. |
 | `description` | string | Free text. |
 
 Member order is meaningful: it is preserved through a round trip and is the order generated code
@@ -213,7 +218,7 @@ and neither is interchangeable with the other or with a bare number.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `underlyingType` | [type](#types) | What values of this type are represented as. |
-| `name` | string | The type name. Unique among semantic types. |
+| `name` | string | The type name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 | `unit`, `range`, `defaultValue`, `interpolation`, `network`, `editor` | see [Member](#member) | The same six properties a member may carry, for the cases where they belong to the *type* rather than to a use of it. |
 
@@ -309,7 +314,7 @@ has a `Result` to emit and nothing to put in its error position.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `functions` | array of [function](#function) | The interface's functions, **in declaration order**. |
-| `name` | string | The interface name. Unique among interfaces. |
+| `name` | string | The interface name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 
 Order is preserved, for the same reason member order is: a generated header that reorders itself
@@ -405,7 +410,7 @@ Some things are refused in a signature, and the refusals are what keep the conve
 ```
 
 `values` is an array of strings, in declaration order. Values are unique within the enum and may
-not be empty.
+not be empty. The enum's own name is unique among classes, enums, interfaces and semantic types.
 
 ## Data source
 
@@ -653,6 +658,16 @@ containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` 
 
 This anchor is what makes a schema and its data movable together: checked out somewhere else, the
 relative paths still resolve.
+
+Moving the schema without its data is different, and the editor handles it: **Save As** into
+another directory rewrites each `file` and `outputPath` so that it still names the same file from
+the new location (`data.json` saved one directory up becomes `sub/data.json`). The rewrite is one
+undoable step, and it happens only when the save succeeds. A path that cannot be expressed relative
+to the new directory, such as one on another drive, is left as written.
+
+An absolute path is refused. A schema whose `outputPath` is `/tmp/out` loads as
+`SchemaLoadStatus.InvalidJson`, with a message naming the property (`codeGenerators[0].outputPath`)
+and saying that paths in a schema are relative to the schema file.
 
 The anchor is supplied by whoever read the file, so the serializer itself stays free of the
 filesystem:

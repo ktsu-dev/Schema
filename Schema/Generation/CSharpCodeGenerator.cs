@@ -604,12 +604,43 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		}
 
 		code.WriteLine(SummaryOpen);
-		foreach (string line in description.Split('\n'))
+		foreach (string line in SplitLines(description))
 		{
-			code.WriteLine($"/// {Escape(line.TrimEnd('\r'))}");
+			code.WriteLine($"/// {Escape(line)}");
 		}
 
 		code.WriteLine(SummaryClose);
+	}
+
+	/// <summary>
+	/// Splits text at every sequence the C# lexer ends a line at.
+	/// </summary>
+	/// <remarks>
+	/// Not only <c>\n</c>: a lone <c>\r</c>, U+0085, U+2028 and U+2029 end a line too, so splitting
+	/// on <c>\n</c> alone left the text after one of them outside the <c>///</c> comment, where it
+	/// was compiled as code.
+	/// </remarks>
+	/// <param name="text">The text to split.</param>
+	/// <returns>The lines, without their terminators.</returns>
+	internal static IEnumerable<string> SplitLines(string text)
+	{
+		int start = 0;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+			{
+				yield return text[start..i];
+				if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+				{
+					i++;
+				}
+
+				start = i + 1;
+			}
+		}
+
+		yield return text[start..];
 	}
 
 	/// <summary>
@@ -943,8 +974,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	private static string? DefaultLiteralFor(MemberDefault value, BaseType type) => (value, type) switch
 	{
-		(NumberDefault number, Int) => $"{(long)number.Value}",
-		(NumberDefault number, Long) => $"{(long)number.Value}L",
+		(NumberDefault number, Int) => ((long)number.Value).ToString(CultureInfo.InvariantCulture),
+		(NumberDefault number, Long) => $"{((long)number.Value).ToString(CultureInfo.InvariantCulture)}L",
 		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $"float.{NonFinite(number.Value)}",
 		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $"double.{NonFinite(number.Value)}",
 		(NumberDefault number, Float) => $"{number.Value.ToString("R", CultureInfo.InvariantCulture)}f",
