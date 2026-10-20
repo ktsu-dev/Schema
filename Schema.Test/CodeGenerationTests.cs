@@ -291,6 +291,111 @@ public class CodeGenerationTests
 		}
 	}
 
+	/// <summary>
+	/// Generates into a fresh directory, runs <paramref name="change"/>, then generates again.
+	/// </summary>
+	private static void GenerateTwice(Action<Schema, string> beforeFirst, Action<Schema> change, Action<string, SchemaGenerationResult> verify)
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+			string output = Path.Combine(directory, "generated");
+
+			beforeFirst(schema, output);
+			SchemaGenerationResult first = SchemaGenerator.GenerateToDisk(schema, generator);
+			Assert.IsTrue(first.IsSuccess, first.Message);
+
+			change(schema);
+			SchemaGenerationResult second = SchemaGenerator.GenerateToDisk(schema, generator);
+			Assert.IsTrue(second.IsSuccess, second.Message);
+
+			verify(output, second);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	[TestMethod]
+	public void TestRenamingAClassRemovesItsOldFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Thing".As<ClassName>())),
+			(output, result) =>
+			{
+				Assert.IsFalse(File.Exists(Path.Combine(output, "Item.g.cs")), "The renamed class's old file was left behind.");
+				Assert.IsTrue(File.Exists(Path.Combine(output, "Thing.g.cs")));
+				Assert.AreEqual("Item.g.cs", result.RemovedFiles.Single());
+				Assert.IsTrue(result.Message.Contains("removed 1 stale file", StringComparison.Ordinal), result.Message);
+			});
+
+	[TestMethod]
+	public void TestDeletingAnElementRemovesItsFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.GetClass("Packet".As<ClassName>())!.TryRemove()),
+			(output, result) =>
+			{
+				Assert.IsFalse(File.Exists(Path.Combine(output, "Packet.g.cs")), "The deleted class's file was left behind.");
+				Assert.IsTrue(File.Exists(Path.Combine(output, "User.g.cs")));
+				Assert.AreEqual(1, result.RemovedFiles.Count);
+			});
+
+	[TestMethod]
+	public void TestARenameThatOnlyChangesCaseLeavesTheNewFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "ITEM".As<ClassName>())),
+			(output, _) => Assert.IsTrue(
+				Directory.GetFiles(output).Select(Path.GetFileName).Contains("ITEM.g.cs"),
+				"The new file was deleted along with the old one."));
+
+	[TestMethod]
+	public void TestFilesTheGeneratorDidNotWriteAreLeftAlone() =>
+		GenerateTwice(
+			(_, output) =>
+			{
+				Directory.CreateDirectory(output);
+				File.WriteAllText(Path.Combine(output, "Handwritten.cs"), "// mine");
+			},
+			schema => Assert.IsTrue(schema.GetClass("Packet".As<ClassName>())!.TryRemove()),
+			(output, _) => Assert.IsTrue(File.Exists(Path.Combine(output, "Handwritten.cs")), "A hand-written file was removed."));
+
+	[TestMethod]
+	public void TestAManifestEntryOutsideTheOutputDirectoryIsIgnored()
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		string output = Path.Combine(directory, "generated");
+		Directory.CreateDirectory(output);
+		try
+		{
+			string bystander = Path.Combine(directory, "bystander.txt");
+			File.WriteAllText(bystander, "keep me");
+			File.WriteAllLines(
+				Path.Combine(output, GeneratedFileManifest.FileNameFor("CSharp")),
+				[Path.Combine("..", "bystander.txt"), bystander]);
+
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+
+			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, generator);
+
+			Assert.IsTrue(result.IsSuccess, result.Message);
+			Assert.IsTrue(File.Exists(bystander), "A manifest entry outside the output directory was followed.");
+			Assert.AreEqual(0, result.RemovedFiles.Count);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
 	[TestMethod]
 	public void TestGenerateToDiskNeedsToKnowWhereTheSchemaLives()
 	{
