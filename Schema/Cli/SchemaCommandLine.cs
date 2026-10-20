@@ -35,6 +35,7 @@ public static class SchemaCommandLine
 	/// The option that limits <c>generate</c> to a single named code generator.
 	/// </summary>
 	private const string GeneratorOption = "--generator";
+	private const string NoDataOption = "--no-data";
 
 	/// <summary>
 	/// Runs a command.
@@ -78,7 +79,8 @@ public static class SchemaCommandLine
 		output.WriteLine();
 		output.WriteLine("Commands:");
 		output.WriteLine("  generate <schema-file> [--generator <name>]   Run the schema's code generators.");
-		output.WriteLine("  validate <schema-file>                        Report the schema's validation issues.");
+		output.WriteLine("  validate <schema-file> [--no-data]            Report the schema's validation issues, and those");
+		output.WriteLine("                                                in its data source files unless --no-data is given.");
 
 		if (host.Options.Count > 0)
 		{
@@ -155,6 +157,13 @@ public static class SchemaCommandLine
 		}
 
 		List<SchemaValidationIssue> issues = [.. schema.Validate()];
+
+		// Data files are read from disk, so the check is opt-out for a caller that only wants the
+		// schema itself; without it, a data file contradicting its class passes a gated build.
+		if (schema.DataSources.Count > 0 && !args.Any(a => string.Equals(a, NoDataOption, StringComparison.OrdinalIgnoreCase)))
+		{
+			issues.AddRange(SchemaDataValidator.ValidateDataSources(schema));
+		}
 
 		foreach (SchemaValidationIssue issue in issues)
 		{

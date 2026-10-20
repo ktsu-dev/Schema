@@ -302,6 +302,59 @@ public class SchemaCommandLineTests
 		Assert.IsFalse(result.Output.Contains("0 error(s), 0 warning(s)", StringComparison.Ordinal), "There should be warnings.");
 	}
 
+	private const string BoundSchema = """
+	{
+	  "formatVersion": 1,
+	  "classes": [
+	    {
+	      "members": [ { "type": { "TypeName": "Int" }, "name": "Count", "description": "" } ],
+	      "name": "Item",
+	      "description": ""
+	    }
+	  ],
+	  "enums": [],
+	  "codeGenerators": [],
+	  "dataSources": [ { "file": "items.json", "className": "Item", "name": "Items", "description": "" } ]
+	}
+	""";
+
+	[TestMethod]
+	public void TestValidateFailsWhenADataFileContradictsItsClass()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": "three" } ]""");
+
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Output.Contains("Items[0]", StringComparison.Ordinal), result.Output);
+		Assert.IsTrue(result.Output.Contains("1 error(s)", StringComparison.Ordinal), result.Output);
+	}
+
+	[TestMethod]
+	public void TestValidateSucceedsWhenADataFileConforms()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": 3 } ]""");
+
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Output.Contains("0 error(s)", StringComparison.Ordinal), result.Output);
+	}
+
+	[TestMethod]
+	public void TestValidateSkipsDataFilesWhenAskedTo()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": "three" } ]""");
+
+		Result result = Run("validate", "--no-data", path);
+
+		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Output);
+		Assert.IsFalse(result.Output.Contains("Items[0]", StringComparison.Ordinal), result.Output);
+	}
+
 	// ---- generate -----------------------------------------------------------
 
 	[TestMethod]
