@@ -27,7 +27,7 @@ public static class SchemaSerializer
 		Converters = { new RoundTripStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
-			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage },
+			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage, OmitUnboundDataSource },
 		},
 	};
 
@@ -79,6 +79,30 @@ public static class SchemaSerializer
 		foreach (JsonPropertyInfo property in storageProperties)
 		{
 			property.ShouldSerialize = static (_, value) => value is not Types.Float;
+		}
+	}
+
+	/// <summary>
+	/// Leaves a code generator's data source out of the file when none is bound.
+	/// </summary>
+	/// <remarks>
+	/// The name is an empty string rather than null when unset, so no ignore condition omits it.
+	/// Writing it regardless would add an empty <c>"dataSource"</c> to every code generator in
+	/// every file, including every file written before generators could bind one.
+	/// </remarks>
+	private static void OmitUnboundDataSource(JsonTypeInfo typeInfo)
+	{
+		if (typeInfo.Type != typeof(SchemaCodeGenerator))
+		{
+			return;
+		}
+
+		IEnumerable<JsonPropertyInfo> dataSourceProperties = typeInfo.Properties
+			.Where(property => string.Equals(property.Name, "dataSource", StringComparison.OrdinalIgnoreCase));
+
+		foreach (JsonPropertyInfo property in dataSourceProperties)
+		{
+			property.ShouldSerialize = static (_, value) => !string.IsNullOrEmpty(value?.ToString());
 		}
 	}
 

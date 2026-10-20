@@ -436,8 +436,18 @@ not be empty.
 | `outputPath` | string | A relative directory to write generated files into. See [Path resolution](#path-resolution). |
 | `language` | string | Which generator handles this configuration. Matched case-insensitively; `csharp` is the only one built in. |
 | `namespace` | string | The namespace generated code is emitted into. Optional; omitting it emits into the global namespace. |
+| `dataSource` | string | A [data source](#data-source) to generate an editor for. Optional, and omitted from the file when unset. Naming a data source the schema does not declare is a validation error. |
 
 See [Code generation](#code-generation) for what a generator does with these.
+
+### `dataSource` - a generated data editor
+
+With `dataSource` set, the C# generator also writes two classes: `<Class>Record`, a typed view
+over one record of the bound class, and `<DataSource>Editor`, which loads the data file, lists its
+records, adds and removes them, and saves it again. The editor validates through
+`SchemaDataValidator`, the same check `kschema validate` runs, so it accepts exactly what that
+accepts. Members the schema does not model are kept as they were written, and a record's keys keep
+the spelling the file gave them.
 
 ## Types
 

@@ -517,6 +517,17 @@ reads them back, because none of it is expressible in a CLR type. The two sides 
 the generate-compile-reimport round-trip test fails if either changes alone. A default is emitted
 as the property initialiser as well, so a generated instance starts at it.
 
+### Generated data editors
+
+A `SchemaCodeGenerator` may name a `DataSource`; the C# generator then emits `<Class>Record` and
+`<DataSource>Editor` beside the class. The generated code is thin on purpose: the editor derives
+from `SchemaDataEditor<TRecord>` and records from `SchemaDataRecord`, both in `Schema/Runtime/`,
+and every accessor goes through `SchemaDataValues`. Records are views over the file's own
+`JsonObject`, so members the schema does not model survive a save. Validation is
+`SchemaDataValidator` and nothing else, which is what `GeneratedDataEditorTests` pins: the editor's
+issues must equal the validator's for every payload, so a second, divergent notion of "valid"
+cannot grow in the runtime.
+
 ### Key Files
 
 - `Schema/Contracts/` - The `ISchema` abstraction seam implemented by the models
