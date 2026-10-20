@@ -417,6 +417,12 @@ commands find the schema by taking the first argument that is not an option, ste
 any option consumes, and the list of options that consume one belongs to the commands, which have
 never heard of the C++ generator.
 
+An option the command does not read is refused by `SchemaCommandLine` before anything is loaded or
+written, rather than stepped over: stepped over, a misspelt `--generator` ran every generator. A
+host option therefore has to be taken out in every form the host accepts - `TryTake` takes
+`--cpp-options <file>` and `--cpp-options=<file>`, and refuses the option given twice - or it
+reaches the commands as an unknown option.
+
 One file per element, and **an enum goes to namespace scope in a header of its own** rather than
 nested in the class that names it. Holotype's target document nests it, which was right when an enum
 belonged to the component that declared it; here an enum is a top-level element any class may name,
