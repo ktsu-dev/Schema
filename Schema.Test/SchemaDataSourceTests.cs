@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
+using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
@@ -209,6 +210,56 @@ public class SchemaDataSourceTests
 			i.Path == "Items" &&
 			i.Message.Contains("does not exist", StringComparison.Ordinal)),
 			string.Join("; ", issues));
+	}
+
+	/// <summary>
+	/// A data file nothing has written yet stops nothing being generated, because no generator
+	/// reads it: the same schema must generate whether it is in memory or saved beside no data.
+	/// </summary>
+	[TestMethod]
+	public void TestMissingDataFileDoesNotBlockGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		Assert.IsTrue(schema.Validate().Any(i => i.Severity == SchemaValidationSeverity.Error), "The premise is a schema whose validation reports the missing file.");
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.Success, result.Status, result.Message);
+	}
+
+	/// <summary>
+	/// A data source naming a class that is not there is the same: wrong for data validation,
+	/// irrelevant to the types generated.
+	/// </summary>
+	[TestMethod]
+	public void TestDataSourceNamingAnUnknownClassDoesNotBlockGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", $"[{ConformingItem}]");
+		schema.GetDataSource("Items".As<DataSourceName>())!.ClassName = "Missing".As<ClassName>();
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.Success, result.Status, result.Message);
+	}
+
+	/// <summary>
+	/// The exemption is for data sources only: an error in a class still refuses.
+	/// </summary>
+	[TestMethod]
+	public void TestAnErrorOutsideADataSourceStillBlocksGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		schema.GetClass("Item".As<ClassName>())!.AddMember("Owner".As<MemberName>())!.SetType(new SchemaTypes.Object { ClassName = "Missing".As<ClassName>() });
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, result.Status);
+		Assert.IsFalse(result.Issues.Any(i => i.Element is DataSource), "A data source's issue was reported as a reason generation was refused.");
 	}
 
 	[TestMethod]
