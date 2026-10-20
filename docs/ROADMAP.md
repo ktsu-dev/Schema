@@ -100,7 +100,7 @@ The `.schema.json` format is documented and versioned with a stated compatibilit
 Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
 
 Winget packaging is not something this repository can switch on by itself
-([#224](https://github.com/ktsu-dev/Schema/issues/224)). The shared pipeline `ci.yml` calls runs
+([#224](https://github.com/ktsu-dev/Schema/issues/224)). The shared pipeline `ci.yml` runs
 `ktsubuild ci` and `ktsubuild release` and nothing else, so `ktsubuild winget generate` and
 `winget upload` never run for any repository on it, and the org's manifest sync finds no manifests
 on a release to forward. Two changes outside this repository are needed first: a winget stage in
