@@ -47,6 +47,51 @@ public partial class Schema
 		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
+		ReportNamesDifferingOnlyInCase(issues);
+	}
+
+	/// <summary>
+	/// Gets every element a generator names an output file after, with that name.
+	/// </summary>
+	private IEnumerable<(string Name, ISchemaElement Element)> GeneratedFileNames() =>
+		ClassesInternal.Select(c => (c.Name.ToString(), (ISchemaElement)c))
+			.Concat(EnumsInternal.Select(e => (e.Name.ToString(), (ISchemaElement)e)))
+			.Concat(InterfacesInternal.Select(i => (i.Name.ToString(), (ISchemaElement)i)))
+			.Concat(SemanticTypesInternal.Select(t => (t.Name.ToString(), (ISchemaElement)t)));
+
+	/// <summary>
+	/// Reports generatable elements whose names are equal only when case is ignored.
+	/// </summary>
+	/// <remarks>
+	/// Every generator names a file after each element, and Windows and macOS file systems ignore
+	/// case, so <c>Player</c> and <c>player</c> write the same file and one class silently vanishes
+	/// from the output. A name repeated exactly is not reported here: within one kind the duplicate
+	/// check above already reports it, and across kinds it is a clash in its own right whatever the
+	/// file system.
+	/// </remarks>
+	private void ReportNamesDifferingOnlyInCase(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<IGrouping<string, (string Name, ISchemaElement Element)>> groups = GeneratedFileNames()
+			.GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase);
+
+		foreach (IGrouping<string, (string Name, ISchemaElement Element)> group in groups)
+		{
+			List<string> spellings = [.. group.Select(entry => entry.Name).Distinct(StringComparer.Ordinal)];
+			if (spellings.Count < 2)
+			{
+				continue;
+			}
+
+			string quoted = string.Join(", ", spellings.Select(name => $"'{name}'"));
+			(string laterName, ISchemaElement laterElement) = group.Last(entry => entry.Name != spellings[0]);
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = laterName,
+				Message = $"Names {quoted} differ only in case, so their generated files overwrite each other on a case-insensitive file system.",
+				Element = laterElement,
+			});
+		}
 	}
 
 	private static void ReportDuplicates(Collection<SchemaValidationIssue> issues, IEnumerable<string> names, string kind)
@@ -1412,6 +1457,41 @@ public partial class Schema
 					Element = codeGenerator,
 				});
 			}
+
+			ReportReservedNames(issues, codeGenerator);
+		}
+	}
+
+	/// <summary>
+	/// Reports elements named after a file the configured generator writes for itself.
+	/// </summary>
+	/// <remarks>
+	/// The element's file and the generator's own would be the same entry in the output, so one
+	/// replaces the other on every file system. Matched case-insensitively for the reason
+	/// <see cref="ReportNamesDifferingOnlyInCase"/> gives.
+	/// </remarks>
+	private void ReportReservedNames(Collection<SchemaValidationIssue> issues, SchemaCodeGenerator codeGenerator)
+	{
+		if (!Generation.SchemaGenerator.TryGetGenerator(codeGenerator.Language, out Generation.ISchemaCodeGenerator? generator))
+		{
+			return;
+		}
+
+		HashSet<string> reserved = new(generator.ReservedNames(codeGenerator), StringComparer.OrdinalIgnoreCase);
+		if (reserved.Count == 0)
+		{
+			return;
+		}
+
+		foreach ((string name, ISchemaElement element) in GeneratedFileNames().Where(entry => reserved.Contains(entry.Name)))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = name,
+				Message = $"'{name}' is the name of a file code generator '{codeGenerator.Name}' writes for itself, so the two would overwrite each other.",
+				Element = element,
+			});
 		}
 	}
 }
