@@ -235,10 +235,17 @@ public partial class SchemaEditor
 	private void SaveAs(Action? continuation = null) =>
 		Popups.OpenBrowserFileSave("Save Schema", (filePath) =>
 		{
+			// The document only moves if the save does: a failed save leaves it where it was, so the
+			// next Save does not quietly retry the place that just refused it.
+			AbsoluteFilePath previousPath = CurrentSchemaPath;
 			CurrentSchemaPath = filePath;
 			if (SaveToCurrentPath())
 			{
 				continuation?.Invoke();
+			}
+			else
+			{
+				CurrentSchemaPath = previousPath;
 			}
 		}, "*.schema.json");
 
@@ -250,10 +257,12 @@ public partial class SchemaEditor
 		SchemaPathRebase? rebase = CurrentSchema is null ? null : SchemaPathRebase.Plan(CurrentSchema, CurrentSchemaPath);
 		rebase?.Apply();
 
-		if (CurrentSchema is null || !SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath))
+		string? failure = null;
+		if (CurrentSchema is null || !SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath, out failure))
 		{
 			rebase?.Revert();
-			Popups.OpenMessageOK("Error", $"Failed to save schema to '{CurrentSchemaPath}'.");
+			string reason = string.IsNullOrEmpty(failure) ? string.Empty : $"\n\n{failure}";
+			Popups.OpenMessageOK("Error", $"Failed to save schema to '{CurrentSchemaPath}'.{reason}");
 			return false;
 		}
 
