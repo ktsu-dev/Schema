@@ -89,6 +89,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		ClassDeclaration declaration = new(CppNaming.Type(schemaClass.Name.ToString(), "Class")) { Kind = TypeDeclarationKind.Struct };
 		Describe(declaration, schemaClass.Description);
 
+		CppNaming.EnsureDistinct(schemaClass.Members.Select(m => m.Name.ToString()), options.MemberNaming, "Member", schemaClass.Name.ToString());
+
 		foreach (SchemaMember member in schemaClass.Members)
 		{
 			declaration.Members.Add(Field(member, mapper));
@@ -209,6 +211,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			Definition = FunctionDefinition.Defaulted,
 		});
 
+		CppNaming.EnsureDistinct(schemaInterface.Functions.Select(f => f.Name.ToString()), options.MemberNaming, "Function", name);
+
 		foreach (SchemaFunction function in schemaInterface.Functions)
 		{
 			declaration.Members.Add(Method(function, mapper));
@@ -234,6 +238,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		};
 
 		Describe(method, function.Description);
+
+		CppNaming.EnsureDistinct(function.Parameters.Select(p => p.Name.ToString()), options.MemberNaming, "Parameter", function.Name.ToString());
 
 		foreach (SchemaParameter parameter in function.Parameters)
 		{
