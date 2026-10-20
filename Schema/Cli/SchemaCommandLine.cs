@@ -64,8 +64,10 @@ public static class SchemaCommandLine
 
 		return args[0].ToLowerInvariant() switch
 		{
-			"generate" => Generate([.. args.Skip(1)], output, error),
-			"validate" => Validate([.. args.Skip(1)], output, error),
+			"generate" => RejectUnknownOptions([.. args.Skip(1)], [GeneratorOption], output, error, host)
+				?? Generate([.. args.Skip(1)], output, error),
+			"validate" => RejectUnknownOptions([.. args.Skip(1)], [], output, error, host)
+				?? Validate([.. args.Skip(1)], output, error),
 			_ => UnknownCommand(args[0], output, error, host),
 		};
 	}
@@ -103,6 +105,52 @@ public static class SchemaCommandLine
 		error.WriteLine($"Unknown command '{command}'.");
 		WriteUsage(output, host);
 		return Failure;
+	}
+
+	/// <summary>
+	/// Refuses an option the command does not know, before anything is loaded or written.
+	/// </summary>
+	/// <remarks>
+	/// An option nobody reads used to be stepped over, which turned a typo into a different
+	/// command: <c>--generatr Nope</c> ran every generator, and a host option written in a form
+	/// the host did not take came through here and was dropped. It is the failure the generator
+	/// filter already refuses - a request that cannot be read must not fall back to doing
+	/// everything. A host's own options never reach this, since the host takes them out first.
+	/// </remarks>
+	/// <param name="args">The command's arguments.</param>
+	/// <param name="known">The options the command reads, each in its <c>--name</c> form; the
+	/// <c>--name=value</c> form of each is known too.</param>
+	/// <param name="output">Where the usage text goes.</param>
+	/// <param name="error">Where the refusal goes.</param>
+	/// <param name="host">The host, for the usage text.</param>
+	/// <returns><see cref="Failure"/> for an unknown option, or <see langword="null"/> to go on.</returns>
+	private static int? RejectUnknownOptions(string[] args, string[] known, TextWriter output, TextWriter error, SchemaCommandLineHost host)
+	{
+		int index = 0;
+		while (index < args.Length)
+		{
+			string argument = args[index];
+
+			if (!argument.StartsWith('-'))
+			{
+				index++;
+				continue;
+			}
+
+			string name = argument.Split('=', 2)[0];
+
+			if (!known.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase)))
+			{
+				error.WriteLine($"Unknown option '{name}'.");
+				WriteUsage(output, host);
+				return Failure;
+			}
+
+			// The value an option consumes is not itself an option, whatever it looks like.
+			index += name.Length == argument.Length && TakesAValue(argument) ? 2 : 1;
+		}
+
+		return null;
 	}
 
 	private static int Generate(string[] args, TextWriter output, TextWriter error)

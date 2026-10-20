@@ -260,6 +260,45 @@ public sealed class CppGeneratorOptionsFileTests
 		Assert.AreEqual("holo::Handle", options.Handle?.Name);
 	}
 
+	/// <summary>
+	/// The <c>--cpp-options=file</c> form is taken out the same way, so it never reaches the
+	/// commands as an option they do not know.
+	/// </summary>
+	[TestMethod]
+	public void TakesTheEqualsForm()
+	{
+		string path = WriteOptions("""{ "handle": { "name": "holo::Handle", "include": "holotype/core/handle.hpp" } }""");
+		string[] args = ["generate", "game.schema.json", $"{CppGeneratorOptionsFile.Option}={path}"];
+
+		Assert.IsTrue(CppGeneratorOptionsFile.TryTake(args, out string[] remaining, out CppGeneratorOptions? options, out string? message), message);
+
+		Assert.AreSequenceEqual(["generate", "game.schema.json"], remaining);
+		Assert.AreEqual("holo::Handle", options.Handle?.Name);
+	}
+
+	/// <summary>The equals form with nothing after it is refused, as the bare option is.</summary>
+	[TestMethod]
+	public void RefusesTheEqualsFormWithNoValue()
+	{
+		Assert.IsFalse(CppGeneratorOptionsFile.TryTake(["generate", CppGeneratorOptionsFile.Option + "="], out string[] _, out CppGeneratorOptions? _, out string? message));
+		Assert.Contains("needs the path of a file", message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Given twice, the option is refused rather than the second file's path being handed on and
+	/// opened as the schema.
+	/// </summary>
+	[TestMethod]
+	public void RefusesTheOptionGivenTwice()
+	{
+		string first = WriteOptions("{}");
+		string second = WriteOptions("{}");
+		string[] args = ["generate", CppGeneratorOptionsFile.Option, first, $"{CppGeneratorOptionsFile.Option}={second}", "game.schema.json"];
+
+		Assert.IsFalse(CppGeneratorOptionsFile.TryTake(args, out string[] _, out CppGeneratorOptions? _, out string? message));
+		Assert.Contains("more than once", message, StringComparison.Ordinal);
+	}
+
 	/// <summary>A file that is not there is said so by name.</summary>
 	[TestMethod]
 	public void RefusesAFileThatIsNotThere()

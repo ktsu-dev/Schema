@@ -479,4 +479,43 @@ public class SchemaCommandLineTests
 
 		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Error);
 	}
+
+	/// <summary>
+	/// An option nobody reads is refused before anything is loaded or written, wherever it stands.
+	/// </summary>
+	/// <remarks>
+	/// It used to be stepped over, so a misspelt <c>--generator</c> ran every generator instead
+	/// of the one asked for.
+	/// </remarks>
+	[TestMethod]
+	[DataRow("generate", "--generatr", "CSharp", "{path}")]
+	[DataRow("generate", "{path}", "--generatr", "CSharp")]
+	[DataRow("generate", "{path}", "--cpp-options=holo.json")]
+	[DataRow("validate", "--generator", "CSharp", "{path}")]
+	[DataRow("validate", "{path}", "--strict")]
+	public void TestAnUnknownOptionIsRefusedAndNothingIsWritten(params string[] args)
+	{
+		string path = WriteSchema("unknown.schema.json", ValidSchema);
+		string[] resolved = [.. args.Select(a => a == "{path}" ? path : a)];
+		string option = resolved.First(a => a.StartsWith('-')).Split('=')[0];
+
+		Result result = Run(resolved);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Error.Contains($"Unknown option '{option}'.", StringComparison.Ordinal), result.Error);
+		Assert.IsTrue(result.Output.Contains("usage", StringComparison.OrdinalIgnoreCase), result.Output);
+		Assert.IsFalse(Directory.Exists(Path.Combine(workingDirectory, "out")), "Nothing should have been written.");
+	}
+
+	/// <summary>
+	/// The value an option takes is not read as an option itself, however it is spelt.
+	/// </summary>
+	[TestMethod]
+	public void TestAnOptionsValueIsNotMistakenForAnUnknownOption()
+	{
+		string path = WriteSchema("dashvalue.schema.json", ValidSchema);
+		Result result = Run("generate", path, "--generator", "-CSharp");
+
+		Assert.IsFalse(result.Error.Contains("Unknown option", StringComparison.Ordinal), result.Error);
+	}
 }
