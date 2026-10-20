@@ -76,12 +76,9 @@ public abstract class SchemaDataEditor<TRecord>
 					records.Add(createRecord(single, MarkEdited));
 					break;
 				case JsonArray array:
-					foreach (JsonNode? element in array)
+					foreach (JsonObject record in array.OfType<JsonObject>())
 					{
-						if (element is JsonObject record)
-						{
-							records.Add(createRecord(record, MarkEdited));
-						}
+						records.Add(createRecord(record, MarkEdited));
 					}
 
 					break;
