@@ -408,7 +408,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		bool isLong = represented is Long;
 
 		// (double)long.MaxValue rounds up to 2^63, so the upper bound is exclusive.
-		bool fits = value == Math.Floor(value) && (isLong
+		bool fits = double.IsInteger(value) && (isLong
 			? value is >= long.MinValue and < 9223372036854775808d
 			: value is >= int.MinValue and <= int.MaxValue);
 
