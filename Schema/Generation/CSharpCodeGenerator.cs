@@ -77,7 +77,146 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			files[$"{schemaInterface.Name}.g.cs"] = GenerateInterface(schemaInterface, configuration.Namespace);
 		}
 
+		// Bound to a data source, the output also gets an editor for the data file it names. An
+		// unknown name is a validation error, so it has already been reported by the time this
+		// finds nothing.
+		if (!string.IsNullOrEmpty(configuration.DataSource) &&
+			schema.GetDataSource(configuration.DataSource) is { Class: SchemaClass boundClass } dataSource)
+		{
+			files[$"{RecordTypeName(boundClass)}.g.cs"] = GenerateDataRecord(boundClass, configuration.Namespace);
+			files[$"{EditorTypeName(dataSource)}.g.cs"] = GenerateDataEditor(schema, dataSource, boundClass, configuration.Namespace);
+		}
+
 		return files;
+	}
+
+	private static string RecordTypeName(SchemaClass schemaClass) => CSharpKeywords.Identifier($"{schemaClass.Name}Record");
+
+	private static string EditorTypeName(DataSource dataSource) => CSharpKeywords.Identifier($"{dataSource.Name}Editor");
+
+	/// <summary>
+	/// Writes the typed view of one record in a data file.
+	/// </summary>
+	/// <remarks>
+	/// A record is a view over its JSON object rather than a copy of it, so a member the class does
+	/// not model survives a save, and a member whose type has no accessor here is still in the file
+	/// rather than lost. Only the types a data file spells as one JSON value get an accessor; the
+	/// rest are read through <see cref="Runtime.SchemaDataRecord.Json"/>.
+	/// </remarks>
+	private static string GenerateDataRecord(SchemaClass schemaClass, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		string name = RecordTypeName(schemaClass);
+		WriteSummary(code, $"One {Escape(schemaClass.Name)} in a data file, read and written in place.");
+		code.WriteLine($"public sealed class {name}(System.Text.Json.Nodes.JsonObject json, System.Action onEdited)");
+		code.WriteLine("\t: ktsu.Schema.Runtime.SchemaDataRecord(json, onEdited)");
+		using (new Scope(code))
+		{
+			bool first = true;
+			foreach (SchemaMember member in schemaClass.Members)
+			{
+				if (DataAccessor(member.Type) is not { } dataAccessor)
+				{
+					continue;
+				}
+
+				(string type, string accessor, string? typeArgument) = dataAccessor;
+
+				if (!first)
+				{
+					code.NewLine();
+				}
+
+				first = false;
+				string typeArguments = typeArgument is null ? string.Empty : $"<{typeArgument}>";
+				string key = Quote(member.Name);
+				WriteDocComment(code, member.Description);
+				code.WriteLine($"public {type} {CSharpKeywords.Identifier(member.Name)}");
+				using (new Scope(code))
+				{
+					code.WriteLine($"get => ktsu.Schema.Runtime.SchemaDataValues.Get{accessor}{typeArguments}(Json, {key});");
+					code.WriteLine("set");
+					using (new Scope(code))
+					{
+						code.WriteLine($"ktsu.Schema.Runtime.SchemaDataValues.Set{accessor}{typeArguments}(Json, {key}, value);");
+						code.WriteLine("MarkEdited();");
+					}
+				}
+			}
+		}
+
+		return code.ToString();
+	}
+
+	/// <summary>
+	/// Names the C# type and the <see cref="Runtime.SchemaDataValues"/> accessor pair for a member
+	/// type, or nothing for a type a data file does not spell as a single value.
+	/// </summary>
+	private static (string Type, string Accessor, string? TypeArgument)? DataAccessor(BaseType type) => type switch
+	{
+		Bool => ("bool", "Bool", null),
+		Int => ("int", "Int", null),
+		Long => ("long", "Long", null),
+		Float => ("float", "Float", null),
+		Double => ("double", "Double", null),
+		Models.Types.String => ("string", "String", null),
+		Models.Types.DateTime => ("System.DateTime", "DateTime", null),
+		Models.Types.TimeSpan => ("System.TimeSpan", "TimeSpan", null),
+
+		// The colours before their vector bases, as in MapType.
+		ColorRGB => ("ktsu.Schema.Runtime.ColorRgb", "ColorRgb", null),
+		ColorRGBA => ("ktsu.Schema.Runtime.ColorRgba", "ColorRgba", null),
+		Vector2 { ElementType: Float } => ("System.Numerics.Vector2", "Vector2", null),
+		Vector3 { ElementType: Float } => ("System.Numerics.Vector3", "Vector3", null),
+		Vector4 { ElementType: Float } => ("System.Numerics.Vector4", "Vector4", null),
+		Models.Types.Enum enumType => (CSharpKeywords.Identifier(enumType.EnumName), "Enum", CSharpKeywords.Identifier(enumType.EnumName)),
+		_ => null,
+	};
+
+	/// <summary>
+	/// Writes the editor for a bound data source.
+	/// </summary>
+	/// <remarks>
+	/// The schema is embedded as the text it serializes to, so the editor validates against the
+	/// schema it was generated from and through <see cref="SchemaDataValidator"/> itself - the
+	/// validator the schema tool runs - rather than through a second set of rules that would
+	/// drift from it.
+	/// </remarks>
+	private static string GenerateDataEditor(Models.Schema schema, DataSource dataSource, SchemaClass boundClass, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		string record = RecordTypeName(boundClass);
+		string name = EditorTypeName(dataSource);
+		WriteDocComment(code, dataSource.Description);
+		if (string.IsNullOrEmpty(dataSource.Description))
+		{
+			WriteSummary(code, $"Loads, validates, edits and saves the {Escape(dataSource.Name)} data file, whose records are each a {Escape(boundClass.Name)}.");
+		}
+
+		code.WriteLine($"public sealed class {name} : ktsu.Schema.Runtime.SchemaDataEditor<{record}>");
+		using (new Scope(code))
+		{
+			WriteSummary(code, "The schema this editor was generated from, as its file holds it.");
+			code.WriteLine($"public const string SchemaJson = {Quote(SchemaSerializer.Serialize(schema))};");
+			code.NewLine();
+			WriteSummary(code, $"Where the schema says the {Escape(dataSource.Name)} data file is, relative to the schema.");
+			// Written with forward slashes whatever the host: the path type takes the platform's separator,
+			// and generated source has to be the same bytes on every machine that generates it.
+			code.WriteLine($"public const string RelativeFilePath = {Quote(((string)dataSource.File).Replace('\\', '/'))};");
+			code.NewLine();
+			WriteSummary(code, "Creates an editor holding no data.");
+			code.WriteLine($"public {name}()");
+			code.WriteLine($"\t: base(SchemaJson, {Quote(boundClass.Name)}, {Quote(dataSource.Name)}, static (json, onEdited) => new {record}(json, onEdited))");
+			using (new Scope(code))
+			{
+			}
+		}
+
+		return code.ToString();
 	}
 
 	/// <summary>

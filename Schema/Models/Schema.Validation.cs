@@ -1430,6 +1430,18 @@ public partial class Schema
 					Element = codeGenerator,
 				});
 			}
+
+			if (!string.IsNullOrEmpty(codeGenerator.DataSource)
+				&& !DataSourcesInternal.Any(d => d.Name == codeGenerator.DataSource))
+			{
+				issues.Add(new()
+				{
+					Severity = SchemaValidationSeverity.Error,
+					Path = codeGenerator.Name,
+					Message = $"Code generator references unknown data source '{codeGenerator.DataSource}'.",
+					Element = codeGenerator,
+				});
+			}
 		}
 	}
 }
