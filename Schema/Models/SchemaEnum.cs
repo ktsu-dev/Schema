@@ -45,6 +45,35 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 	}
 
 	/// <summary>
+	/// Tries to insert a new value at a position in the enumeration.
+	/// </summary>
+	/// <remarks>
+	/// A value's position is its number in generated code, so putting a deleted value back means
+	/// putting it back where it was. Appending it would renumber it and every value after it.
+	/// </remarks>
+	/// <param name="index">The position to insert at, from 0 to the number of values.</param>
+	/// <param name="name">The value to insert.</param>
+	/// <returns>True if the value was inserted; false if it is already present.</returns>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is null or empty.</exception>
+	/// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index"/> is outside the values.</exception>
+	public bool TryInsertValue(int index, EnumValueName name)
+	{
+		Ensure.NotNullOrEmpty(name, nameof(name));
+		if (index < 0 || index > ValuesInternal.Count)
+		{
+			throw new ArgumentOutOfRangeException(nameof(index), index, $"The enumeration has {ValuesInternal.Count} values.");
+		}
+
+		if (ValuesInternal.Any(v => v == name))
+		{
+			return false;
+		}
+
+		ValuesInternal.Insert(index, name);
+		return true;
+	}
+
+	/// <summary>
 	/// Tries to remove a value from the enumeration.
 	/// </summary>
 	/// <param name="name">The value to remove.</param>
