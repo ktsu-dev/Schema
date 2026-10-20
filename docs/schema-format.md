@@ -645,6 +645,10 @@ containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` 
 This anchor is what makes a schema and its data movable together: checked out somewhere else, the
 relative paths still resolve.
 
+An absolute path is refused. A schema whose `outputPath` is `/tmp/out` loads as
+`SchemaLoadStatus.InvalidJson`, with a message naming the property (`codeGenerators[0].outputPath`)
+and saying that paths in a schema are relative to the schema file.
+
 The anchor is supplied by whoever read the file, so the serializer itself stays free of the
 filesystem:
 

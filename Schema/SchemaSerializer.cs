@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using ktsu.RoundTripStringJsonConverter;
 using ktsu.Semantics.Paths;
 
 /// <summary>
@@ -42,7 +41,7 @@ public static class SchemaSerializer
 		// editing a file by hand, and JSON objects are unordered. Without this, a discriminator
 		// that is not the first property threw NotSupportedException out of Load.
 		AllowOutOfOrderMetadataProperties = true,
-		Converters = { new RoundTripStringJsonConverterFactory() },
+		Converters = { new ValidatingStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
 			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage },
@@ -247,6 +246,16 @@ public static class SchemaSerializer
 				Message = declaredVersion < Schema.CurrentFormatVersion
 					? $"Migrated from format version {declaredVersion} to {Schema.CurrentFormatVersion}."
 					: "Loaded.",
+			};
+		}
+		catch (JsonException ex) when (ex.InnerException is ArgumentException)
+		{
+			// Well-formed JSON holding a value its type refuses, such as an absolute output path.
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema has a value at {ex.Path} it cannot hold: {ex.Message}",
 			};
 		}
 		catch (JsonException ex)

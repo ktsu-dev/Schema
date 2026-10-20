@@ -223,6 +223,26 @@ public class SchemaCommandLineTests
 	}
 
 	[TestMethod]
+	public void TestASchemaWithAnAbsoluteOutputPathIsAFailure()
+	{
+		string path = WriteSchema("absolute-output.schema.json", AbsolutePathLoadTests.AbsoluteOutputPath);
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
+	public void TestASchemaWithAnAbsoluteDataSourceFileIsAFailure()
+	{
+		string path = WriteSchema("absolute-data.schema.json", AbsolutePathLoadTests.AbsoluteDataSourceFile);
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
 	public void TestSchemaFromANewerVersionSaysSoRatherThanCallingItCorrupt()
 	{
 		string path = WriteSchema("future.schema.json", ValidSchema.Replace(
