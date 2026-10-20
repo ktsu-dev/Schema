@@ -115,7 +115,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		Describe(declaration, semanticType.Description);
 		foreach (string line in CppMemberDocumentation.ForCarrier(semanticType))
 		{
-			declaration.Documentation.Add(line);
+			AddDocumentation(declaration, line);
 		}
 
 		declaration.Members.Add(new UsingAlias(UnderlyingAlias, mapper.Map(semanticType.Representation())));
@@ -254,7 +254,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		foreach (string line in CppMemberDocumentation.For(member))
 		{
-			field.Documentation.Add(line);
+			AddDocumentation(field, line);
 		}
 
 		if (member.DefaultValue is not null)
@@ -580,8 +580,37 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	{
 		if (!string.IsNullOrEmpty(description))
 		{
-			declaration.Documentation.Add(description.ToString());
+			AddDocumentation(declaration, description.ToString());
 		}
+	}
+
+	/// <summary>
+	/// Adds text written by a person to a declaration's documentation, one entry per line.
+	/// </summary>
+	/// <remarks>
+	/// Each entry becomes a <c>//</c> comment, and a <c>//</c> comment ends at a line terminator -
+	/// including the lone <c>\r</c> GCC and Clang both honour - so text after one would be compiled
+	/// as code. Splitting at every terminator a description might carry keeps all of it a comment.
+	/// </remarks>
+	private static void AddDocumentation(IHasDocumentation declaration, string text)
+	{
+		int start = 0;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+			{
+				declaration.Documentation.Add(text[start..i]);
+				if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+				{
+					i++;
+				}
+
+				start = i + 1;
+			}
+		}
+
+		declaration.Documentation.Add(text[start..]);
 	}
 
 	/// <summary>
