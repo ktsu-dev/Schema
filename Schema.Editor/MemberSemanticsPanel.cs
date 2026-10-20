@@ -119,7 +119,7 @@ internal sealed class MemberSemanticsPanel(SchemaEditor schemaEditor)
 
 		if (member.Unit is not null && ImGui.IsItemHovered())
 		{
-			ImGui.SetTooltip(UnitRegistry.TryResolve(member.Unit, out IUnit? resolved, out string error)
+			EditorTooltip.Show(UnitRegistry.TryResolve(member.Unit, out IUnit? resolved, out string error)
 				? UnitText.ForDisplay($"{resolved!.Name} ({resolved.Symbol})")
 				: error);
 		}

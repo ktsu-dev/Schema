@@ -102,7 +102,7 @@ internal sealed class MemberGridPanel(SchemaEditor schemaEditor)
 
 		if (ImGui.IsItemHovered())
 		{
-			ImGui.SetTooltip(string.IsNullOrEmpty(member.Description) ? "Add a description" : member.Description);
+			EditorTooltip.Show(string.IsNullOrEmpty(member.Description) ? "Add a description" : member.Description);
 		}
 
 		ImGui.SameLine();
@@ -161,7 +161,7 @@ internal sealed class MemberGridPanel(SchemaEditor schemaEditor)
 
 		if (ImGui.IsItemHovered())
 		{
-			ImGui.SetTooltip(MemberSemanticsPanel.DescribeSemantics(member));
+			EditorTooltip.Show(MemberSemanticsPanel.DescribeSemantics(member));
 		}
 
 		return open;
@@ -242,7 +242,7 @@ internal sealed class MemberGridPanel(SchemaEditor schemaEditor)
 
 		if (ImGui.IsItemHovered())
 		{
-			ImGui.SetTooltip(issue.Message);
+			EditorTooltip.Show(issue.Message);
 		}
 	}
 

@@ -106,7 +106,7 @@ public partial class SchemaEditor
 
 			if (ImGui.IsItemHovered())
 			{
-				ImGui.SetTooltip(path);
+				EditorTooltip.Show(path);
 			}
 
 			ImGui.PopID();
