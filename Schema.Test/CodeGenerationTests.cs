@@ -116,6 +116,19 @@ public class CodeGenerationTests
 	// ---- refusal ------------------------------------------------------------
 
 	[TestMethod]
+	public void TestGenerationIsRefusedWhenAClassAndAnEnumShareAName()
+	{
+		Schema schema = CreateFullSchema();
+		SchemaCodeGenerator generator = ConfigureGenerator(schema);
+		Assert.IsTrue(schema.TryAddEnum("Item".As<EnumName>()));
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, result.Status);
+		Assert.IsTrue(result.Issues.Any(i => i.Message.Contains("Name 'Item' is used by both a class and an enum")));
+	}
+
+	[TestMethod]
 	public void TestGenerationIsRefusedForASchemaWithErrors()
 	{
 		Schema schema = CreateFullSchema();

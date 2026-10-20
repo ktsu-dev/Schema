@@ -47,6 +47,46 @@ public partial class Schema
 		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
+		ReportNamesSharedAcrossKinds(issues);
+	}
+
+	/// <summary>
+	/// Reports a name used by more than one kind of type, which the generators would write to the
+	/// same file - one silently overwriting the other.
+	/// </summary>
+	/// <remarks>
+	/// Classes, enums, interfaces and semantic types are all emitted as a type named for the element,
+	/// one file each, so two of different kinds sharing a name collide in the output even though each
+	/// kind's own list is unique. A name repeated within one kind keeps the message above alone.
+	/// </remarks>
+	private void ReportNamesSharedAcrossKinds(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<(string Name, string Kind)> types =
+		[
+			.. ClassesInternal.Select(c => (c.Name.ToString(), "a class")),
+			.. EnumsInternal.Select(e => (e.Name.ToString(), "an enum")),
+			.. InterfacesInternal.Select(i => (i.Name.ToString(), "an interface")),
+			.. SemanticTypesInternal.Select(t => (t.Name.ToString(), "a semantic type")),
+		];
+
+		foreach (IGrouping<string, string> shared in types.GroupBy(t => t.Name, t => t.Kind))
+		{
+			List<string> kinds = [.. shared.Distinct()];
+			if (kinds.Count < 2)
+			{
+				continue;
+			}
+
+			string joined = kinds.Count == 2
+				? $"both {kinds[0]} and {kinds[1]}"
+				: $"{string.Join(", ", kinds.Take(kinds.Count - 1))} and {kinds[^1]}";
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = shared.Key,
+				Message = $"Name '{shared.Key}' is used by {joined}; the generated types would overwrite each other.",
+			});
+		}
 	}
 
 	private static void ReportDuplicates(Collection<SchemaValidationIssue> issues, IEnumerable<string> names, string kind)

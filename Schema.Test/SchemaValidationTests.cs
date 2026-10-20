@@ -137,6 +137,84 @@ public class SchemaValidationTests
 		Assert.IsNull(duplicate.Element);
 	}
 
+	// A name shared across kinds: each kind's list is unique, but the generated files are not.
+	private static void AddNamed(Schema schema, string kind, string name)
+	{
+		bool added = kind switch
+		{
+			"class" => schema.TryAddClass(name.As<ClassName>()),
+			"enum" => schema.TryAddEnum(name.As<EnumName>()),
+			"interface" => schema.TryAddInterface(name.As<InterfaceName>()),
+			"semantic type" => schema.TryAddSemanticType(name.As<SemanticTypeName>()),
+			_ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+		};
+		Assert.IsTrue(added, $"Could not add {kind} '{name}'.");
+	}
+
+	[TestMethod]
+	[DataRow("class", "enum", "both a class and an enum")]
+	[DataRow("class", "interface", "both a class and an interface")]
+	[DataRow("class", "semantic type", "both a class and a semantic type")]
+	[DataRow("enum", "interface", "both an enum and an interface")]
+	[DataRow("enum", "semantic type", "both an enum and a semantic type")]
+	[DataRow("interface", "semantic type", "both an interface and a semantic type")]
+	public void TestANameSharedByTwoKindsIsAnError(string first, string second, string expected)
+	{
+		Schema schema = new();
+		AddNamed(schema, first, "Kind");
+		AddNamed(schema, second, "Kind");
+
+		SchemaValidationIssue issue = schema.Validate().Single(i => i.Message.Contains("is used by"));
+
+		Assert.AreEqual(SchemaValidationSeverity.Error, issue.Severity);
+		Assert.AreEqual("Kind", issue.Path);
+		StringAssert.Contains(issue.Message, $"Name 'Kind' is used by {expected}");
+	}
+
+	[TestMethod]
+	public void TestANameSharedByThreeKindsNamesEveryKind()
+	{
+		Schema schema = new();
+		AddNamed(schema, "class", "Kind");
+		AddNamed(schema, "enum", "Kind");
+		AddNamed(schema, "interface", "Kind");
+
+		SchemaValidationIssue issue = schema.Validate().Single(i => i.Message.Contains("is used by"));
+
+		StringAssert.Contains(issue.Message, "Name 'Kind' is used by a class, an enum and an interface");
+	}
+
+	[TestMethod]
+	public void TestDistinctNamesAcrossKindsAreNotReported()
+	{
+		Schema schema = new();
+		AddNamed(schema, "class", "User");
+		AddNamed(schema, "enum", "Role");
+		AddNamed(schema, "interface", "Store");
+
+		Assert.IsFalse(schema.Validate().Any(i => i.Message.Contains("is used by")));
+	}
+
+	[TestMethod]
+	public void TestADuplicateWithinOneKindKeepsItsOwnMessageAlone()
+	{
+		const string json = """
+		{
+		  "classes": [
+		    { "name": "User", "members": [] },
+		    { "name": "User", "members": [] }
+		  ]
+		}
+		""";
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? schema));
+		Assert.IsNotNull(schema);
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+		Assert.IsTrue(issues.Any(i => i.Message.Contains("Duplicate class name 'User'")));
+		Assert.IsFalse(issues.Any(i => i.Message.Contains("is used by")));
+	}
+
 	[TestMethod]
 	public void TestEmptySchemaHasNoIssues()
 	{

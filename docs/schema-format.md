@@ -66,7 +66,7 @@ when empty. It is the natural source for a doc comment in generated code.
 | --- | --- | --- |
 | `members` | array of [member](#member) | The class's members, **in declaration order**. |
 | `travelsAsBytes` | bool | Whether an instance is copied whole, without anyone reading a field on the way. Omitted when false. See below. |
-| `name` | string | The class name. Unique among classes. |
+| `name` | string | The class name. Unique among classes, enums, interfaces and semantic types, since each becomes a generated type. |
 | `description` | string | Free text. |
 
 Member order is meaningful: it is preserved through a round trip and is the order generated code
@@ -214,7 +214,7 @@ and neither is interchangeable with the other or with a bare number.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `underlyingType` | [type](#types) | What values of this type are represented as. |
-| `name` | string | The type name. Unique among semantic types. |
+| `name` | string | The type name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 | `unit`, `range`, `defaultValue`, `interpolation`, `network`, `editor` | see [Member](#member) | The same six properties a member may carry, for the cases where they belong to the *type* rather than to a use of it. |
 
@@ -310,7 +310,7 @@ has a `Result` to emit and nothing to put in its error position.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `functions` | array of [function](#function) | The interface's functions, **in declaration order**. |
-| `name` | string | The interface name. Unique among interfaces. |
+| `name` | string | The interface name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 
 Order is preserved, for the same reason member order is: a generated header that reorders itself
@@ -406,7 +406,7 @@ Some things are refused in a signature, and the refusals are what keep the conve
 ```
 
 `values` is an array of strings, in declaration order. Values are unique within the enum and may
-not be empty.
+not be empty. The enum's own name is unique among classes, enums, interfaces and semantic types.
 
 ## Data source
 
