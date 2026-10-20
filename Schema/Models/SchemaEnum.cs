@@ -84,7 +84,8 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 	/// Renames a value, keeping its position in the enumeration.
 	/// </summary>
 	/// <remarks>
-	/// Nothing else in the schema references an enum value by name, so there is nothing to cascade.
+	/// A member typed as this enum names its default value by text, so every such default naming
+	/// <paramref name="oldValue"/> is repointed to <paramref name="newValue"/>.
 	/// </remarks>
 	/// <param name="oldValue">The value to rename.</param>
 	/// <param name="newValue">The new name.</param>
@@ -106,6 +107,7 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 		}
 
 		ValuesInternal[index] = newValue;
+		ParentSchema?.RepointEnumValueDefaults(Name, oldValue, newValue);
 		return true;
 	}
 
