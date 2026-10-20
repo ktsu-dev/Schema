@@ -43,6 +43,7 @@ internal sealed class ValidatingStringJsonConverterFactory : JsonConverterFactor
 		public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			string? value = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+			RefuseRootedPath(value);
 			try
 			{
 				return inner.Read(ref reader, typeToConvert, options);
@@ -59,6 +60,7 @@ internal sealed class ValidatingStringJsonConverterFactory : JsonConverterFactor
 		public override T ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			string? value = reader.GetString();
+			RefuseRootedPath(value);
 			try
 			{
 				return inner.ReadAsPropertyName(ref reader, typeToConvert, options);
@@ -72,9 +74,29 @@ internal sealed class ValidatingStringJsonConverterFactory : JsonConverterFactor
 		public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options) =>
 			inner.WriteAsPropertyName(writer, value, options);
 
-		private static string Describe(string? value, ArgumentException ex) =>
+		/// <summary>
+		/// Refuses a rooted path whichever system reads the file. The semantic type asks the host, and
+		/// a host only recognises its own roots: Windows reads <c>/tmp/out</c> as relative to the
+		/// current drive and Linux reads <c>C:\out</c> as a file name, yet either one escapes the
+		/// schema's directory on the system it was written for, and a schema file travels.
+		/// </summary>
+		private static void RefuseRootedPath(string? value)
+		{
+			if (value is not null && typeof(IRelativePath).IsAssignableFrom(typeof(T)) && IsRootedOnAnySystem(value))
+			{
+				// The inner exception is not decoration: the serializer adds the property's path to the
+				// message only for a JsonException that has one.
+				string message = Describe(value, null);
+				throw new JsonException(message, new ArgumentException(message));
+			}
+		}
+
+		private static bool IsRootedOnAnySystem(string value) =>
+			value.Length > 0 && (value[0] is '/' or '\\' || (value.Length >= 2 && value[1] == ':' && char.IsAsciiLetter(value[0])));
+
+		private static string Describe(string? value, ArgumentException? ex) =>
 			typeof(IRelativePath).IsAssignableFrom(typeof(T))
 				? $"'{value}' is not a relative path. Paths in a schema are relative to the schema file."
-				: $"'{value}' is not a valid {typeof(T).Name}: {ex.Message}";
+				: $"'{value}' is not a valid {typeof(T).Name}: {ex?.Message}";
 	}
 }

@@ -43,6 +43,20 @@ public class AbsolutePathLoadTests
 	}
 
 	[TestMethod]
+	[DataRow("C:/out")]
+	[DataRow(@"C:\\out")]
+	[DataRow(@"\\\\server\\share")]
+	[DataRow(@"\\out")]
+	[DataRow("/out")]
+	public void APathRootedOnAnySystemIsRefusedOnEverySystem(string outputPath)
+	{
+		SchemaLoadResult result = SchemaSerializer.Load(AbsoluteOutputPath.Replace("/tmp/out", outputPath, System.StringComparison.Ordinal));
+
+		Assert.AreEqual(SchemaLoadStatus.InvalidJson, result.Status, outputPath);
+		Assert.Contains("relative to the schema file", result.Message);
+	}
+
+	[TestMethod]
 	public void ARelativeOutputPathStillLoads()
 	{
 		SchemaLoadResult result = SchemaSerializer.Load(AbsoluteOutputPath.Replace("/tmp/out", "out", System.StringComparison.Ordinal));
