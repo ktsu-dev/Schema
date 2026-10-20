@@ -315,6 +315,41 @@ public class SchemaCommandLineTests
 		Assert.IsTrue(result.Output.Contains("CSharp:", StringComparison.Ordinal), result.Output);
 	}
 
+	/// <summary>
+	/// One generator whose output directory is blocked by a file fails the command, says why on
+	/// stderr, and does not stop the next generator from writing.
+	/// </summary>
+	[TestMethod]
+	public void TestGenerateReportsAWriteFailureAndRunsTheOtherGenerators()
+	{
+		string path = WriteSchema("gen-blocked.schema.json", """
+		{
+		  "formatVersion": 1,
+		  "classes": [
+		    {
+		      "members": [ { "type": { "TypeName": "String" }, "name": "Id", "description": "" } ],
+		      "name": "Item",
+		      "description": ""
+		    }
+		  ],
+		  "enums": [],
+		  "codeGenerators": [
+		    { "outputPath": "blocked", "language": "csharp", "namespace": "Demo", "name": "Blocked", "description": "" },
+		    { "outputPath": "open", "language": "csharp", "namespace": "Demo", "name": "Open", "description": "" }
+		  ],
+		  "dataSources": []
+		}
+		""");
+		File.WriteAllText(Path.Combine(workingDirectory, "blocked"), "in the way");
+
+		Result result = Run("generate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Blocked: Could not write", StringComparison.Ordinal), result.Error);
+		Assert.IsTrue(File.Exists(Path.Combine(workingDirectory, "open", "Item.g.cs")), "The second generator did not run.");
+		Assert.IsTrue(result.Output.Contains("Open:", StringComparison.Ordinal), result.Output);
+	}
+
 	[TestMethod]
 	public void TestGenerateRefusesABrokenSchemaAndListsWhy()
 	{

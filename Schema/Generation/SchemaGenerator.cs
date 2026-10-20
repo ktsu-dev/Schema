@@ -146,7 +146,10 @@ public static class SchemaGenerator
 	/// </remarks>
 	/// <param name="schema">The schema to generate from.</param>
 	/// <param name="configuration">The code generator element to generate under.</param>
-	/// <returns>The outcome. On success, the files it reports have been written.</returns>
+	/// <returns>
+	/// The outcome. On success, the files it reports have been written. A file that cannot be
+	/// written is reported as <see cref="SchemaGenerationStatus.WriteFailed"/> rather than thrown.
+	/// </returns>
 	public static SchemaGenerationResult GenerateToDisk(Models.Schema schema, SchemaCodeGenerator configuration)
 	{
 		Ensure.NotNull(schema);
@@ -172,13 +175,28 @@ public static class SchemaGenerator
 		foreach (KeyValuePair<string, string> file in result.Files)
 		{
 			string destination = Path.Combine(outputDirectory, file.Key);
-			string? directory = Path.GetDirectoryName(destination);
-			if (!string.IsNullOrEmpty(directory))
-			{
-				Directory.CreateDirectory(directory);
-			}
 
-			File.WriteAllText(destination, file.Value);
+			// A write that fails is an outcome, like a refusal: a read-only directory or a file
+			// standing where a directory is needed says nothing about the schema, and a caller
+			// running several generators should report it and carry on rather than unwind.
+			try
+			{
+				string? directory = Path.GetDirectoryName(destination);
+				if (!string.IsNullOrEmpty(directory))
+				{
+					Directory.CreateDirectory(directory);
+				}
+
+				File.WriteAllText(destination, file.Value);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Could not write '{destination}' for '{configuration.Name}': {exception.Message}",
+				};
+			}
 		}
 
 		return new()

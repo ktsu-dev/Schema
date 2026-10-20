@@ -306,6 +306,34 @@ public class CodeGenerationTests
 		}
 	}
 
+	/// <summary>
+	/// A file standing where the output directory should be is a failure to write, not a fault:
+	/// it is reported as a result naming the path rather than thrown out of the caller.
+	/// </summary>
+	[TestMethod]
+	public void TestGenerateToDiskReportsAWriteItCannotMake()
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			File.WriteAllText(Path.Combine(directory, "generated"), "in the way");
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+
+			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, generator);
+
+			Assert.AreEqual(SchemaGenerationStatus.WriteFailed, result.Status, result.Message);
+			Assert.IsTrue(result.Message.Contains("generated", StringComparison.Ordinal), result.Message);
+			Assert.IsFalse(result.IsSuccess);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
 	[TestMethod]
 	public void TestGenerateToDiskNeedsToKnowWhereTheSchemaLives()
 	{
