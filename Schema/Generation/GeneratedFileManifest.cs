@@ -83,7 +83,7 @@ internal static class GeneratedFileManifest
 		}
 
 		string root = Path.GetFullPath(outputDirectory);
-		string candidate = Path.GetFullPath(Path.Combine(root, relativePath));
+		string candidate = Path.GetFullPath(Path.Join(root, relativePath));
 		string prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
 		if (!candidate.StartsWith(prefix, StringComparison.Ordinal))
 		{
