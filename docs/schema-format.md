@@ -5,7 +5,8 @@ serializer actually emits, the version field and its migration path, and what ma
 future release.
 
 The format is JSON, written by `System.Text.Json` with camel-cased property names and indentation.
-Nulls are omitted. Round-tripping is the contract: loading a file and saving it again must not
+Nulls are omitted, and a null written by hand reads as if the property were omitted; a null element
+in a list is refused, with its path in the message. Round-tripping is the contract: loading a file and saving it again must not
 lose information.
 
 ## Root
@@ -35,6 +36,13 @@ lose information.
 | `errorType` | string | The enum a failed [`Result`](#result) carries. See [The four conventions](#the-four-conventions). Empty until a schema declares one. |
 
 All six collections are always written, empty or not.
+
+Property names are camelCase and matched exactly. A file whose root holds a property this list does
+not name - `Classes` rather than `classes`, say, or anything a hand edit added - is refused rather
+than loaded with that property skipped, because loading it would look like a successful load of a
+schema with something missing, and saving it would then write the omission back over the file. A
+file declaring a newer `formatVersion` is refused as newer before this check runs, so a property a
+later version added is reported as a version this build cannot read rather than as an unknown name.
 
 Every named element also carries a `description`, a free-text string that is always written even
 when empty. It is the natural source for a doc comment in generated code.

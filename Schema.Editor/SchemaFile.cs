@@ -85,7 +85,23 @@ internal static class SchemaFile
 	/// <param name="schema">The schema to save.</param>
 	/// <param name="filePath">The path to save the schema to.</param>
 	/// <returns>True if the schema was saved successfully, false otherwise.</returns>
-	public static bool TrySave(Schema schema, AbsoluteFilePath filePath)
+	public static bool TrySave(Schema schema, AbsoluteFilePath filePath) =>
+		TrySave(schema, filePath, File.WriteAllText);
+
+	/// <summary>
+	/// Saves a Schema to a file path, writing the content through <paramref name="writeFile"/>.
+	/// </summary>
+	/// <remarks>
+	/// The content goes to a temporary file beside the target and is swapped into place only once it
+	/// has been written whole, so a write that fails partway - a full disk, a dropped network share -
+	/// leaves the previous save intact rather than truncated. <paramref name="writeFile"/> is the seam
+	/// a test uses to make that write fail; it is only ever given the temporary path.
+	/// </remarks>
+	/// <param name="schema">The schema to save.</param>
+	/// <param name="filePath">The path to save the schema to.</param>
+	/// <param name="writeFile">Writes the given text to the given path.</param>
+	/// <returns>True if the schema was saved successfully, false otherwise.</returns>
+	internal static bool TrySave(Schema schema, AbsoluteFilePath filePath, Action<string, string> writeFile)
 	{
 		if (schema is null || string.IsNullOrEmpty(filePath))
 		{
@@ -102,7 +118,7 @@ internal static class SchemaFile
 				Directory.CreateDirectory(directory);
 			}
 
-			File.WriteAllText(filePath, json);
+			WriteAtomically(filePath, json, writeFile);
 			return true;
 		}
 		catch (JsonException)
@@ -115,5 +131,40 @@ internal static class SchemaFile
 		}
 
 		return false;
+	}
+
+	/// <summary>
+	/// Writes <paramref name="content"/> to a temporary file in the target's directory, then moves it
+	/// over the target, so the target only ever holds a complete previous save or a complete new one.
+	/// </summary>
+	/// <remarks>
+	/// The temporary file is in the same directory so the final step is a rename on one volume rather
+	/// than a copy. It is deleted on any failure, which is what the <c>finally</c> is for: an
+	/// exception the caller does not catch still must not leave it behind.
+	/// </remarks>
+	private static void WriteAtomically(string targetPath, string content, Action<string, string> writeFile)
+	{
+		string temporaryPath = $"{targetPath}.tmp-{Guid.NewGuid():N}";
+
+		try
+		{
+			writeFile(temporaryPath, content);
+
+			if (File.Exists(targetPath))
+			{
+				File.Replace(temporaryPath, targetPath, destinationBackupFileName: null);
+			}
+			else
+			{
+				File.Move(temporaryPath, targetPath);
+			}
+		}
+		finally
+		{
+			if (File.Exists(temporaryPath))
+			{
+				File.Delete(temporaryPath);
+			}
+		}
 	}
 }

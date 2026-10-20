@@ -171,7 +171,9 @@ public sealed class TravelsAsBytesTests
 
 	/// <summary>
 	/// Two classes holding each other is a schema someone can write, and validating it must not
-	/// hang: the promise is read off each class rather than walked through it.
+	/// hang. It is refused, once, because two structs holding each other have no finite size;
+	/// the promise itself is read off each class rather than walked through it, so it adds
+	/// nothing more.
 	/// </summary>
 	[TestMethod]
 	public void TwoClassesHoldingEachOtherDoNotHangValidation()
@@ -184,7 +186,9 @@ public sealed class TravelsAsBytesTests
 		left.AddMember("Other".As<MemberName>())!.SetType(new Models.Types.Object { ClassName = "Right".As<ClassName>() });
 		right.AddMember("Other".As<MemberName>())!.SetType(new Models.Types.Object { ClassName = "Left".As<ClassName>() });
 
-		Assert.IsEmpty(Errors(schema), string.Join("; ", Errors(schema)));
+		Collection<SchemaValidationIssue> errors = Errors(schema);
+		Assert.HasCount(1, errors, string.Join("; ", errors.Select(e => e.Message)));
+		StringAssert.Contains(errors[0].Message, "holds itself by value");
 	}
 
 	/// <summary>

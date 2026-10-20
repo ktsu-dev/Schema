@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Models;
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using ktsu.RoundTripStringJsonConverter;
@@ -18,6 +19,11 @@ public static class SchemaSerializer
 		WriteIndented = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+
+		// A type's "TypeName" and a default's "DefaultKind" are ordinary properties to anyone
+		// editing a file by hand, and JSON objects are unordered. Without this, a discriminator
+		// that is not the first property threw NotSupportedException out of Load.
+		AllowOutOfOrderMetadataProperties = true,
 		Converters = { new RoundTripStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
@@ -176,9 +182,32 @@ public static class SchemaSerializer
 			};
 		}
 
+		string? unrecognised = FindUnrecognisedRootProperty(json);
+		if (unrecognised is not null)
+		{
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = DescribeUnrecognisedRootProperty(unrecognised),
+			};
+		}
+
+		JsonNode? document = JsonNode.Parse(json);
+		string? nullElement = RemoveNulls(document, "$");
+		if (nullElement is not null)
+		{
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema has a null at {nullElement}, where a list holds only elements.",
+			};
+		}
+
 		try
 		{
-			Schema? schema = JsonSerializer.Deserialize<Schema>(json, JsonOptions);
+			Schema? schema = document.Deserialize<Schema>(JsonOptions);
 			if (schema is null)
 			{
 				return new()
@@ -211,6 +240,112 @@ public static class SchemaSerializer
 				Message = $"The schema is not valid JSON: {ex.Message}",
 			};
 		}
+		catch (NotSupportedException ex)
+		{
+			// The serializer reports a shape it cannot construct - a polymorphic object with no
+			// discriminator, or one it does not recognise - as NotSupportedException rather than
+			// JsonException. The file is no less unreadable for that, and Load promises a result.
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema could not be read: {ex.Message}",
+			};
+		}
+	}
+
+	/// <summary>
+	/// Reads every null property in a document as an omitted one, and finds the first null element.
+	/// </summary>
+	/// <remarks>
+	/// The serializer never writes a null, so a null in a file was written by hand. Read as given, a
+	/// null collection, name or type reached the model as a null its non-nullable properties never
+	/// expect, and <see cref="Schema.Reassociate"/> or <see cref="Schema.Validate"/> then threw
+	/// rather than reporting anything. Omitting a property already means "the default": an empty
+	/// collection, an empty name the validator reports, an unfinished type. A null element in a list
+	/// has no default to stand for, so it is refused by its path.
+	/// </remarks>
+	/// <param name="node">The node to clean, which is modified in place.</param>
+	/// <param name="path">Where <paramref name="node"/> sits in the document.</param>
+	/// <returns>The path of the first null element, or <see langword="null"/> when there is none.</returns>
+	private static string? RemoveNulls(JsonNode? node, string path)
+	{
+		switch (node)
+		{
+			case JsonObject jsonObject:
+				foreach (string name in jsonObject.Where(property => property.Value is null).Select(property => property.Key).ToList())
+				{
+					jsonObject.Remove(name);
+				}
+
+				foreach (KeyValuePair<string, JsonNode?> property in jsonObject)
+				{
+					string? found = RemoveNulls(property.Value, $"{path}.{property.Key}");
+					if (found is not null)
+					{
+						return found;
+					}
+				}
+
+				return null;
+
+			case JsonArray jsonArray:
+				for (int index = 0; index < jsonArray.Count; index++)
+				{
+					string elementPath = $"{path}[{index}]";
+					string? found = jsonArray[index] is null ? elementPath : RemoveNulls(jsonArray[index], elementPath);
+					if (found is not null)
+					{
+						return found;
+					}
+				}
+
+				return null;
+
+			default:
+				return null;
+		}
+	}
+
+	/// <summary>
+	/// The names a schema document's root may hold, as the serializer itself spells them.
+	/// </summary>
+	/// <remarks>
+	/// Read from the serializer's own contract rather than listed here, so a property added to
+	/// <see cref="Schema"/> is accepted the moment it can be read.
+	/// </remarks>
+	private static readonly Lazy<HashSet<string>> RootPropertyNames = new(() =>
+		[.. JsonOptions.GetTypeInfo(typeof(Schema)).Properties.Select(property => property.Name)]);
+
+	/// <summary>
+	/// Finds the first property at the document root that the model does not read, if there is one.
+	/// </summary>
+	/// <remarks>
+	/// The serializer skips a property it does not recognise, so a document written with
+	/// <c>Classes</c> rather than <c>classes</c> used to load as an empty schema reported as a
+	/// successful migration, and saving it from the editor then replaced the file with nothing.
+	/// Refusing the document is what keeps a file this build cannot read from being taken for an
+	/// empty one. A file from a newer version is refused before this runs, with its own message,
+	/// so an unrecognised property here is never one a newer writer added.
+	/// </remarks>
+	private static string? FindUnrecognisedRootProperty(string json)
+	{
+		using JsonDocument document = JsonDocument.Parse(json);
+		HashSet<string> known = RootPropertyNames.Value;
+
+		return document.RootElement.EnumerateObject()
+			.Select(property => property.Name)
+			.FirstOrDefault(name => !known.Contains(name));
+	}
+
+	private static string DescribeUnrecognisedRootProperty(string name)
+	{
+		string? differentlyCased = RootPropertyNames.Value
+			.FirstOrDefault(known => string.Equals(known, name, StringComparison.OrdinalIgnoreCase));
+
+		return differentlyCased is null
+			? $"The schema has a property '{name}' that this build does not recognise, so it cannot be read without losing data."
+			: $"The schema has a property '{name}' that this build does not recognise: property names are camelCase, so it would be '{differentlyCased}'.";
 	}
 
 	/// <summary>
