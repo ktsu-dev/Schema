@@ -14,9 +14,27 @@ using ktsu.Semantics.Paths;
 /// </summary>
 public static class SchemaSerializer
 {
+	/// <summary>
+	/// How a schema file is parsed before anything reads it.
+	/// </summary>
+	/// <remarks>
+	/// A schema is edited by hand and kept beside the C++ generator's options file, which is read
+	/// in this dialect too, so both accept comments and trailing commas. Every parse of a schema
+	/// goes through these, because the format version and the root properties are read before the
+	/// serializer ever sees the document. Comments are skipped rather than kept, so a schema saved
+	/// after loading has none.
+	/// </remarks>
+	private static readonly JsonDocumentOptions DocumentOptions = new()
+	{
+		CommentHandling = JsonCommentHandling.Skip,
+		AllowTrailingCommas = true,
+	};
+
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		WriteIndented = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+		AllowTrailingCommas = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 
@@ -193,7 +211,7 @@ public static class SchemaSerializer
 			};
 		}
 
-		JsonNode? document = JsonNode.Parse(json);
+		JsonNode? document = JsonNode.Parse(json, documentOptions: DocumentOptions);
 		string? nullElement = RemoveNulls(document, "$");
 		if (nullElement is not null)
 		{
@@ -330,7 +348,7 @@ public static class SchemaSerializer
 	/// </remarks>
 	private static string? FindUnrecognisedRootProperty(string json)
 	{
-		using JsonDocument document = JsonDocument.Parse(json);
+		using JsonDocument document = JsonDocument.Parse(json, DocumentOptions);
 		HashSet<string> known = RootPropertyNames.Value;
 
 		return document.RootElement.EnumerateObject()
@@ -358,7 +376,7 @@ public static class SchemaSerializer
 	/// </remarks>
 	private static int ReadFormatVersion(string json)
 	{
-		using JsonDocument document = JsonDocument.Parse(json);
+		using JsonDocument document = JsonDocument.Parse(json, DocumentOptions);
 
 		if (document.RootElement.ValueKind != JsonValueKind.Object)
 		{

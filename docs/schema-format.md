@@ -9,6 +9,11 @@ Nulls are omitted, and a null written by hand reads as if the property were omit
 in a list is refused, with its path in the message. Round-tripping is the contract: loading a file and saving it again must not
 lose information.
 
+A file is usually written by hand, so it is read with `//` and `/* */` comments and trailing commas
+allowed, the same dialect as a C++ generator options file. The serializer never writes either, so
+comments do not survive being loaded and saved again; they are the one thing in a file that is not
+part of the schema.
+
 ## Root
 
 ```json
