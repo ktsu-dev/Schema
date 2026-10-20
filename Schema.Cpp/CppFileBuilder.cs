@@ -381,7 +381,48 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 				+ "Give it a finite default, or none.");
 		}
 
-		return represented is Float ? $"{FloatText(number.Value)}f" : value.ToString();
+		return represented switch
+		{
+			Float => $"{FloatText(number.Value)}f",
+			Int or Long => IntegerText(member, number.Value, represented),
+			_ => value.ToString(),
+		};
+	}
+
+	/// <summary>
+	/// Writes a default stored as an integer as the integer it is.
+	/// </summary>
+	/// <remarks>
+	/// A default is held as a double, and a double's own text switches to an exponent from 1e15 on:
+	/// <c>1E+15</c> is a floating literal in C++, and a braced initialiser refuses it for an
+	/// integer member as narrowing. So the value is converted rather than echoed. The lowest
+	/// <c>std::int64_t</c> has no literal of its own - <c>9223372036854775808</c> does not fit the
+	/// type the minus is then applied to - so it is spelled as the expression that reaches it.
+	/// </remarks>
+	/// <param name="member">The member the default belongs to, named if it cannot be written.</param>
+	/// <param name="value">The default.</param>
+	/// <param name="represented">What the member is stored as.</param>
+	/// <returns>The literal.</returns>
+	private static string IntegerText(SchemaMember member, double value, BaseType represented)
+	{
+		bool isLong = represented is Long;
+
+		// (double)long.MaxValue rounds up to 2^63, so the upper bound is exclusive.
+		bool fits = value == Math.Floor(value) && (isLong
+			? value is >= long.MinValue and < 9223372036854775808d
+			: value is >= int.MinValue and <= int.MaxValue);
+
+		if (!fits)
+		{
+			throw new CppGenerationException(
+				$"Member '{member.Name}' defaults to {value.ToString("R", CultureInfo.InvariantCulture)}, "
+				+ $"which is not a whole number its {(isLong ? "64" : "32")}-bit integer type can hold.");
+		}
+
+		long whole = (long)value;
+		return whole == long.MinValue
+			? "(-9223372036854775807LL - 1)"
+			: whole.ToString(CultureInfo.InvariantCulture);
 	}
 
 	/// <summary>
