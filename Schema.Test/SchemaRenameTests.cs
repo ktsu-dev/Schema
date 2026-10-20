@@ -261,4 +261,115 @@ public class SchemaRenameTests
 		Assert.IsNotNull(reloaded.GetClass("Product".As<ClassName>()));
 		Assert.AreEqual(0, reloaded.Validate().Count, string.Join("; ", reloaded.Validate()));
 	}
+
+	/// <summary>
+	/// Builds a schema whose references to <c>Item</c> and <c>Status</c> sit only in nested or
+	/// signature positions: inside Optional, Handle and Result wrappers, inside an array of
+	/// optionals, and in an interface function's return and parameter types.
+	/// </summary>
+	private static Schema CreateNestedReferencingSchema()
+	{
+		Schema schema = new();
+
+		SchemaEnum? status = schema.AddEnum("Status".As<EnumName>());
+		status?.TryAddValue("Active".As<EnumValueName>());
+		schema.ErrorType = "Status".As<EnumName>();
+
+		schema.AddClass("Item".As<ClassName>())?.AddMember("Id".As<MemberName>())?.SetType(new SchemaTypes.Int());
+
+		SchemaClass? holder = schema.AddClass("Holder".As<ClassName>());
+		holder?.AddMember("MaybeItem".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = ItemReference() });
+		holder?.AddMember("ItemHandle".As<MemberName>())?.SetType(new SchemaTypes.Handle() { ElementType = ItemReference() });
+		holder?.AddMember("MaybeStatus".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = StatusReference() });
+		holder?.AddMember("MaybeItems".As<MemberName>())?.SetType(new SchemaTypes.Array()
+		{
+			ElementType = new SchemaTypes.Optional() { ElementType = ItemReference() },
+		});
+
+		SchemaFunction? lookup = schema.AddInterface("Store".As<InterfaceName>())?.AddFunction("Lookup".As<FunctionName>());
+		lookup?.SetReturnType(new SchemaTypes.Result() { ElementType = ItemReference() });
+		lookup?.AddParameter("Filter".As<ParameterName>())?.SetType(StatusReference());
+		lookup?.AddParameter("Like".As<ParameterName>())?.SetType(ItemReference());
+
+		return schema;
+	}
+
+	private static SchemaTypes.Object ItemReference() => new() { ClassName = "Item".As<ClassName>() };
+
+	private static SchemaTypes.Enum StatusReference() => new() { EnumName = "Status".As<EnumName>() };
+
+	private static SchemaFunction Lookup(Schema schema) =>
+		schema.Interfaces.Single().Functions.Single();
+
+	private static SchemaTypes.BaseType Inner(Schema schema, string member) =>
+		((SchemaTypes.WrapperType)schema.GetClass("Holder".As<ClassName>())!.GetMember(member.As<MemberName>())!.Type).ElementType;
+
+	private static void AssertNoIssueNames(Schema schema, string oldName)
+	{
+		string[] dangling = [.. schema.Validate()
+			.Select(issue => issue.ToString())
+			.Where(issue => issue.Contains($"'{oldName}'", StringComparison.Ordinal))];
+		Assert.IsEmpty(dangling, string.Join("; ", dangling));
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsReferencesInsideWrappers()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		Assert.AreEqual("Product", ((SchemaTypes.Object)Inner(schema, "MaybeItem")).ClassName.ToString());
+		Assert.AreEqual("Product", ((SchemaTypes.Object)Inner(schema, "ItemHandle")).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsReferencesInsideAnArrayOfOptionals()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		SchemaTypes.Array items = (SchemaTypes.Array)schema.GetClass("Holder".As<ClassName>())!.GetMember("MaybeItems".As<MemberName>())!.Type;
+		SchemaTypes.Optional optional = (SchemaTypes.Optional)items.ElementType;
+		Assert.AreEqual("Product", ((SchemaTypes.Object)optional.ElementType).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsFunctionReturnAndParameterTypes()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		SchemaFunction lookup = Lookup(schema);
+		SchemaTypes.Result result = (SchemaTypes.Result)lookup.ReturnType;
+		Assert.AreEqual("Product", ((SchemaTypes.Object)result.ElementType).ClassName.ToString());
+		Assert.AreEqual("Product", ((SchemaTypes.Object)lookup.Parameters.Single(p => p.Name.ToString() == "Like").Type).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameEnumRepointsReferencesInsideWrappersAndSignatures()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Status".As<EnumName>())!, "State".As<EnumName>()));
+
+		Assert.AreEqual("State", ((SchemaTypes.Enum)Inner(schema, "MaybeStatus")).EnumName.ToString());
+		Assert.AreEqual("State", ((SchemaTypes.Enum)Lookup(schema).Parameters.Single(p => p.Name.ToString() == "Filter").Type).EnumName.ToString());
+		AssertNoIssueNames(schema, "Status");
+	}
+
+	[TestMethod]
+	public void TestRenameEnumRepointsTheSchemaErrorType()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Status".As<EnumName>())!, "State".As<EnumName>()));
+
+		Assert.AreEqual("State", schema.ErrorType.ToString());
+	}
 }

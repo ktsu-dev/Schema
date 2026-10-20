@@ -10,9 +10,12 @@ using ktsu.Schema.Models.Types;
 /// </summary>
 /// <remarks>
 /// Renaming is the schema's responsibility rather than the individual element's because a name
-/// is referenced from elsewhere in the schema: an <see cref="Object"/> member names a class, an
-/// <see cref="Types.Enum"/> member names an enum, a <see cref="DataSource"/> names a class, and
-/// an <see cref="Array"/> names a key member. <see cref="SchemaChild{TName}.Rename"/> changes
+/// is referenced from elsewhere in the schema: an <see cref="Object"/> names a class, an
+/// <see cref="Types.Enum"/> names an enum, a <see cref="DataSource"/> names a class, an
+/// <see cref="Array"/> names a key member, and <see cref="ErrorType"/> names the error enum. A
+/// type reference can stand in a member, a function's return type or one of its parameters, and
+/// can be nested inside an <see cref="Array"/>, a <see cref="Vector"/> or a
+/// <see cref="WrapperType"/> at any depth. <see cref="SchemaChild{TName}.Rename"/> changes
 /// only the name and would leave those references dangling, so the operations here cascade the
 /// new name to every referrer and reject a name that collides with a sibling.
 /// </remarks>
@@ -22,8 +25,9 @@ public partial class Schema
 	/// Renames a class and repoints every reference to it.
 	/// </summary>
 	/// <remarks>
-	/// Object-typed members and data sources that referenced the old name are updated to the new
-	/// one, so the schema stays referentially intact.
+	/// Every object reference to the old name - in a member, a function signature, or nested inside
+	/// an array or wrapper - and every data source that named it is updated to the new one, so the
+	/// schema stays referentially intact.
 	/// </remarks>
 	/// <param name="schemaClass">The class to rename.</param>
 	/// <param name="newName">The new name.</param>
@@ -59,8 +63,12 @@ public partial class Schema
 	}
 
 	/// <summary>
-	/// Renames an enum and repoints every member typed as it.
+	/// Renames an enum and repoints every reference to it.
 	/// </summary>
+	/// <remarks>
+	/// Every enum reference to the old name - in a member, a function signature, or nested inside an
+	/// array or wrapper - is updated, as is <see cref="ErrorType"/> when it named this enum.
+	/// </remarks>
 	/// <param name="schemaEnum">The enum to rename.</param>
 	/// <param name="newName">The new name.</param>
 	/// <returns>True if the enum was renamed; false if the name is empty or collides with another enum.</returns>
@@ -84,6 +92,11 @@ public partial class Schema
 			{
 				enumType.EnumName = newName;
 			}
+		}
+
+		if (ErrorType == oldName)
+		{
+			ErrorType = newName;
 		}
 
 		return true;
@@ -163,22 +176,38 @@ public partial class Schema
 			!siblingNames.Any(n => string.Equals(n, newName, StringComparison.Ordinal)));
 
 	/// <summary>
-	/// Enumerates every member type in the schema, including the element types nested inside arrays.
+	/// Enumerates every type reference in the schema: each member's type, each interface function's
+	/// return type and parameter types, and every type nested inside those.
 	/// </summary>
 	private IEnumerable<BaseType> EnumerateMemberTypes() =>
 		ClassesInternal
 			.SelectMany(c => c.Members)
-			.SelectMany(m => ExpandType(m.Type));
+			.Select(m => m.Type)
+			.Concat(InterfacesInternal
+				.SelectMany(i => i.Functions)
+				.SelectMany(f => f.Parameters.Select(p => p.Type).Prepend(f.ReturnType)))
+			.SelectMany(ExpandType);
 
+	/// <summary>
+	/// Yields a type and every type nested inside it, through arrays, vectors and wrappers.
+	/// </summary>
 	private static IEnumerable<BaseType> ExpandType(BaseType type)
 	{
 		yield return type;
 
-		if (type is Array array)
+		BaseType? nested = type switch
 		{
-			foreach (BaseType nested in ExpandType(array.ElementType))
+			Array array => array.ElementType,
+			Vector vector => vector.ElementType,
+			WrapperType wrapper => wrapper.ElementType,
+			_ => null,
+		};
+
+		if (nested is not null)
+		{
+			foreach (BaseType inner in ExpandType(nested))
 			{
-				yield return nested;
+				yield return inner;
 			}
 		}
 	}
