@@ -31,6 +31,7 @@ public partial class SchemaEditor
 	internal DataSource? CurrentDataSource { get; set; }
 	internal SchemaEnum? CurrentEnum { get; set; }
 	internal SchemaCodeGenerator? CurrentCodeGenerator { get; set; }
+	internal SchemaSemanticType? CurrentSemanticType { get; set; }
 	internal AppData Options { get; }
 	internal static float FieldWidth => ImGui.GetIO().DisplaySize.X * 0.15f;
 	private bool OptionsDirty { get; set; }
@@ -329,6 +330,10 @@ public partial class SchemaEditor
 		{
 			CodeGeneratorPanel.Show(CurrentSchema, CurrentCodeGenerator);
 		}
+		else if (CurrentSemanticType is not null)
+		{
+			ShowSemanticTypeProperties();
+		}
 	}
 
 	internal void OnMenu()
@@ -570,6 +575,14 @@ public partial class SchemaEditor
 		QueueSaveOptions();
 	}
 
+	internal void EditSemanticType(SchemaSemanticType? semanticType)
+	{
+		ClearSelection();
+		CurrentSemanticType = semanticType;
+		SelectTree(TreeSchema.SemanticTypesTab);
+		QueueSaveOptions();
+	}
+
 	/// <summary>
 	/// Opens the tree tab holding one kind of element.
 	/// </summary>
@@ -582,5 +595,6 @@ public partial class SchemaEditor
 		CurrentDataSource = null;
 		CurrentEnum = null;
 		CurrentCodeGenerator = null;
+		CurrentSemanticType = null;
 	}
 }

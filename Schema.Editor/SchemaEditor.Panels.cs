@@ -11,6 +11,7 @@ using Hexa.NET.ImGui;
 using ktsu.ImGui.Probes;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
+using BaseType = ktsu.Schema.Models.Types.BaseType;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 using ktsu.UndoRedo;
@@ -152,6 +153,57 @@ public partial class SchemaEditor
 			"enum");
 
 		ShowDescriptionEditor($"##EnumDescription{schemaEnum.Name}", "Description:", schemaEnum.Description, value => schemaEnum.Description = value);
+	}
+
+	/// <summary>
+	/// Draws the selected semantic type's name, description and underlying type.
+	/// </summary>
+	/// <remarks>
+	/// Renaming goes through <see cref="Schema.TryRenameSemanticType"/>, so every member, parameter,
+	/// return type and refining semantic type naming this one follows it. The six metadata
+	/// properties a semantic type also carries are not edited here yet: the panel that edits them
+	/// on a member is written against <see cref="SchemaMember"/>.
+	/// </remarks>
+	private void ShowSemanticTypeProperties()
+	{
+		if (CurrentSemanticType is null || CurrentSchema is null)
+		{
+			return;
+		}
+
+		SchemaSemanticType semanticType = CurrentSemanticType;
+		Schema schema = CurrentSchema;
+
+		if (!ImGui.CollapsingHeader($"{semanticType.Name} Properties", ImGuiTreeNodeFlags.DefaultOpen))
+		{
+			return;
+		}
+
+		ShowRenameField(
+			$"##SemanticTypeName{semanticType.Name}",
+			semanticType.Name,
+			newName => schema.TryRenameSemanticType(semanticType, newName.As<SemanticTypeName>()),
+			"semantic type");
+
+		ShowDescriptionEditor($"##SemanticTypeDescription{semanticType.Name}", "Description:", semanticType.Description, value => semanticType.Description = value);
+
+		ImGui.TextUnformatted("Underlying Type:");
+		bool typeClicked = ImGui.Button($"{semanticType.UnderlyingType.DisplayName}##UnderlyingType", new Vector2(FieldWidth, 0));
+		ImGuiProbes.MarkItem("UnderlyingType");
+		if (typeClicked)
+		{
+			Popups.OpenTypeList("Select Type", "Underlying Type", schema.GetAvailableTypes(), semanticType.UnderlyingType, type => SetUnderlyingType(semanticType, type));
+		}
+	}
+
+	private void SetUnderlyingType(SchemaSemanticType semanticType, BaseType type)
+	{
+		BaseType previous = semanticType.UnderlyingType;
+		Execute(new DelegateCommand(
+			$"Set Underlying Type '{type.DisplayName}'",
+			() => semanticType.SetUnderlyingType(type),
+			() => semanticType.SetUnderlyingType(previous),
+			ChangeType.Modify));
 	}
 
 	private void ShowDataSourceProperties()

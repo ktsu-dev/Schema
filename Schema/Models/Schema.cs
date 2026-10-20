@@ -493,6 +493,20 @@ public partial class Schema : ISchema
 	/// <returns>True if restored; false if a code generator with the same name already exists.</returns>
 	public bool RestoreCodeGenerator(SchemaCodeGenerator codeGenerator) => RestoreChild<SchemaCodeGenerator, CodeGeneratorName>(codeGenerator, CodeGeneratorsInternal);
 
+	/// <summary>
+	/// Restores a previously removed semantic type back into the schema.
+	/// </summary>
+	/// <param name="semanticType">The semantic type to restore.</param>
+	/// <returns>True if restored; false if a semantic type with the same name already exists.</returns>
+	public bool RestoreSemanticType(SchemaSemanticType semanticType) => RestoreChild<SchemaSemanticType, SemanticTypeName>(semanticType, SemanticTypesInternal);
+
+	/// <summary>
+	/// Restores a previously removed interface back into the schema.
+	/// </summary>
+	/// <param name="schemaInterface">The interface to restore.</param>
+	/// <returns>True if restored; false if an interface with the same name already exists.</returns>
+	public bool RestoreInterface(SchemaInterface schemaInterface) => RestoreChild<SchemaInterface, InterfaceName>(schemaInterface, InterfacesInternal);
+
 	internal bool TryRemoveEnum(SchemaEnum schemaEnum) => TryRemoveChild(schemaEnum, EnumsInternal);
 
 	/// <summary>

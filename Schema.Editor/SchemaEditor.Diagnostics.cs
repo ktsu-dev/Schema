@@ -168,6 +168,10 @@ public partial class SchemaEditor
 				EditCodeGenerator(codeGenerator);
 				break;
 
+			case SchemaSemanticType semanticType:
+				EditSemanticType(semanticType);
+				break;
+
 			default:
 				// A duplicate-name issue names no single element; there is nothing to select.
 				break;

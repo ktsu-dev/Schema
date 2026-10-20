@@ -372,4 +372,103 @@ public class SchemaRenameTests
 
 		Assert.AreEqual("State", schema.ErrorType.ToString());
 	}
+
+	/// <summary>
+	/// Builds a schema where a semantic type and an interface are referenced from a member, from
+	/// inside a wrapper, from a function signature, and - for the semantic type - from another
+	/// semantic type that refines it.
+	/// </summary>
+	private static Schema CreateSemanticAndInterfaceReferencingSchema()
+	{
+		Schema schema = new();
+
+		schema.AddSemanticType("Mass".As<SemanticTypeName>())?.SetUnderlyingType(new SchemaTypes.Float());
+		schema.AddSemanticType("Weight".As<SemanticTypeName>())?.SetUnderlyingType(MassReference());
+
+		SchemaInterface? store = schema.AddInterface("Store".As<InterfaceName>());
+		SchemaFunction? weigh = store?.AddFunction("Weigh".As<FunctionName>());
+		weigh?.SetReturnType(MassReference());
+		weigh?.AddParameter("Into".As<ParameterName>())?.SetType(StoreReference());
+
+		SchemaClass? crate = schema.AddClass("Crate".As<ClassName>());
+		crate?.AddMember("Mass".As<MemberName>())?.SetType(MassReference());
+		crate?.AddMember("MaybeMass".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = MassReference() });
+		crate?.AddMember("Owner".As<MemberName>())?.SetType(StoreReference());
+
+		return schema;
+	}
+
+	private static SchemaTypes.Semantic MassReference() => new() { SemanticTypeName = "Mass".As<SemanticTypeName>() };
+
+	private static SchemaTypes.Interface StoreReference() => new() { InterfaceName = "Store".As<InterfaceName>() };
+
+	private static SchemaTypes.BaseType CrateMember(Schema schema, string member) =>
+		schema.GetClass("Crate".As<ClassName>())!.GetMember(member.As<MemberName>())!.Type;
+
+	[TestMethod]
+	public void TestRenameSemanticTypeCascadesToEveryReference()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(schema.TryRenameSemanticType(mass, "Kilograms".As<SemanticTypeName>()));
+
+		Assert.AreEqual("Kilograms", mass.Name.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Optional)CrateMember(schema, "MaybeMass")).ElementType).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)schema.Interfaces.Single().Functions.Single().ReturnType).SemanticTypeName.ToString());
+
+		SchemaSemanticType weight = schema.GetSemanticType("Weight".As<SemanticTypeName>())!;
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)weight.UnderlyingType).SemanticTypeName.ToString());
+		Assert.AreSame(mass, ((SchemaTypes.Semantic)weight.UnderlyingType).Declaration);
+		AssertNoIssueNames(schema, "Mass");
+	}
+
+	[TestMethod]
+	public void TestRenameSemanticTypeRejectsACollision()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsFalse(schema.TryRenameSemanticType(mass, "Weight".As<SemanticTypeName>()));
+		Assert.AreEqual("Mass", mass.Name.ToString());
+		Assert.AreEqual("Mass", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+	}
+
+	[TestMethod]
+	public void TestRenameInterfaceCascadesToEveryReference()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsTrue(schema.TryRenameInterface(store, "Warehouse".As<InterfaceName>()));
+
+		Assert.AreEqual("Warehouse", store.Name.ToString());
+		Assert.AreEqual("Warehouse", ((SchemaTypes.Interface)CrateMember(schema, "Owner")).InterfaceName.ToString());
+		Assert.AreEqual("Warehouse", ((SchemaTypes.Interface)store.Functions.Single().Parameters.Single().Type).InterfaceName.ToString());
+		AssertNoIssueNames(schema, "Store");
+	}
+
+	[TestMethod]
+	public void TestRenameInterfaceRejectsAnEmptyName()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsFalse(schema.TryRenameInterface(store, string.Empty.As<InterfaceName>()));
+		Assert.AreEqual("Store", store.Name.ToString());
+	}
+
+	[TestMethod]
+	public void TestRestoredSemanticTypeIsFoundAgain()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(mass.TryRemove());
+		Assert.IsFalse(schema.TryGetSemanticType("Mass".As<SemanticTypeName>(), out _));
+
+		Assert.IsTrue(schema.RestoreSemanticType(mass));
+		Assert.AreSame(mass, schema.GetSemanticType("Mass".As<SemanticTypeName>()));
+	}
 }
