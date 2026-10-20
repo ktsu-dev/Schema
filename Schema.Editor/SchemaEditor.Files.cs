@@ -148,7 +148,7 @@ public partial class SchemaEditor
 			$"{DocumentName} has unsaved changes.",
 			new Dictionary<string, Action?>
 			{
-				["Save"] = () => SaveThen(proceed),
+				["Save"] = () => SaveThen(proceed, onCancel),
 				["Discard"] = proceed,
 				["Cancel"] = onCancel,
 			});
@@ -217,11 +217,16 @@ public partial class SchemaEditor
 	/// appeared has to wait for that answer rather than running immediately.
 	/// </remarks>
 	/// <param name="continuation">What to do after a successful save, if anything.</param>
-	internal void SaveThen(Action? continuation)
+	/// <param name="onAbandoned">
+	/// Run if the save does not happen: the write fails, or the user dismisses the file browser.
+	/// Whoever is waiting on the continuation has to hear that it is not coming, or a latch it set
+	/// before asking stays set for the rest of the session.
+	/// </param>
+	internal void SaveThen(Action? continuation, Action? onAbandoned = null)
 	{
 		if (string.IsNullOrEmpty(CurrentSchemaPath))
 		{
-			SaveAs(continuation);
+			SaveAs(continuation, onAbandoned);
 			return;
 		}
 
@@ -229,9 +234,13 @@ public partial class SchemaEditor
 		{
 			continuation?.Invoke();
 		}
+		else
+		{
+			onAbandoned?.Invoke();
+		}
 	}
 
-	private void SaveAs(Action? continuation = null) =>
+	private void SaveAs(Action? continuation = null, Action? onAbandoned = null) =>
 		Popups.OpenBrowserFileSave("Save Schema", (filePath) =>
 		{
 			CurrentSchemaPath = filePath;
@@ -239,7 +248,11 @@ public partial class SchemaEditor
 			{
 				continuation?.Invoke();
 			}
-		}, "*.schema.json");
+			else
+			{
+				onAbandoned?.Invoke();
+			}
+		}, "*.schema.json", onAbandoned);
 
 	private bool SaveToCurrentPath()
 	{
