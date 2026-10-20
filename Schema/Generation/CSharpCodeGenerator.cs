@@ -817,6 +817,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// The colours before their vector bases, as in MapType: ColorRGB derives from Vector3.
 		(NumberDefault, ColorRGB or ColorRGBA) => ComponentsLiteral(value, type, new Float()),
 		(NumberDefault, Vector vector) => ComponentsLiteral(value, vector, vector.ElementType),
+		(NumberDefault, Quantity quantity) => QuantityLiteral(value, quantity),
 
 		// A representation that is itself a semantic type is a refinement chain that never reached
 		// anything real, which validation reports; following it again would have no bottom.
@@ -827,6 +828,31 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		_ => null,
 	};
+
+	/// <summary>
+	/// Writes a quantity default, which is a value in the SI base unit - the unit a quantity
+	/// stores, and the one the C++ generator writes the same number in.
+	/// </summary>
+	/// <remarks>
+	/// A magnitude or a signed scalar is built with <c>Create</c>, which takes the base unit and,
+	/// unlike the <c>From{Unit}</c> factories, names no unit at all. A vector form has no such
+	/// factory, so it is its <c>One</c> - every component the base unit - scaled by the number,
+	/// which puts the number in every component, as the C++ generator does. A quantity this
+	/// generator cannot resolve is one validation refuses, so it falls through like any other
+	/// default that does not fit.
+	/// </remarks>
+	private static string? QuantityLiteral(MemberDefault value, Quantity quantity)
+	{
+		if (quantity.Resolved is not { } resolved || DefaultLiteralFor(value, quantity.Storage) is not string number)
+		{
+			return null;
+		}
+
+		string type = MapType(quantity);
+		return resolved.Components > 1
+			? $"{type}.One * {number}"
+			: $"{type}.Create({number})";
+	}
 
 	/// <summary>
 	/// Writes a vector or colour default: one number, in every component.
