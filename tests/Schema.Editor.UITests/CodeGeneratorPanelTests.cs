@@ -112,10 +112,87 @@ public sealed class CodeGeneratorPanelTests
 	[TestMethod]
 	public void BrowsingForAnOutputPathAsksForADirectory()
 	{
+		SaveSchemaTo("model.schema.json");
 		harness.Click("browse/CSharp");
 		harness.App.Step(4);
 
 		Assert.IsTrue(IsShowing("filesystem-browser/cancel"), "The directory browser was not raised.");
+	}
+
+	/// <summary>
+	/// The directory browser answers with an absolute path, which the output path type refuses;
+	/// converting it directly threw out of the frame. It is made relative to the schema file.
+	/// </summary>
+	[TestMethod]
+	public void ChoosingAnOutputDirectoryRecordsItRelativeToTheSchema()
+	{
+		Directory.CreateDirectory(scratchDirectory / "generated".As<DirectoryName>());
+		string previousWorkingDirectory = Directory.GetCurrentDirectory();
+		Directory.SetCurrentDirectory(scratchDirectory);
+
+		try
+		{
+			// The browser opens on the working directory as it was when the editor was made, so
+			// the editor is made again here, after moving it.
+			harness.Dispose();
+			harness = EditorHarness.Start();
+			harness.Editor.CurrentSchema = schema;
+			harness.Editor.EditCodeGenerator(generator);
+
+			// Read the directory back: on macOS the temporary directory is reached through a
+			// symbolic link, and the browser answers with the resolved spelling.
+			string browsed = Directory.GetCurrentDirectory();
+			schema.SetSourceFile(Path.Combine(browsed, "model.schema.json").As<AbsoluteFilePath>());
+			harness.App.Step(2);
+
+			harness.Click("browse/CSharp");
+			string row = "filesystem-browser/generated" + Path.DirectorySeparatorChar;
+			harness.StepUntil(() => IsShowing(row), "the directory browser listing the output directory");
+			harness.Click(row);
+			harness.Click("filesystem-browser/confirm");
+			harness.App.Step(2);
+		}
+		finally
+		{
+			Directory.SetCurrentDirectory(previousWorkingDirectory);
+		}
+
+		Assert.AreEqual("generated", generator.OutputPath.ToString());
+	}
+
+	/// <summary>
+	/// An unsaved schema has nothing to make a chosen directory relative to, so browsing says so
+	/// instead of opening a browser whose answer could not be kept.
+	/// </summary>
+	[TestMethod]
+	public void BrowsingForAnOutputPathInAnUnsavedSchemaIsRefused()
+	{
+		harness.Click("browse/CSharp");
+		harness.App.Step(4);
+
+		Assert.IsFalse(IsShowing("filesystem-browser/cancel"), "The directory browser was raised for an unsaved schema.");
+		Assert.AreEqual(string.Empty, generator.OutputPath.ToString());
+	}
+
+	[TestMethod]
+	public void AnAbsoluteOutputPathIsMadeRelativeToTheSchema()
+	{
+		SaveSchemaTo("model.schema.json");
+
+		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Combine(scratchDirectory, "out", "cs"));
+
+		Assert.AreEqual(Path.Combine("out", "cs").As<RelativeDirectoryPath>(), generator.OutputPath);
+	}
+
+	[TestMethod]
+	public void AnAbsoluteOutputPathInAnUnsavedSchemaIsRefused()
+	{
+		generator.OutputPath = "generated".As<RelativeDirectoryPath>();
+
+		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Combine(scratchDirectory, "out"));
+		harness.App.Step(4);
+
+		Assert.AreEqual("generated", generator.OutputPath.ToString());
 	}
 
 	[TestMethod]
