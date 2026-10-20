@@ -726,14 +726,20 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	}
 
 	/// <summary>
-	/// Gets the C# type of a map's key, taken from the member the array keys on.
+	/// Gets the C# type of a map's key: the key type the map states, or the type of the member
+	/// it keys on.
 	/// </summary>
 	/// <remarks>
-	/// Validation guarantees a keyed map names a primitive member of its element class, so this
-	/// only falls back when the schema is one validation would have refused generation for.
+	/// Validation guarantees a map does one or the other, so this only falls back when the schema
+	/// is one validation would have refused generation for.
 	/// </remarks>
 	private static string MapKeyType(Models.Types.Array arrayType)
 	{
+		if (arrayType.KeyType is Models.Types.BaseType keyType)
+		{
+			return MapType(keyType);
+		}
+
 		if (arrayType.TryGetKeyMember(out SchemaMember? keyMember) && keyMember is not null)
 		{
 			return MapType(keyMember.Type);
