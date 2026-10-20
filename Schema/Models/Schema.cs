@@ -581,6 +581,8 @@ public partial class Schema : ISchema
 	/// <param name="type">The .NET interface to add.</param>
 	/// <returns>The added interface, or null when the type is not an interface or the name is
 	/// taken.</returns>
+	/// <exception cref="InvalidOperationException">The interface has two methods with the same
+	/// name, counting those it inherits, which a schema cannot tell apart.</exception>
 	public SchemaInterface? AddInterface(Type type)
 	{
 		Ensure.NotNull(type);
@@ -612,6 +614,8 @@ public partial class Schema : ISchema
 	/// </remarks>
 	/// <param name="type">The .NET type to add as a schema class.</param>
 	/// <returns>The added class if successful, null otherwise.</returns>
+	/// <exception cref="InvalidOperationException">A member names an interface with two methods of
+	/// the same name, counting those it inherits.</exception>
 	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
 
 	/// <summary>

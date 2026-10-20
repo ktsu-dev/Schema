@@ -49,7 +49,10 @@ internal static class ClrTypeImporter
 
 		schemaClass.TravelsAsBytes = type.GetCustomAttribute<Runtime.SchemaTravelsAsBytesAttribute>() is not null;
 
-		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+		// An indexer is a property to reflection, but it holds no data of its own - it is the
+		// compiler's spelling of a method taking an index - so it is not a member.
+		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(property => property.GetIndexParameters().Length == 0))
 		{
 			ImportMember(schema, schemaClass, property, property.PropertyType);
 		}
@@ -260,13 +263,39 @@ internal static class ClrTypeImporter
 			return reference;
 		}
 
-		foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+		HashSet<string> seen = [];
+		foreach (MethodInfo method in DeclaredFunctions(type))
 		{
+			if (!seen.Add(method.Name))
+			{
+				throw new InvalidOperationException(
+					$"Interface '{type.Name}' has more than one method named '{method.Name}', counting those it inherits. " +
+					"A schema function is identified by its name alone, so only one of them could be imported.");
+			}
+
 			ImportFunction(schema, declaration, method);
 		}
 
 		return reference;
 	}
+
+	/// <summary>
+	/// The methods an interface offers as functions: its own and every one it inherits, without the
+	/// accessors the compiler writes for a property or an event.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Type.GetMethods(BindingFlags)"/> on an interface returns only the methods that
+	/// interface declares, so a base interface's methods have to be asked for separately.
+	/// <see cref="Type.GetInterfaces"/> already lists each one once however many paths reach it,
+	/// so a diamond does not produce a duplicate. Accessors are skipped rather than imported as
+	/// <c>get_Count</c>, because an interface regenerated with a <c>get_Count()</c> method is no
+	/// longer the interface its implementations were written against.
+	/// </remarks>
+	private static IEnumerable<MethodInfo> DeclaredFunctions(Type type) =>
+		new[] { type }
+			.Concat(type.GetInterfaces())
+			.SelectMany(declaring => declaring.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+			.Where(method => !method.IsSpecialName);
 
 	/// <summary>
 	/// Reads one method into a function of the interface being imported.
