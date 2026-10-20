@@ -108,8 +108,8 @@ public partial class Schema
 	private static string PathSegment(string name) => string.IsNullOrEmpty(name) ? "(unnamed)" : name;
 
 	/// <summary>
-	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
-	/// duplicate detection only catches multiple empty names by accident.
+	/// Reports an element whose name is empty, or is not an identifier. Such an element cannot be
+	/// code-generated, and duplicate detection only catches multiple empty names by accident.
 	/// </summary>
 	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path, ISchemaElement? element)
 	{
@@ -123,6 +123,43 @@ public partial class Schema
 				Element = element,
 			});
 		}
+		else if (!IsIdentifier(name))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"{kind} name '{name}' is not an identifier. Use letters, digits and underscores, starting with a letter or an underscore.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Whether a name can be written as an identifier in every target language, and as a file name
+	/// that stays inside the directory it is written to.
+	/// </summary>
+	/// <remarks>
+	/// ASCII only, because that is the set every generator's target accepts. A name with a space, a
+	/// hyphen or a leading digit generates code that does not compile, and one with a separator or
+	/// <c>..</c> names a file outside the output directory.
+	/// </remarks>
+	internal static bool IsIdentifier(string name)
+	{
+		if (string.IsNullOrEmpty(name) || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+		{
+			return false;
+		}
+
+		foreach (char character in name)
+		{
+			if (!(char.IsAsciiLetterOrDigit(character) || character == '_'))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void ValidateClasses(Collection<SchemaValidationIssue> issues)
@@ -828,6 +865,8 @@ public partial class Schema
 
 	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
 	{
+		ValidateNameNotEmpty(issues, parameter.Name, "Parameter", path, element);
+
 		switch (parameter.Type)
 		{
 			case None:

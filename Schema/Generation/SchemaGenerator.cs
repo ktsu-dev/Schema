@@ -172,6 +172,24 @@ public static class SchemaGenerator
 			};
 		}
 
+		// Every destination is checked before anything is written, so a generator naming one file
+		// outside the output directory leaves none of its others behind. A key is whatever the
+		// generator returned, which for a registered one is code this library did not write, and
+		// a name like "../x" or a rooted path would otherwise put a file anywhere the process can.
+		string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory)) + Path.DirectorySeparatorChar;
+		foreach (string key in result.Files.Keys)
+		{
+			string resolved = Path.GetFullPath(Path.Combine(outputDirectory, key));
+			if (!resolved.StartsWith(root, StringComparison.Ordinal))
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Code generator '{configuration.Name}' produced '{key}', which is outside its output directory '{outputDirectory}'. Nothing was written.",
+				};
+			}
+		}
+
 		foreach (KeyValuePair<string, string> file in result.Files)
 		{
 			string destination = Path.Combine(outputDirectory, file.Key);

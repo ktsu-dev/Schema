@@ -334,6 +334,48 @@ public class SchemaValidationTests
 			i.Message.Contains("unknown class")));
 	}
 
+	/// <summary>
+	/// A name that is not an identifier generates code that does not compile, or names a file
+	/// outside the output directory, so each one is an error naming the element.
+	/// </summary>
+	[TestMethod]
+	[DataRow("Player Stats")]
+	[DataRow("hit-points")]
+	[DataRow("2D")]
+	[DataRow("../x")]
+	[DataRow("a/b")]
+	public void TestANonIdentifierNameIsAnErrorForEveryKindOfElement(string name)
+	{
+		Schema schema = new();
+		schema.AddClass(name.As<ClassName>())!.AddMember(name.As<MemberName>())!.SetType(new SchemaTypes.Int());
+		schema.AddEnum(name.As<EnumName>())!.TryAddValue(name.As<EnumValueName>());
+		schema.AddSemanticType(name.As<SemanticTypeName>())!.SetUnderlyingType(new SchemaTypes.Long());
+		schema.AddInterface(name.As<InterfaceName>())!
+			.AddFunction(name.As<FunctionName>())!
+			.AddParameter(name.As<ParameterName>())!.SetType(new SchemaTypes.Int());
+
+		Collection<SchemaValidationIssue> issues = schema.Validate();
+
+		foreach (string kind in new[] { "Class", "Member", "Enum", "Enum value", "Semantic type", "Interface", "Function", "Parameter" })
+		{
+			Assert.IsTrue(
+				issues.Any(i => i.Severity == SchemaValidationSeverity.Error && i.Message.StartsWith($"{kind} name '{name}' is not an identifier", StringComparison.Ordinal)),
+				$"No error for the {kind.ToLowerInvariant()} named '{name}':{Environment.NewLine}{string.Join(Environment.NewLine, issues.Select(i => i.Message))}");
+		}
+	}
+
+	[TestMethod]
+	[DataRow("Player")]
+	[DataRow("_hitPoints")]
+	[DataRow("Vector2D")]
+	public void TestAnIdentifierNameIsAccepted(string name)
+	{
+		Schema schema = new();
+		schema.AddClass(name.As<ClassName>())!.AddMember(name.As<MemberName>())!.SetType(new SchemaTypes.Int());
+
+		Assert.IsFalse(schema.Validate().Any(i => i.Message.Contains("is not an identifier", StringComparison.Ordinal)));
+	}
+
 	[TestMethod]
 	public void TestEmptyClassNameIsError()
 	{
