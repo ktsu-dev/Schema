@@ -448,24 +448,37 @@ public partial class Schema
 					return;
 				}
 
+				// A vector's default is written into every component, so it is each component's type
+				// it has to fit - a vector is neither integral nor an Int, and asking the vector
+				// itself let a fraction or an out-of-range value through to an Int vector.
+				BaseType scalar = type is Vector vector ? Represented(vector.ElementType) : type;
+				string components = ReferenceEquals(scalar, type) ? string.Empty : $" (each component of the {type.TypeName})";
+
 				// double.IsInteger rather than a comparison against Math.Truncate: it asks the
 				// question directly, and it does not compare two doubles for equality. It also
 				// answers false for an infinity, which is not a whole number and cannot narrow to
 				// one - the comparison called that whole, since truncating an infinity returns it.
 				bool isWholeNumber = double.IsInteger(number.Value);
-				if (type.IsIntegral && !isWholeNumber)
+				if (scalar.IsIntegral && !isWholeNumber)
 				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {type.TypeName}.");
+					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {scalar.TypeName}{components}.");
 				}
 
-				if (type is Int && isWholeNumber && !FitsInt32(number.Value))
+				if (scalar is Int && isWholeNumber && !FitsInt32(number.Value))
 				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}).");
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}){components}.");
 				}
 
-				if (type is Long && isWholeNumber && !FitsInt64(number.Value))
+				if (scalar is Long && isWholeNumber && !FitsInt64(number.Value))
 				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}).");
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}){components}.");
+				}
+
+				// A literal past float's range is a compile error in both C# and C++, not an
+				// infinity, so it is refused here rather than by the compiler of whoever generates.
+				if (scalar is Float && !FitsSingle(number.Value))
+				{
+					Report(issues, path, element, $"The default {Number(number.Value)} is outside the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}){components}.");
 				}
 
 				// A wrapping range is a period rather than a bound, so a value outside it is
@@ -585,6 +598,8 @@ public partial class Schema
 	private static bool CanCarryUnit(BaseType type) => type.IsNumeric || IsVector(type);
 
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
+
+	private static bool FitsSingle(double value) => !double.IsFinite(value) || Math.Abs(value) <= float.MaxValue;
 
 	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
 
