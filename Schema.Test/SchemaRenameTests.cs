@@ -471,4 +471,58 @@ public class SchemaRenameTests
 		Assert.IsTrue(schema.RestoreSemanticType(mass));
 		Assert.AreSame(mass, schema.GetSemanticType("Mass".As<SemanticTypeName>()));
 	}
+
+	/// <summary>
+	/// An array and a vector hold their component type the same way a wrapper does, so a semantic
+	/// type named only from inside one has to be found there too.
+	/// </summary>
+	[TestMethod]
+	public void TestRenameSemanticTypeReachesInsideArraysAndVectors()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaClass crate = schema.GetClass("Crate".As<ClassName>())!;
+		crate.AddMember("Masses".As<MemberName>())!.SetType(new SchemaTypes.Array() { ElementType = MassReference() });
+		crate.AddMember("Moment".As<MemberName>())!.SetType(new SchemaTypes.Vector3() { ElementType = MassReference() });
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(schema.TryRenameSemanticType(mass, "Kilograms".As<SemanticTypeName>()));
+
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Array)CrateMember(schema, "Masses")).ElementType).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Vector3)CrateMember(schema, "Moment")).ElementType).SemanticTypeName.ToString());
+	}
+
+	/// <summary>
+	/// A schema only renames what it owns: one holding a semantic type or an interface of the same
+	/// name must not rename another schema's element, nor repoint its own references to it.
+	/// </summary>
+	[TestMethod]
+	public void TestRenameRefusesAnElementFromAnotherSchema()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		Schema other = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType foreignMass = other.GetSemanticType("Mass".As<SemanticTypeName>())!;
+		SchemaInterface foreignStore = other.Interfaces.Single();
+
+		Assert.IsFalse(schema.TryRenameSemanticType(foreignMass, "Kilograms".As<SemanticTypeName>()));
+		Assert.IsFalse(schema.TryRenameInterface(foreignStore, "Warehouse".As<InterfaceName>()));
+
+		Assert.AreEqual("Mass", foreignMass.Name.ToString());
+		Assert.AreEqual("Store", foreignStore.Name.ToString());
+		Assert.AreEqual("Mass", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+		Assert.AreEqual("Store", ((SchemaTypes.Interface)CrateMember(schema, "Owner")).InterfaceName.ToString());
+	}
+
+	[TestMethod]
+	public void TestRestoredInterfaceIsFoundAgainAndRefusesADuplicate()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsTrue(store.TryRemove());
+		Assert.IsEmpty(schema.Interfaces);
+
+		Assert.IsTrue(schema.RestoreInterface(store));
+		Assert.AreSame(store, schema.Interfaces.Single());
+		Assert.IsFalse(schema.RestoreInterface(store), "Restoring an interface already present added it twice.");
+	}
 }
