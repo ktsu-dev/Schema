@@ -645,6 +645,12 @@ containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` 
 This anchor is what makes a schema and its data movable together: checked out somewhere else, the
 relative paths still resolve.
 
+Moving the schema without its data is different, and the editor handles it: **Save As** into
+another directory rewrites each `file` and `outputPath` so that it still names the same file from
+the new location (`data.json` saved one directory up becomes `sub/data.json`). The rewrite is one
+undoable step, and it happens only when the save succeeds. A path that cannot be expressed relative
+to the new directory, such as one on another drive, is left as written.
+
 An absolute path is refused. A schema whose `outputPath` is `/tmp/out` loads as
 `SchemaLoadStatus.InvalidJson`, with a message naming the property (`codeGenerators[0].outputPath`)
 and saying that paths in a schema are relative to the schema file.

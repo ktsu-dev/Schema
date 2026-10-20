@@ -171,4 +171,36 @@ public sealed class FileBrowserTests
 		Assert.IsTrue(harness.Editor.HasUnsavedChanges);
 		Assert.AreEqual(string.Empty, harness.Editor.CurrentSchemaPath.ToString());
 	}
+	/// <summary>
+	/// A data source's file is relative to the schema, so Save As into another directory has to
+	/// rewrite it or it silently names a file that was never moved. Undoing the save's step puts the
+	/// path back as written, for a user who wanted it kept.
+	/// </summary>
+	[TestMethod]
+	public void SaveAsIntoAnotherDirectoryKeepsRelativePathsOnTheirFiles()
+	{
+		AbsoluteDirectoryPath subdirectory = scratchDirectory / "sub".As<DirectoryName>();
+		Directory.CreateDirectory(subdirectory);
+		AbsoluteFilePath original = subdirectory / "items.schema.json".As<FileName>();
+
+		Schema schema = new();
+		DataSource dataSource = schema.AddDataSource("Items".As<DataSourceName>())!;
+		dataSource.File = "data.json".As<RelativeFilePath>();
+		schema.SetSourceFile(original);
+		harness.Editor.CurrentSchema = schema;
+		harness.Editor.CurrentSchemaPath = original;
+		Assert.IsTrue(dataSource.TryResolveFile(out AbsoluteFilePath before));
+
+		harness.ChooseMenuItem("File", "Save As...");
+		AnswerBrowserWith("moved.schema.json");
+
+		Assert.AreEqual("sub/data.json", dataSource.File.ToString());
+		Assert.IsTrue(dataSource.TryResolveFile(out AbsoluteFilePath after));
+		Assert.AreEqual(before.ToString(), after.ToString(), "The data source no longer names the file it named before the save.");
+		StringAssert.Contains(File.ReadAllText(scratchDirectory / "moved.schema.json".As<FileName>()), "sub/data.json", "The saved file carries the old path.");
+		Assert.IsFalse(harness.Editor.HasUnsavedChanges);
+
+		harness.Editor.UndoRedo.Undo();
+		Assert.AreEqual("data.json", dataSource.File.ToString(), "Undo did not put the path back as written.");
+	}
 }

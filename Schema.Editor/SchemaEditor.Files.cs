@@ -14,6 +14,7 @@ using ktsu.ImGui.App;
 using ktsu.ImGui.Probes;
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
+using ktsu.UndoRedo;
 
 /// <summary>
 /// Opening, saving and closing the schema document, and the unsaved-changes guard around each.
@@ -243,10 +244,28 @@ public partial class SchemaEditor
 
 	private bool SaveToCurrentPath()
 	{
+		// A relative path is anchored to the schema's directory, so saving somewhere else would
+		// quietly point every data source and output directory at a file the user never moved.
+		// The paths are rewritten before the file is written, so the file carries them.
+		SchemaPathRebase? rebase = CurrentSchema is null ? null : SchemaPathRebase.Plan(CurrentSchema, CurrentSchemaPath);
+		rebase?.Apply();
+
 		if (CurrentSchema is null || !SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath))
 		{
+			rebase?.Revert();
 			Popups.OpenMessageOK("Error", $"Failed to save schema to '{CurrentSchemaPath}'.");
 			return false;
+		}
+
+		// Recorded as one step, so undoing it puts the paths back as they were written for anyone
+		// who wanted them kept rather than followed. Executing it again is harmless: it is applied.
+		if (rebase is { IsEmpty: false })
+		{
+			Execute(new DelegateCommand(
+				$"Rewrite {rebase.Count} relative path(s) for the new location",
+				rebase.Apply,
+				rebase.Revert,
+				ChangeType.Modify));
 		}
 
 		UndoRedo.MarkAsSaved();
