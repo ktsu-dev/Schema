@@ -66,6 +66,22 @@ public static class SchemaGenerator
 		!string.IsNullOrEmpty(language) && Generators.ContainsKey(language);
 
 	/// <summary>
+	/// Reports whether an error stops the schema being generated from.
+	/// </summary>
+	/// <remarks>
+	/// Generation is refused so that nothing compiles into something the schema does not
+	/// describe. A data source describes where data lives, not a type, and no generator reads
+	/// one, so its errors cannot cause that. A data file that does not exist yet, and a data
+	/// source naming a class that does not, are both still errors to <c>kschema validate</c> and to
+	/// data validation, which is where they mean something. Holding generation hostage to them
+	/// made the same schema generate in memory and fail once saved, on a fresh clone, or wherever
+	/// the data is git-ignored or written by a later build step.
+	/// </remarks>
+	/// <param name="issue">The issue to classify.</param>
+	/// <returns>False for an issue about a data source; true otherwise.</returns>
+	internal static bool BlocksGeneration(SchemaValidationIssue issue) => issue.Element is not DataSource;
+
+	/// <summary>
 	/// Generates source for one of a schema's code generators.
 	/// </summary>
 	/// <param name="schema">The schema to generate from.</param>
@@ -77,7 +93,7 @@ public static class SchemaGenerator
 		Ensure.NotNull(configuration);
 
 		Collection<SchemaValidationIssue> issues = schema.Validate();
-		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error)];
+		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error && BlocksGeneration(i))];
 
 		if (errors.Count > 0)
 		{
