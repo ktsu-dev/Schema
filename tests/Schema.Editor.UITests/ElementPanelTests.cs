@@ -167,14 +167,14 @@ public sealed class ElementPanelTests
 	[TestMethod]
 	public void AnAbsoluteDataSourceFilePathIsMadeRelativeToTheSchema()
 	{
-		string anchor = Path.Combine(Path.GetTempPath(), "schema-anchor");
-		schema.SetSourceFile(Path.Combine(anchor, "model.schema.json").As<AbsoluteFilePath>());
+		string anchor = Path.Join(Path.GetTempPath(), "schema-anchor");
+		schema.SetSourceFile(Path.Join(anchor, "model.schema.json").As<AbsoluteFilePath>());
 		DataSource users = schema.AddDataSource("Users".As<DataSourceName>())!;
 		harness.Editor.EditDataSource(users);
 
-		harness.Commit("field/DataSourceFileUsers", Path.Combine(anchor, "data", "users.json"));
+		harness.Commit("field/DataSourceFileUsers", Path.Join(anchor, "data", "users.json"));
 
-		Assert.AreEqual(Path.Combine("data", "users.json").As<RelativeFilePath>(), users.File);
+		Assert.AreEqual(Path.Join("data", "users.json").As<RelativeFilePath>(), users.File);
 	}
 
 	/// <summary>
@@ -188,7 +188,7 @@ public sealed class ElementPanelTests
 		users.File = "data/users.json".As<RelativeFilePath>();
 		harness.Editor.EditDataSource(users);
 
-		harness.Commit("field/DataSourceFileUsers", Path.Combine(Path.GetTempPath(), "elsewhere.json"));
+		harness.Commit("field/DataSourceFileUsers", Path.Join(Path.GetTempPath(), "elsewhere.json"));
 		harness.App.Step(4);
 
 		Assert.AreEqual("data/users.json".As<RelativeFilePath>(), users.File);

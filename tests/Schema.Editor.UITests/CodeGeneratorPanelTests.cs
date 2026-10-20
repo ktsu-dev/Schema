@@ -142,7 +142,7 @@ public sealed class CodeGeneratorPanelTests
 			// Read the directory back: on macOS the temporary directory is reached through a
 			// symbolic link, and the browser answers with the resolved spelling.
 			string browsed = Directory.GetCurrentDirectory();
-			schema.SetSourceFile(Path.Combine(browsed, "model.schema.json").As<AbsoluteFilePath>());
+			schema.SetSourceFile(Path.Join(browsed, "model.schema.json").As<AbsoluteFilePath>());
 			harness.App.Step(2);
 
 			harness.Click("browse/CSharp");
@@ -179,9 +179,9 @@ public sealed class CodeGeneratorPanelTests
 	{
 		SaveSchemaTo("model.schema.json");
 
-		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Combine(scratchDirectory, "out", "cs"));
+		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Join(scratchDirectory, "out", "cs"));
 
-		Assert.AreEqual(Path.Combine("out", "cs").As<RelativeDirectoryPath>(), generator.OutputPath);
+		Assert.AreEqual(Path.Join("out", "cs").As<RelativeDirectoryPath>(), generator.OutputPath);
 	}
 
 	[TestMethod]
@@ -189,7 +189,7 @@ public sealed class CodeGeneratorPanelTests
 	{
 		generator.OutputPath = "generated".As<RelativeDirectoryPath>();
 
-		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Combine(scratchDirectory, "out"));
+		harness.Commit("field/CodeGeneratorOutputCSharp", Path.Join(scratchDirectory, "out"));
 		harness.App.Step(4);
 
 		Assert.AreEqual("generated", generator.OutputPath.ToString());
