@@ -704,6 +704,13 @@ public partial class Schema
 			Element = element,
 		});
 
+	/// <summary>
+	/// How many values an enum may have. Both generators give an enum a one-byte underlying type,
+	/// so that a class holding one is the same bytes in either language, and the 257th value would
+	/// be 256, which neither <c>byte</c> nor <c>std::uint8_t</c> can hold.
+	/// </summary>
+	private const int MaxEnumValues = 256;
+
 	private void ValidateEnums(Collection<SchemaValidationIssue> issues)
 	{
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
@@ -712,6 +719,12 @@ public partial class Schema
 			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath, schemaEnum);
 
 			ReportDuplicates(issues, schemaEnum.Values.Select(v => $"{schemaEnum.Name}.{v}"), "enum value");
+
+			if (schemaEnum.Values.Count > MaxEnumValues)
+			{
+				Report(issues, enumPath, schemaEnum,
+					$"Enum '{schemaEnum.Name}' has {schemaEnum.Values.Count} values, but enums are generated with a one-byte underlying type (byte in C#, std::uint8_t in C++), which holds at most {MaxEnumValues}.");
+			}
 
 			foreach (Names.EnumValueName value in schemaEnum.Values)
 			{
