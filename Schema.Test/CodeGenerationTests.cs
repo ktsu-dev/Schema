@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Tests;
 
+using System.Globalization;
+
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
@@ -301,5 +303,43 @@ public class CodeGenerationTests
 
 		Assert.AreEqual(SchemaGenerationStatus.GeneratorNotConfigured, result.Status);
 		Assert.IsTrue(result.Message.Contains("location is unknown", StringComparison.Ordinal), result.Message);
+	}
+
+	/// <summary>
+	/// Swedish, Finnish and Norwegian format a negative number with U+2212 rather than a
+	/// hyphen-minus, which is not a C# operator, so a default written in the current culture does
+	/// not compile there. The culture is built rather than looked up, so the test does not depend
+	/// on the host having ICU data.
+	/// </summary>
+	[TestMethod]
+	public void TestNegativeIntegralDefaultsAreWrittenInvariantly()
+	{
+		Schema schema = new();
+		SchemaClass owner = schema.AddClass("Counter".As<ClassName>())!;
+		SchemaMember small = owner.AddMember("Small".As<MemberName>())!;
+		small.SetType(new SchemaTypes.Int());
+		small.DefaultValue = new NumberDefault { Value = -5.0 };
+		SchemaMember large = owner.AddMember("Large".As<MemberName>())!;
+		large.SetType(new SchemaTypes.Long());
+		large.DefaultValue = new NumberDefault { Value = -7.0 };
+
+		CultureInfo original = CultureInfo.CurrentCulture;
+		SchemaGenerationResult result;
+		try
+		{
+			CultureInfo minusSign = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+			minusSign.NumberFormat.NegativeSign = "\u2212";
+			CultureInfo.CurrentCulture = minusSign;
+			result = SchemaGenerator.Generate(schema, ConfigureGenerator(schema));
+		}
+		finally
+		{
+			CultureInfo.CurrentCulture = original;
+		}
+
+		Assert.IsTrue(result.IsSuccess, result.Message);
+		string source = result.Files["Counter.g.cs"];
+		Assert.IsTrue(source.Contains("= -5;", StringComparison.Ordinal), source);
+		Assert.IsTrue(source.Contains("= -7L;", StringComparison.Ordinal), source);
 	}
 }

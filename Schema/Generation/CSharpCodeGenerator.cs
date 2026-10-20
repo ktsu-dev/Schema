@@ -804,8 +804,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	private static string? DefaultLiteralFor(MemberDefault value, BaseType type) => (value, type) switch
 	{
-		(NumberDefault number, Int) => $"{(long)number.Value}",
-		(NumberDefault number, Long) => $"{(long)number.Value}L",
+		(NumberDefault number, Int) => ((long)number.Value).ToString(CultureInfo.InvariantCulture),
+		(NumberDefault number, Long) => $"{((long)number.Value).ToString(CultureInfo.InvariantCulture)}L",
 		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $"float.{NonFinite(number.Value)}",
 		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $"double.{NonFinite(number.Value)}",
 		(NumberDefault number, Float) => $"{number.Value.ToString("R", CultureInfo.InvariantCulture)}f",
