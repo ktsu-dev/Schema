@@ -172,6 +172,10 @@ Polymorphic, discriminated by `DefaultKind`, matching the `TypeName` discriminat
 `TextDefault` a string member's contents, or the **name** of an enum value. The name rather than
 the ordinal, so that reordering an enum cannot silently change what a default means.
 
+The number is read as a double, which holds every integer only up to ±9007199254740991 (2^53 - 1).
+A `Long` default beyond that is refused rather than accepted as a nearby value: by the time the
+schema is validated, `9007199254740993` in the file has already become `9007199254740992`.
+
 A default is not the same as a zeroed value. `default(T)` in C# and a value-initialised struct in
 C++ are all-zero bytes, which is rarely what a schema means by "the default".
 

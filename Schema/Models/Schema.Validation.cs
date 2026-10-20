@@ -467,6 +467,13 @@ public partial class Schema
 				{
 					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}).");
 				}
+				else if (type is Long && isWholeNumber && !IsExactInDouble(number.Value))
+				{
+					// A default is read into a double, which holds every integer only up to 2^53: past
+					// that the file's 9007199254740993 has already become 9007199254740992 before
+					// validation sees it, so the number generated would not be the number written.
+					Report(issues, path, element, $"The default {Number(number.Value)} is beyond ±{MaxExactInteger}, so a double cannot hold it exactly, and Long defaults that large are not supported.");
+				}
 
 				// A wrapping range is a period rather than a bound, so a value outside it is
 				// un-normalised rather than wrong -- the same reading a validator must take of
@@ -592,6 +599,17 @@ public partial class Schema
 	/// The upper bound is exclusive because (double)long.MaxValue rounds up to 2^63, which is
 	/// already one past the range: an inclusive check would pass the one value it most needs to stop.
 	/// </summary>
+	/// <summary>
+	/// The largest integer a double holds exactly together with every integer below it: 2^53 - 1.
+	/// </summary>
+	private const long MaxExactInteger = 9007199254740991;
+
+	/// <summary>
+	/// Whether every integer of this magnitude is a double, which is what makes a default this large
+	/// mean the number written. 2^53 is refused too: it is what 9007199254740993 rounds to on load.
+	/// </summary>
+	private static bool IsExactInDouble(double value) => Math.Abs(value) <= MaxExactInteger;
+
 	private static bool FitsInt64(double value) => value is >= -9223372036854775808.0 and < 9223372036854775808.0;
 
 	/// <summary>
