@@ -583,6 +583,10 @@ public partial class Schema : ISchema
 	/// taken.</returns>
 	/// <exception cref="InvalidOperationException">The interface has two methods with the same
 	/// name, counting those it inherits, which a schema cannot tell apart.</exception>
+	/// <exception cref="InvalidOperationException">The type, or a type one of its members names, is
+	/// generic, or has the same simple name as a different type already imported into this schema.
+	/// A schema names a declaration by the simple name alone and has no generic declarations, so
+	/// importing either would describe a type that does not exist.</exception>
 	public SchemaInterface? AddInterface(Type type)
 	{
 		Ensure.NotNull(type);
@@ -616,6 +620,10 @@ public partial class Schema : ISchema
 	/// <returns>The added class if successful, null otherwise.</returns>
 	/// <exception cref="InvalidOperationException">A member names an interface with two methods of
 	/// the same name, counting those it inherits.</exception>
+	/// <exception cref="InvalidOperationException">The type, or a type one of its members names, is
+	/// generic, or has the same simple name as a different type already imported into this schema.
+	/// A schema names a declaration by the simple name alone and has no generic declarations, so
+	/// importing either would describe a type that does not exist.</exception>
 	public SchemaClass? AddClass(Type type) => ClrTypeImporter.Import(this, type);
 
 	/// <summary>
