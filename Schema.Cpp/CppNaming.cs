@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Cpp;
 
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -28,6 +29,39 @@ internal static class CppNaming
 			convention == CppMemberNaming.SnakeCase ? SnakeCase(name) : name,
 			kind,
 			name);
+
+	/// <summary>
+	/// Refuses names that are distinct in the schema but would be spelled alike in C++.
+	/// </summary>
+	/// <remarks>
+	/// The schema keeps names unique as written, and a convention that rewrites them can still map
+	/// two onto one spelling: <c>PlayerID</c> and <c>PlayerId</c> are both <c>player_id</c>, as are
+	/// <c>fooBar</c> and <c>foo_bar</c>. Emitted, that is two declarations of one name, which the
+	/// compiler reports at the duplicate rather than at either schema element.
+	/// </remarks>
+	/// <param name="names">The names as the schema writes them, all in one scope.</param>
+	/// <param name="convention">The target's convention.</param>
+	/// <param name="kind">What the schema calls the elements, for the message.</param>
+	/// <param name="owner">What the elements belong to, for the message.</param>
+	/// <exception cref="CppGenerationException">Two names share a spelling.</exception>
+	public static void EnsureDistinct(IEnumerable<string> names, CppMemberNaming convention, string kind, string owner)
+	{
+		Dictionary<string, string> seen = new(StringComparer.Ordinal);
+
+		foreach (string name in names)
+		{
+			string spelled = convention == CppMemberNaming.SnakeCase ? SnakeCase(name) : name;
+
+			if (seen.TryGetValue(spelled, out string? first) && !string.Equals(first, name, StringComparison.Ordinal))
+			{
+				throw new CppGenerationException(
+					$"{kind}s '{first}' and '{name}' of '{owner}' are both spelled '{spelled}' in C++, so a "
+					+ "header declaring them would declare one name twice. Rename one of them.");
+			}
+
+			seen.TryAdd(spelled, name);
+		}
+	}
 
 	/// <summary>
 	/// Spells a type's name, which is the schema's own spelling.

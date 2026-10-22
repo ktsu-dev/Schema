@@ -160,6 +160,40 @@ public sealed class ElementPanelTests
 		Assert.AreEqual("data/users.json".As<RelativeFilePath>(), users.File);
 	}
 
+	/// <summary>
+	/// A pasted absolute path used to throw out of the frame, because the path type refuses one.
+	/// In a saved schema it is made relative to the schema file instead.
+	/// </summary>
+	[TestMethod]
+	public void AnAbsoluteDataSourceFilePathIsMadeRelativeToTheSchema()
+	{
+		string anchor = Path.Join(Path.GetTempPath(), "schema-anchor");
+		schema.SetSourceFile(Path.Join(anchor, "model.schema.json").As<AbsoluteFilePath>());
+		DataSource users = schema.AddDataSource("Users".As<DataSourceName>())!;
+		harness.Editor.EditDataSource(users);
+
+		harness.Commit("field/DataSourceFileUsers", Path.Join(anchor, "data", "users.json"));
+
+		Assert.AreEqual(Path.Join("data", "users.json").As<RelativeFilePath>(), users.File);
+	}
+
+	/// <summary>
+	/// An unsaved schema has nothing to be relative to, so the value is refused and the previous
+	/// one kept - without an exception escaping the frame.
+	/// </summary>
+	[TestMethod]
+	public void AnAbsoluteDataSourceFilePathInAnUnsavedSchemaIsRefused()
+	{
+		DataSource users = schema.AddDataSource("Users".As<DataSourceName>())!;
+		users.File = "data/users.json".As<RelativeFilePath>();
+		harness.Editor.EditDataSource(users);
+
+		harness.Commit("field/DataSourceFileUsers", Path.Join(Path.GetTempPath(), "elsewhere.json"));
+		harness.App.Step(4);
+
+		Assert.AreEqual("data/users.json".As<RelativeFilePath>(), users.File);
+	}
+
 	[TestMethod]
 	public void ChoosingAClassForADataSourcePointsItAtThatClass()
 	{

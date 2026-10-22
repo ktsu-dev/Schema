@@ -94,6 +94,34 @@ public class SchemaFormatVersionTests
 	}
 
 	[TestMethod]
+	public void TestCommentsAndTrailingCommasAreAccepted()
+	{
+		string json = $$"""
+		{
+		  // A line comment ahead of the version, which must still be read.
+		  "formatVersion": {{Schema.CurrentFormatVersion}},
+		  /* A block comment. */
+		  "classes": [
+		    {
+		      "name": "User",
+		      "description": "",
+		      "members": [
+		        { "name": "Name", "description": "", "type": { "TypeName": "String" }, },
+		      ],
+		    },
+		  ],
+		  "enums": [],
+		}
+		""";
+
+		SchemaLoadResult result = SchemaSerializer.Load(json);
+
+		Assert.AreEqual(SchemaLoadStatus.Success, result.Status, result.Message);
+		Assert.AreEqual(Schema.CurrentFormatVersion, result.FileFormatVersion);
+		Assert.IsNotNull(result.Schema!.GetClass("User".As<ClassName>()));
+	}
+
+	[TestMethod]
 	public void TestCorruptJsonIsReportedAsInvalid()
 	{
 		SchemaLoadResult result = SchemaSerializer.Load("{ this is not json");

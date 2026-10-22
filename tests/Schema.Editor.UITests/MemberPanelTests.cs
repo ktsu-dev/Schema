@@ -4,6 +4,9 @@ namespace ktsu.Schema.Editor.UITests;
 
 using System.Linq;
 
+using Hexa.NET.ImGui;
+
+using ktsu.ImGui.App.Testing;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Strings;
@@ -109,5 +112,51 @@ public sealed class MemberPanelTests
 		harness.Editor.UndoRedo.Undo();
 
 		AssertMembers("Id", "Age", "Email");
+	}
+
+	/// <summary>
+	/// A description is the user's own text, so a <c>%</c> in it is shown rather than read as a
+	/// printf directive: <c>%s</c> would read an argument nobody passed, and <c>% o</c> would print
+	/// a number.
+	/// </summary>
+	/// <remarks>
+	/// The editor draws in a scaled font that is only current inside a frame, so the tooltip is
+	/// measured against a second one whose description has no <c>%</c> at all, and the two widths
+	/// are compared as a ratio, which the scale cancels out of.
+	/// </remarks>
+	[TestMethod]
+	public void ADescriptionWithPercentSignsIsShownLiterallyInItsTooltip()
+	{
+		const string withPercent = "Reads 100%s of the time, % o or so";
+		const string plain = "Reads every time";
+		SetDescription("Age", withPercent);
+		SetDescription("Id", plain);
+
+		float percentWidth = TooltipWidth("memberAge");
+		float plainWidth = TooltipWidth("memberId");
+
+		float expected = ImGui.CalcTextSize(withPercent).X / ImGui.CalcTextSize(plain).X;
+		Assert.AreEqual(expected, percentWidth / plainWidth, 0.02f, "The tooltip was not as wide as the description drawn literally.");
+	}
+
+	private void SetDescription(string member, string description) =>
+		user.Members.First(m => m.Name.ToString() == member).Description = description.As<SchemaChildDescription>();
+
+	/// <summary>
+	/// Rests the pointer on a member's description toggle and measures the text of the tooltip it
+	/// opens. The tooltip's text is recorded inside the member's probe scope, so it is named by it.
+	/// </summary>
+	private float TooltipWidth(string memberScope)
+	{
+		string item = $"{memberScope}/ToggleDescription";
+		string tooltip = $"{memberScope}/{EditorTooltip.TextProbeName}";
+		harness.StepUntil(() => harness.IsOnScreen(item), $"'{item}' appearing");
+		Rectangle target = harness.App.Probe.Rect(item)!.Value;
+		harness.App.Mouse.MoveTo((target.MinX + target.MaxX) * 0.5f, (target.MinY + target.MaxY) * 0.5f);
+		harness.App.Step(2);
+		harness.StepUntil(() => harness.IsOnScreen(tooltip), $"the tooltip of '{item}' appearing");
+
+		Rectangle text = harness.App.Probe.Rect(tooltip)!.Value;
+		return text.MaxX - text.MinX;
 	}
 }

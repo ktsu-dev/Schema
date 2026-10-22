@@ -2,6 +2,7 @@
 
 Changes since v1.38.0:
 
+- Show user text in tooltips without printf formatting (Claude)
 - Refuse a class that holds itself by value (Claude)
 - Read a null property as omitted, and refuse a null list element by its path (Claude)
 - Read a type whose discriminator is not first, and refuse one with none (Claude)

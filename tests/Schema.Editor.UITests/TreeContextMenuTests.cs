@@ -271,6 +271,24 @@ public sealed class TreeContextMenuTests
 	}
 
 	[TestMethod]
+	public void UndoingAnEnumValueDeletePutsItBackWhereItWas()
+	{
+		SchemaEnum colour = schema.GetEnum("Colour".As<EnumName>())!;
+		colour.TryAddValue("Red".As<EnumValueName>());
+		colour.TryAddValue("Green".As<EnumValueName>());
+		colour.TryAddValue("Blue".As<EnumValueName>());
+		string[] before = [.. colour.Values.Select(v => v.ToString())];
+
+		ChooseFromContextMenu("BtnGreen", "DeleteGreen");
+		harness.Editor.UndoRedo.Undo();
+		Assert.AreSequenceEqual(before, [.. colour.Values.Select(v => v.ToString())], "Undo appended the value instead of restoring its position.");
+
+		harness.Editor.UndoRedo.Redo();
+		harness.Editor.UndoRedo.Undo();
+		Assert.AreSequenceEqual(before, [.. colour.Values.Select(v => v.ToString())], "A second undo after redo moved the value.");
+	}
+
+	[TestMethod]
 	public void RenamingAMemberChangesItsName()
 	{
 		SchemaClass user = schema.GetClass("User".As<ClassName>())!;
