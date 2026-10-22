@@ -20,10 +20,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// found by the language a schema names, which is the whole reason the registry is not a fixed
 /// table.
 /// <para>
-/// The registry is process-wide, so each test here registers a language nothing else uses.
+/// The registry is process-wide, so each test here registers a language nothing else uses. It is
+/// also an unsynchronised dictionary, documented as meant to be filled once at start-up, so two of
+/// these tests registering at once can lose a write while it resizes. That failed CI once on
+/// Windows, with a generator registered a line earlier reported as unknown, so the class runs its
+/// tests one at a time.
 /// </para>
 /// </remarks>
 [TestClass]
+[DoNotParallelize]
 public sealed class GeneratorRegistryTests
 {
 	/// <summary>
