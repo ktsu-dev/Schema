@@ -50,6 +50,7 @@ public partial class SchemaEditor
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
+	private SemanticTypePanel SemanticTypePanel { get; init; }
 
 	private MemberGridPanel MemberGrid { get; init; }
 	internal ClassGraphView ClassGraph { get; } = new();
@@ -70,6 +71,7 @@ public partial class SchemaEditor
 		UndoRedo = new UndoRedoService(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 		TreeSchema = new(this);
 		CodeGeneratorPanel = new(this);
+		SemanticTypePanel = new(this);
 		MemberGrid = new(this);
 		DividerContainerCols =
 			new(
@@ -330,9 +332,9 @@ public partial class SchemaEditor
 		{
 			CodeGeneratorPanel.Show(CurrentSchema, CurrentCodeGenerator);
 		}
-		else if (CurrentSemanticType is not null)
+		else if (CurrentSemanticType is not null && CurrentSchema is not null)
 		{
-			ShowSemanticTypeProperties();
+			SemanticTypePanel.Show(CurrentSchema, CurrentSemanticType);
 		}
 	}
 
