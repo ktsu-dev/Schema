@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
 
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Types;
 using ktsu.Semantics.Paths;
 
@@ -173,18 +174,20 @@ public static class SchemaDataValidator
 			return;
 		}
 
+		// The names of the properties a member matched, in the casing the data spelled them. A member
+		// is found case-insensitively, so recording the member's own name instead would report every
+		// property of camelCase data as unknown straight after validating it.
 		HashSet<string> accountedFor = [];
 
 		foreach (SchemaMember member in schemaClass.Members)
 		{
-			accountedFor.Add(member.Name);
-
-			if (!TryGetMemberProperty(element, member.Name, out JsonElement value))
+			if (!TryGetMemberProperty(element, member.Name, out string matchedName, out JsonElement value))
 			{
 				issues.Add(Error($"{path}.{member.Name}", $"Required member '{member.Name}' of class '{schemaClass.Name}' is missing."));
 				continue;
 			}
 
+			accountedFor.Add(matchedName);
 			ValidateValue(member.Type, value, $"{path}.{member.Name}", issues);
 		}
 
@@ -197,7 +200,8 @@ public static class SchemaDataValidator
 	}
 
 	/// <summary>
-	/// Looks a member up in the data, accepting the casing the serializer would have written.
+	/// Looks a member up in the data, accepting the casing the serializer would have written, and
+	/// reports the name of the property it matched.
 	/// </summary>
 	/// <remarks>
 	/// The loop stops at the first match, which is the whole point of a lookup. Enumerating a
@@ -206,20 +210,23 @@ public static class SchemaDataValidator
 	/// runs once per member per object in a data file.
 	/// </remarks>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1751:Loops with at most one iteration should be refactored", Justification = "A first-match lookup terminates on the first iteration by design; see the remarks.")]
-	private static bool TryGetMemberProperty(JsonElement element, string memberName, out JsonElement value)
+	private static bool TryGetMemberProperty(JsonElement element, string memberName, out string matchedName, out JsonElement value)
 	{
 		if (element.TryGetProperty(memberName, out value))
 		{
+			matchedName = memberName;
 			return true;
 		}
 
 		foreach (JsonProperty property in element.EnumerateObject()
 			.Where(candidate => string.Equals(candidate.Name, memberName, StringComparison.OrdinalIgnoreCase)))
 		{
+			matchedName = property.Name;
 			value = property.Value;
 			return true;
 		}
 
+		matchedName = memberName;
 		return false;
 	}
 
@@ -258,23 +265,23 @@ public static class SchemaDataValidator
 			// ColorRGB derives from Vector3 and ColorRGBA from Vector4, so the colors have to be
 			// matched first or the compiler rightly calls their cases unreachable.
 			case ColorRGB:
-				ExpectNumericTuple(value, 3, path, type, issues);
+				ExpectNumericTuple(value, 3, new Float(), path, type, issues);
 				break;
 
 			case ColorRGBA:
-				ExpectNumericTuple(value, 4, path, type, issues);
+				ExpectNumericTuple(value, 4, new Float(), path, type, issues);
 				break;
 
-			case Vector2:
-				ExpectNumericTuple(value, 2, path, type, issues);
+			case Vector2 vector:
+				ExpectNumericTuple(value, 2, vector.ElementType, path, type, issues);
 				break;
 
-			case Vector3:
-				ExpectNumericTuple(value, 3, path, type, issues);
+			case Vector3 vector:
+				ExpectNumericTuple(value, 3, vector.ElementType, path, type, issues);
 				break;
 
-			case Vector4:
-				ExpectNumericTuple(value, 4, path, type, issues);
+			case Vector4 vector:
+				ExpectNumericTuple(value, 4, vector.ElementType, path, type, issues);
 				break;
 
 			case Types.Enum enumType:
@@ -289,9 +296,91 @@ public static class SchemaDataValidator
 				ValidateArray(arrayType, value, path, issues);
 				break;
 
+			case Semantic semantic:
+				ValidateSemanticValue(semantic, value, path, issues);
+				break;
+
+			case Quantity quantity:
+				ValidateQuantityValue(quantity, value, path, issues);
+				break;
+
+			// An absent value is spelled null; anything else is the value it wraps.
+			case Optional optional:
+				if (value.ValueKind != JsonValueKind.Null)
+				{
+					ValidateValue(optional.ElementType, value, path, issues);
+				}
+
+				break;
+
+			// A handle names an entry in a store the data file cannot see, an interface is
+			// behaviour rather than data, and a result or a span exists only in a signature. None
+			// of them has a stored form to compare a value against, so say so rather than pass it.
+			case Handle or Result or Span or Interface or Void:
+				issues.Add(Warning(path, $"Values of type '{type.DisplayName}' cannot be checked."));
+				break;
+
 			default:
 				break;
 		}
+	}
+
+	/// <summary>
+	/// Validates a value of a semantic type as the representation it is stored in.
+	/// </summary>
+	/// <remarks>
+	/// A semantic type whose name does not resolve, or whose refinements form a cycle, is already
+	/// reported by schema validation. There is nothing real to judge the value against, so it is
+	/// left alone rather than reported twice.
+	/// </remarks>
+	private static void ValidateSemanticValue(Semantic semantic, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
+	{
+		if (semantic.Declaration?.Representation() is BaseType representation and not Semantic)
+		{
+			ValidateValue(representation, value, path, issues);
+		}
+	}
+
+	/// <summary>
+	/// Validates a value of a physical quantity: one number for a magnitude or a signed scalar, and
+	/// an array of numbers for a vector form, each judged by the quantity's storage.
+	/// </summary>
+	/// <remarks>
+	/// A quantity name that does not resolve is already reported by schema validation, which is
+	/// also the only thing that knows how many components it should have.
+	/// </remarks>
+	private static void ValidateQuantityValue(Quantity quantity, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
+	{
+		if (!QuantityRegistry.TryResolve(quantity.QuantityName, out QuantityRegistry.QuantityInfo? info) || info is null)
+		{
+			return;
+		}
+
+		if (info.Components >= 2)
+		{
+			ExpectNumericTuple(value, info.Components, quantity.Storage, path, quantity, issues);
+			return;
+		}
+
+		ExpectNumber(value, quantity.Storage, path, quantity, issues);
+	}
+
+	/// <summary>
+	/// Expects one number, held to whole numbers when the type it is stored in is integral.
+	/// </summary>
+	private static void ExpectNumber(JsonElement value, BaseType storage, string path, BaseType type, Collection<SchemaValidationIssue> issues)
+	{
+		BaseType represented = storage is Semantic { Declaration: SchemaSemanticType declaration }
+			? declaration.Representation()
+			: storage;
+
+		if (represented is Int or Long)
+		{
+			ExpectIntegralAs(value, represented, path, type, issues);
+			return;
+		}
+
+		Expect(value, JsonValueKind.Number, path, type, issues);
 	}
 
 	private static void ValidateEnumValue(Types.Enum enumType, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
@@ -377,7 +466,7 @@ public static class SchemaDataValidator
 	{
 		if (string.IsNullOrEmpty(arrayType.Key) ||
 			entry.Value.ValueKind != JsonValueKind.Object ||
-			!TryGetMemberProperty(entry.Value, arrayType.Key, out JsonElement keyValue))
+			!TryGetMemberProperty(entry.Value, arrayType.Key, out _, out JsonElement keyValue))
 		{
 			return;
 		}
@@ -408,7 +497,15 @@ public static class SchemaDataValidator
 		}
 	}
 
-	private static void ExpectIntegral(JsonElement value, string path, BaseType type, Collection<SchemaValidationIssue> issues)
+	private static void ExpectIntegral(JsonElement value, string path, BaseType type, Collection<SchemaValidationIssue> issues) =>
+		ExpectIntegralAs(value, type, path, type, issues);
+
+	/// <summary>
+	/// Expects a whole number in the range of <paramref name="storage"/>, reported under the name
+	/// of <paramref name="type"/> - which is the storage itself for a bare integer and the vector,
+	/// quantity or semantic type holding it otherwise.
+	/// </summary>
+	private static void ExpectIntegralAs(JsonElement value, BaseType storage, string path, BaseType type, Collection<SchemaValidationIssue> issues)
 	{
 		if (value.ValueKind != JsonValueKind.Number)
 		{
@@ -416,7 +513,7 @@ public static class SchemaDataValidator
 			return;
 		}
 
-		if (type is Int)
+		if (storage is Int)
 		{
 			if (value.TryGetInt32(out _))
 			{
@@ -434,7 +531,7 @@ public static class SchemaDataValidator
 			return;
 		}
 
-		if (type is Long)
+		if (storage is Long)
 		{
 			issues.Add(Error(path, $"Expected a whole number for type '{type.DisplayName}' but found {value.GetRawText()}."));
 			return;
@@ -457,7 +554,7 @@ public static class SchemaDataValidator
 		}
 	}
 
-	private static void ExpectNumericTuple(JsonElement value, int length, string path, BaseType type, Collection<SchemaValidationIssue> issues)
+	private static void ExpectNumericTuple(JsonElement value, int length, BaseType component, string path, BaseType type, Collection<SchemaValidationIssue> issues)
 	{
 		if (value.ValueKind != JsonValueKind.Array)
 		{
@@ -466,13 +563,9 @@ public static class SchemaDataValidator
 		}
 
 		int count = 0;
-		foreach (JsonElement component in value.EnumerateArray())
+		foreach (JsonElement element in value.EnumerateArray())
 		{
-			if (component.ValueKind != JsonValueKind.Number)
-			{
-				issues.Add(Error($"{path}[{count}]", $"Expected a number in '{type.DisplayName}' but found {Describe(component)}."));
-			}
-
+			ExpectNumber(element, component, $"{path}[{count}]", type, issues);
 			count++;
 		}
 

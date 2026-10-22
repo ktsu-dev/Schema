@@ -231,13 +231,7 @@ public partial class SchemaEditor
 		ImGui.SameLine();
 		if (EditField.Text($"##DataSourceFile{dataSource.Name}", FieldWidth * 2, dataSource.File, out string filePath))
 		{
-			RelativeFilePath previous = dataSource.File;
-			RelativeFilePath next = filePath.As<RelativeFilePath>();
-			Execute(new DelegateCommand(
-				$"Set Data Source File '{next}'",
-				() => dataSource.File = next,
-				() => dataSource.File = previous,
-				ChangeType.Modify));
+			SetDataSourceFile(schema, dataSource, filePath);
 		}
 
 		ImGui.TextUnformatted("Class:");
@@ -245,6 +239,26 @@ public partial class SchemaEditor
 		ShowClassSelector(schema, dataSource);
 
 		ShowDescriptionEditor($"##DataSourceDescription{dataSource.Name}", "Description:", dataSource.Description, value => dataSource.Description = value);
+	}
+
+	/// <summary>
+	/// Records a data source file typed by the user, made relative to the schema file, or reports
+	/// why it cannot be and keeps the previous one.
+	/// </summary>
+	private void SetDataSourceFile(Schema schema, DataSource dataSource, string input)
+	{
+		if (!SchemaRelativePath.TryCreate(schema, input, out RelativeFilePath next, out string problem))
+		{
+			Popups.OpenMessageOK("Invalid File Path", problem);
+			return;
+		}
+
+		RelativeFilePath previous = dataSource.File;
+		Execute(new DelegateCommand(
+			$"Set Data Source File '{next}'",
+			() => dataSource.File = next,
+			() => dataSource.File = previous,
+			ChangeType.Modify));
 	}
 
 	private void ShowClassSelector(Schema schema, DataSource dataSource)

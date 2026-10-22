@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Cpp.Test;
 
+using System.Diagnostics;
+
 using ktsu.Schema.Cpp;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
@@ -48,10 +50,78 @@ public class EnumUnderlyingTypeTests
 		Assert.Contains("#include <cstdint>", Generate()["Kind.gen.hpp"]);
 
 	/// <summary>
+	/// The largest enum validation accepts still fits: 256 values in a <c>std::uint8_t</c> compiles.
+	/// </summary>
+	/// <remarks>
+	/// Validation refuses a 257th value because it would be 256, which the underlying type cannot
+	/// hold. This is the other edge of that rule, checked by the compiler rather than by reading
+	/// the header.
+	/// </remarks>
+	[TestMethod]
+	public void AnEnumWith256ValuesCompiles()
+	{
+		string? compiler = Find("g++") ?? Find("clang++");
+
+		if (compiler is null)
+		{
+			Assert.Inconclusive("no C++ compiler on PATH, so the generated header was not compiled.");
+		}
+
+		string directory = Path.Join(Path.GetTempPath(), $"schema-enum-limit-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+
+		try
+		{
+			foreach (KeyValuePair<string, string> file in Generate(256))
+			{
+				File.WriteAllText(Path.Join(directory, file.Key), file.Value);
+			}
+
+			using Process process = new()
+			{
+				StartInfo = new ProcessStartInfo(compiler!)
+				{
+					WorkingDirectory = directory,
+					RedirectStandardError = true,
+					RedirectStandardOutput = true,
+				},
+			};
+
+			foreach (string argument in (string[])["-std=c++20", "-Wall", "-Wextra", "-fsyntax-only", "-x", "c++", "Kind.gen.hpp"])
+			{
+				process.StartInfo.ArgumentList.Add(argument);
+			}
+
+			process.Start();
+			string output = process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd();
+			process.WaitForExit();
+
+			Assert.AreEqual(0, process.ExitCode, output);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	private static string? Find(string executable) =>
+		(Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+			.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+			.Select(directory => Path.Join(directory, executable))
+			.FirstOrDefault(File.Exists);
+
+	/// <summary>
 	/// Builds a schema with one enum in it and generates it.
 	/// </summary>
 	/// <returns>The generated files.</returns>
-	private static IReadOnlyDictionary<string, string> Generate()
+	private static IReadOnlyDictionary<string, string> Generate() => Generate(2);
+
+	/// <summary>
+	/// Builds a schema with one enum of the given number of values and generates it.
+	/// </summary>
+	/// <param name="count">How many values the enum has.</param>
+	/// <returns>The generated files.</returns>
+	private static IReadOnlyDictionary<string, string> Generate(int count)
 	{
 		Models.Schema schema = new();
 
@@ -60,8 +130,10 @@ public class EnumUnderlyingTypeTests
 		configuration.Namespace = "holo::components".As<CodeNamespace>();
 
 		SchemaEnum kind = schema.AddEnum("Kind".As<EnumName>())!;
-		kind.TryAddValue("First".As<EnumValueName>());
-		kind.TryAddValue("Second".As<EnumValueName>());
+		for (int i = 0; i < count; i++)
+		{
+			kind.TryAddValue((i switch { 0 => "First", 1 => "Second", _ => $"Value{i}" }).As<EnumValueName>());
+		}
 
 		return new CppCodeGenerator(new CppGeneratorOptions()).Generate(schema, configuration);
 	}

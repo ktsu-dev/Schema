@@ -86,7 +86,21 @@ internal static class SchemaFile
 	/// <param name="filePath">The path to save the schema to.</param>
 	/// <returns>True if the schema was saved successfully, false otherwise.</returns>
 	public static bool TrySave(Schema schema, AbsoluteFilePath filePath) =>
-		TrySave(schema, filePath, File.WriteAllText);
+		TrySave(schema, filePath, File.WriteAllText, out _);
+
+	/// <summary>
+	/// Saves a Schema to a file path, and says why it could not when it could not.
+	/// </summary>
+	/// <param name="schema">The schema to save.</param>
+	/// <param name="filePath">The path to save the schema to.</param>
+	/// <param name="failure">Why the save failed, or null when it succeeded.</param>
+	/// <returns>True if the schema was saved successfully, false otherwise.</returns>
+	public static bool TrySave(Schema schema, AbsoluteFilePath filePath, out string? failure) =>
+		TrySave(schema, filePath, File.WriteAllText, out failure);
+
+	/// <inheritdoc cref="TrySave(Schema, AbsoluteFilePath, Action{string, string}, out string?)"/>
+	internal static bool TrySave(Schema schema, AbsoluteFilePath filePath, Action<string, string> writeFile) =>
+		TrySave(schema, filePath, writeFile, out _);
 
 	/// <summary>
 	/// Saves a Schema to a file path, writing the content through <paramref name="writeFile"/>.
@@ -100,11 +114,13 @@ internal static class SchemaFile
 	/// <param name="schema">The schema to save.</param>
 	/// <param name="filePath">The path to save the schema to.</param>
 	/// <param name="writeFile">Writes the given text to the given path.</param>
+	/// <param name="failure">Why the save failed, or null when it succeeded.</param>
 	/// <returns>True if the schema was saved successfully, false otherwise.</returns>
-	internal static bool TrySave(Schema schema, AbsoluteFilePath filePath, Action<string, string> writeFile)
+	internal static bool TrySave(Schema schema, AbsoluteFilePath filePath, Action<string, string> writeFile, out string? failure)
 	{
 		if (schema is null || string.IsNullOrEmpty(filePath))
 		{
+			failure = "No file was chosen to save to.";
 			return false;
 		}
 
@@ -119,15 +135,22 @@ internal static class SchemaFile
 			}
 
 			WriteAtomically(filePath, json, writeFile);
+			failure = null;
 			return true;
 		}
-		catch (JsonException)
+		catch (JsonException ex)
 		{
-			// Serialization error
+			failure = ex.Message;
 		}
-		catch (IOException)
+		catch (IOException ex)
 		{
-			// File access error
+			failure = ex.Message;
+		}
+		catch (UnauthorizedAccessException ex)
+		{
+			// A read-only file or a directory the user cannot write to. Not an IOException, so
+			// without this it escaped the save and took the editor down with the unsaved work.
+			failure = ex.Message;
 		}
 
 		return false;

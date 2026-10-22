@@ -120,7 +120,7 @@ internal sealed class ButtonTree<TItem> : ButtonTree
 
 		if (lines.Length > 0)
 		{
-			ImGui.SetTooltip(string.Join("\n\n", lines));
+			EditorTooltip.Show(string.Join("\n\n", lines));
 		}
 	}
 
