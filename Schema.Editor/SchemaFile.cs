@@ -161,12 +161,23 @@ internal static class SchemaFile
 	/// over the target, so the target only ever holds a complete previous save or a complete new one.
 	/// </summary>
 	/// <remarks>
+	/// <para>
 	/// The temporary file is in the same directory so the final step is a rename on one volume rather
 	/// than a copy. It is deleted on any failure, which is what the <c>finally</c> is for: an
 	/// exception the caller does not catch still must not leave it behind.
+	/// </para>
+	/// <para>
+	/// A rename replaces a directory entry, not a file, so two things the target's entry carried
+	/// would be lost to it. A symbolic link would become a plain file holding the new content while
+	/// the file it pointed at - a schema shared between projects - kept the old one, so the path is
+	/// followed to the file it finally names and that file is the one replaced. And the new file
+	/// would have the process's default mode, so on Unix the existing file's permission bits are
+	/// copied onto the temporary file before the swap.
+	/// </para>
 	/// </remarks>
 	private static void WriteAtomically(string targetPath, string content, Action<string, string> writeFile)
 	{
+		targetPath = ResolveFinalTarget(targetPath);
 		string temporaryPath = $"{targetPath}.tmp-{Guid.NewGuid():N}";
 
 		try
@@ -175,6 +186,11 @@ internal static class SchemaFile
 
 			if (File.Exists(targetPath))
 			{
+				if (!OperatingSystem.IsWindows())
+				{
+					File.SetUnixFileMode(temporaryPath, File.GetUnixFileMode(targetPath));
+				}
+
 				File.Replace(temporaryPath, targetPath, destinationBackupFileName: null);
 			}
 			else
@@ -189,5 +205,22 @@ internal static class SchemaFile
 				File.Delete(temporaryPath);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Follows <paramref name="path"/> through any symbolic links to the path of the file it finally
+	/// names, or returns it unchanged when it is not a link.
+	/// </summary>
+	/// <remarks>
+	/// A link whose target does not exist yet still resolves to that target, so the first save through
+	/// it creates the file the link names rather than replacing the link.
+	/// </remarks>
+	private static string ResolveFinalTarget(string path)
+	{
+		FileInfo file = new(path);
+
+		// Resolving a path that names nothing throws rather than answering null, and a first save
+		// always names nothing, so only a path that is a link is resolved.
+		return file.LinkTarget is null ? path : file.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? path;
 	}
 }
