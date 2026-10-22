@@ -3,6 +3,8 @@
 namespace ktsu.Schema.Editor;
 
 using ktsu.ImGui.App;
+using ktsu.Schema.Cpp;
+using ktsu.Schema.Generation;
 
 /// <summary>
 /// The host configuration an editor runs under.
@@ -30,8 +32,11 @@ internal static class EditorHost
 	/// </remarks>
 	/// <param name="editor">The editor the callbacks are bound to.</param>
 	/// <returns>The configuration to hand to <see cref="ImGuiApp"/>.</returns>
-	internal static ImGuiAppConfig CreateConfig(SchemaEditor editor) =>
-		new()
+	internal static ImGuiAppConfig CreateConfig(SchemaEditor editor)
+	{
+		RegisterGenerators();
+
+		return new()
 		{
 			// The startup title only; SchemaEditor keeps it current from there, showing the open
 			// document and whether it has unsaved changes.
@@ -44,4 +49,20 @@ internal static class EditorHost
 			// Refuses a close that would discard unsaved work, so the editor can ask first.
 			OnClosing = editor.ShouldClose,
 		};
+	}
+
+	/// <summary>
+	/// Registers every code generator the editor can offer beyond the C# one the library carries.
+	/// </summary>
+	/// <remarks>
+	/// The library registers only C#, because the C++ generator lives in an assembly it cannot
+	/// reference, and a host that ships the C++ generator has to say so. The command line tool
+	/// does; until the editor did too, a schema whose generator named <c>cpp</c> validated cleanly
+	/// on the command line and was refused here with "no generator is registered", and the
+	/// language picker never offered it. Default options are the right ones for an editor that has
+	/// no options file to read: a type the target has not been told how to spell is refused by
+	/// name, as a result rather than an exception. Registering replaces by language, so building a
+	/// second configuration - which every UI test does - registers nothing twice.
+	/// </remarks>
+	internal static void RegisterGenerators() => SchemaGenerator.Register(new CppCodeGenerator());
 }

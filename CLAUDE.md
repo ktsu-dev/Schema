@@ -417,6 +417,12 @@ commands find the schema by taking the first argument that is not an option, ste
 any option consumes, and the list of options that consume one belongs to the commands, which have
 never heard of the C++ generator.
 
+An option the command does not read is refused by `SchemaCommandLine` before anything is loaded or
+written, rather than stepped over: stepped over, a misspelt `--generator` ran every generator. A
+host option therefore has to be taken out in every form the host accepts - `TryTake` takes
+`--cpp-options <file>` and `--cpp-options=<file>`, and refuses the option given twice - or it
+reaches the commands as an unknown option.
+
 One file per element, and **an enum goes to namespace scope in a header of its own** rather than
 nested in the class that names it. Holotype's target document nests it, which was right when an enum
 belonged to the component that declared it; here an enum is a top-level element any class may name,
@@ -516,6 +522,17 @@ Generated C# carries the metadata as attributes from `ktsu.Schema.Runtime`, and 
 reads them back, because none of it is expressible in a CLR type. The two sides are inverses and
 the generate-compile-reimport round-trip test fails if either changes alone. A default is emitted
 as the property initialiser as well, so a generated instance starts at it.
+
+### Generated data editors
+
+A `SchemaCodeGenerator` may name a `DataSource`; the C# generator then emits `<Class>Record` and
+`<DataSource>Editor` beside the class. The generated code is thin on purpose: the editor derives
+from `SchemaDataEditor<TRecord>` and records from `SchemaDataRecord`, both in `Schema/Runtime/`,
+and every accessor goes through `SchemaDataValues`. Records are views over the file's own
+`JsonObject`, so members the schema does not model survive a save. Validation is
+`SchemaDataValidator` and nothing else, which is what `GeneratedDataEditorTests` pins: the editor's
+issues must equal the validator's for every payload, so a second, divergent notion of "valid"
+cannot grow in the runtime.
 
 ### Key Files
 

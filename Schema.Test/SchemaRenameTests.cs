@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Tests;
 
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
@@ -260,5 +261,89 @@ public class SchemaRenameTests
 
 		Assert.IsNotNull(reloaded.GetClass("Product".As<ClassName>()));
 		Assert.AreEqual(0, reloaded.Validate().Count, string.Join("; ", reloaded.Validate()));
+	}
+
+	/// <summary>
+	/// The schema the issue was filed against: an error type, and an enum-typed member whose
+	/// default names one of the enum's values.
+	/// </summary>
+	private static Schema CreateSchemaNamingEnumsByText()
+	{
+		Schema schema = new();
+		SchemaEnum failure = schema.AddEnum("Failure".As<EnumName>())!;
+		failure.TryAddValue("NotFound".As<EnumValueName>());
+		schema.ErrorType = "Failure".As<EnumName>();
+
+		SchemaEnum mood = schema.AddEnum("Mood".As<EnumName>())!;
+		mood.TryAddValue("Calm".As<EnumValueName>());
+		mood.TryAddValue("Angry".As<EnumValueName>());
+
+		SchemaMember member = schema.AddClass("Npc".As<ClassName>())!.AddMember("Mood".As<MemberName>())!;
+		member.SetType(new SchemaTypes.Enum() { EnumName = "Mood".As<EnumName>() });
+		member.DefaultValue = new TextDefault { Value = "Calm" };
+
+		return schema;
+	}
+
+	[TestMethod]
+	public void TestRenamingTheErrorEnumRepointsTheErrorType()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaEnum failure = schema.GetEnum("Failure".As<EnumName>())!;
+
+		Assert.IsTrue(schema.TryRenameEnum(failure, "ErrorCode".As<EnumName>()));
+		Assert.AreEqual("ErrorCode", schema.ErrorType.ToString());
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+
+		Assert.IsTrue(schema.TryRenameEnum(failure, "Failure".As<EnumName>()));
+		Assert.AreEqual("Failure", schema.ErrorType.ToString(), "Renaming back did not restore the error type.");
+	}
+
+	[TestMethod]
+	public void TestRenamingAnotherEnumLeavesTheErrorTypeAlone()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Mood".As<EnumName>())!, "Temper".As<EnumName>()));
+		Assert.AreEqual("Failure", schema.ErrorType.ToString());
+	}
+
+	[TestMethod]
+	public void TestRenamingAnEnumValueRepointsTheDefaultsNamingIt()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaEnum mood = schema.GetEnum("Mood".As<EnumName>())!;
+		SchemaMember member = schema.GetClass("Npc".As<ClassName>())!.GetMember("Mood".As<MemberName>())!;
+
+		Assert.IsTrue(mood.TryRenameValue("Calm".As<EnumValueName>(), "Serene".As<EnumValueName>()));
+		Assert.AreEqual("Serene", ((TextDefault)member.DefaultValue!).Value);
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+
+		Assert.IsTrue(mood.TryRenameValue("Serene".As<EnumValueName>(), "Calm".As<EnumValueName>()));
+		Assert.AreEqual("Calm", ((TextDefault)member.DefaultValue!).Value, "Renaming back did not restore the default.");
+	}
+
+	/// <summary>
+	/// Only a default of the renamed enum moves: a string member, or a member of another enum,
+	/// whose default happens to spell the same word is a different value.
+	/// </summary>
+	[TestMethod]
+	public void TestRenamingAnEnumValueLeavesUnrelatedDefaultsAlone()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaClass npc = schema.GetClass("Npc".As<ClassName>())!;
+		SchemaMember text = npc.AddMember("Note".As<MemberName>())!;
+		text.SetType(new SchemaTypes.String());
+		text.DefaultValue = new TextDefault { Value = "Calm" };
+
+		SchemaEnum weather = schema.AddEnum("Weather".As<EnumName>())!;
+		weather.TryAddValue("Calm".As<EnumValueName>());
+		SchemaMember sky = npc.AddMember("Sky".As<MemberName>())!;
+		sky.SetType(new SchemaTypes.Enum() { EnumName = "Weather".As<EnumName>() });
+		sky.DefaultValue = new TextDefault { Value = "Calm" };
+
+		Assert.IsTrue(schema.GetEnum("Mood".As<EnumName>())!.TryRenameValue("Calm".As<EnumValueName>(), "Serene".As<EnumValueName>()));
+		Assert.AreEqual("Calm", ((TextDefault)text.DefaultValue!).Value);
+		Assert.AreEqual("Calm", ((TextDefault)sky.DefaultValue!).Value);
 	}
 }

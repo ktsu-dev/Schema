@@ -201,22 +201,41 @@ public static class CppGeneratorOptionsFile
 		options = null;
 		message = null;
 
-		int index = Array.FindIndex(args, a => string.Equals(a, Option, StringComparison.OrdinalIgnoreCase));
+		string prefix = Option + "=";
+		int[] occurrences = [.. args
+			.Select((argument, position) => (argument, position))
+			.Where(a => string.Equals(a.argument, Option, StringComparison.OrdinalIgnoreCase)
+				|| a.argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+			.Select(a => a.position)];
 
-		if (index < 0)
+		if (occurrences.Length == 0)
 		{
 			options = new CppGeneratorOptions();
 			return true;
 		}
 
-		if (index + 1 >= args.Length)
+		// Two files cannot both be the target's options, and taking only the first would hand the
+		// second one's path to the commands, which would open it as the schema.
+		if (occurrences.Length > 1)
+		{
+			message = $"'{Option}' was given more than once.";
+			return false;
+		}
+
+		int index = occurrences[0];
+		bool inline = args[index].Length > Option.Length;
+		string? path = inline
+			? args[index][prefix.Length..]
+			: index + 1 < args.Length ? args[index + 1] : null;
+
+		if (string.IsNullOrWhiteSpace(path))
 		{
 			message = $"'{Option}' needs the path of a file.";
 			return false;
 		}
 
-		string path = args[index + 1];
-		remaining = [.. args[..index], .. args[(index + 2)..]];
+		int taken = inline ? 1 : 2;
+		remaining = [.. args[..index], .. args[(index + taken)..]];
 
 		if (!File.Exists(path))
 		{

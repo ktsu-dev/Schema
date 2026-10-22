@@ -266,11 +266,12 @@ public class MemberMetadataTests
 	}
 
 	/// <summary>
-	/// The largest double below 2^63, and the smallest Long, are both representable.
+	/// Every integer up to 2^53 - 1 is a double, so a default of that size means what it says.
 	/// </summary>
 	[TestMethod]
-	[DataRow(9223372036854774784.0)]
-	[DataRow(-9223372036854775808.0)]
+	[DataRow(9007199254740991.0)]
+	[DataRow(-9007199254740991.0)]
+	[DataRow(0.0)]
 	public void ADefaultInsideInt64RangeOnALongMemberIsAccepted(double value)
 	{
 		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
@@ -352,6 +353,39 @@ public class MemberMetadataTests
 		SchemaMember colour = MemberWith(new SchemaTypes.ColorRGBA(), out schema);
 		colour.DefaultValue = new NumberDefault { Value = 0.5 };
 		Assert.AreEqual(0, Errors(schema).Count);
+	}
+
+	/// <summary>
+	/// Inside the range of Long but past 2^53, where a double no longer holds every integer, so the
+	/// value validated may not be the one written.
+	/// </summary>
+	[TestMethod]
+	[DataRow(9007199254740992.0)]
+	[DataRow(-9007199254740992.0)]
+	[DataRow(9223372036854774784.0)]
+	[DataRow(-9223372036854775808.0)]
+	public void ADefaultADoubleCannotHoldExactlyOnALongMemberIsAnError(double value)
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = value };
+
+		AssertMentions(Errors(schema), "cannot hold it exactly");
+	}
+
+	/// <summary>
+	/// 9007199254740993 is not a double: the file says it, and loading it gives 9007199254740992.
+	/// Validation sees only the loaded value, which is why the bound refuses 2^53 itself.
+	/// </summary>
+	[TestMethod]
+	public void ALongDefaultPast2To53InAFileIsAnError()
+	{
+		MemberWith(new SchemaTypes.Long(), out Schema schema).DefaultValue = new NumberDefault { Value = 12345 };
+		string json = SchemaSerializer.Serialize(schema);
+		Assert.Contains("12345", json);
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json.Replace("12345", "9007199254740993", StringComparison.Ordinal), out Schema? loaded));
+
+		AssertMentions(Errors(loaded!), "cannot hold it exactly");
 	}
 
 	[TestMethod]

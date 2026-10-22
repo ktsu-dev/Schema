@@ -47,6 +47,46 @@ public partial class Schema
 		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
+		ReportNamesSharedAcrossKinds(issues);
+	}
+
+	/// <summary>
+	/// Reports a name used by more than one kind of type, which the generators would write to the
+	/// same file - one silently overwriting the other.
+	/// </summary>
+	/// <remarks>
+	/// Classes, enums, interfaces and semantic types are all emitted as a type named for the element,
+	/// one file each, so two of different kinds sharing a name collide in the output even though each
+	/// kind's own list is unique. A name repeated within one kind keeps the message above alone.
+	/// </remarks>
+	private void ReportNamesSharedAcrossKinds(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<(string Name, string Kind)> types =
+		[
+			.. ClassesInternal.Select(c => (c.Name.ToString(), "a class")),
+			.. EnumsInternal.Select(e => (e.Name.ToString(), "an enum")),
+			.. InterfacesInternal.Select(i => (i.Name.ToString(), "an interface")),
+			.. SemanticTypesInternal.Select(t => (t.Name.ToString(), "a semantic type")),
+		];
+
+		foreach (IGrouping<string, string> shared in types.GroupBy(t => t.Name, t => t.Kind))
+		{
+			List<string> kinds = [.. shared.Distinct()];
+			if (kinds.Count < 2)
+			{
+				continue;
+			}
+
+			string joined = kinds.Count == 2
+				? $"both {kinds[0]} and {kinds[1]}"
+				: $"{string.Join(", ", kinds.Take(kinds.Count - 1))} and {kinds[^1]}";
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = shared.Key,
+				Message = $"Name '{shared.Key}' is used by {joined}; the generated types would overwrite each other.",
+			});
+		}
 	}
 
 	private static void ReportDuplicates(Collection<SchemaValidationIssue> issues, IEnumerable<string> names, string kind)
@@ -68,8 +108,8 @@ public partial class Schema
 	private static string PathSegment(string name) => string.IsNullOrEmpty(name) ? "(unnamed)" : name;
 
 	/// <summary>
-	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
-	/// duplicate detection only catches multiple empty names by accident.
+	/// Reports an element whose name is empty, or is not an identifier. Such an element cannot be
+	/// code-generated, and duplicate detection only catches multiple empty names by accident.
 	/// </summary>
 	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path, ISchemaElement? element)
 	{
@@ -83,6 +123,43 @@ public partial class Schema
 				Element = element,
 			});
 		}
+		else if (!IsIdentifier(name))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"{kind} name '{name}' is not an identifier. Use letters, digits and underscores, starting with a letter or an underscore.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Whether a name can be written as an identifier in every target language, and as a file name
+	/// that stays inside the directory it is written to.
+	/// </summary>
+	/// <remarks>
+	/// ASCII only, because that is the set every generator's target accepts. A name with a space, a
+	/// hyphen or a leading digit generates code that does not compile, and one with a separator or
+	/// <c>..</c> names a file outside the output directory.
+	/// </remarks>
+	internal static bool IsIdentifier(string name)
+	{
+		if (string.IsNullOrEmpty(name) || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+		{
+			return false;
+		}
+
+		foreach (char character in name)
+		{
+			if (!(char.IsAsciiLetterOrDigit(character) || character == '_'))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void ValidateClasses(Collection<SchemaValidationIssue> issues)
@@ -442,53 +519,7 @@ public partial class Schema
 				return;
 
 			case NumberDefault number:
-				if (!type.IsNumeric && !IsVector(type))
-				{
-					Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
-					return;
-				}
-
-				// A vector's default is written into every component, so it is each component's type
-				// it has to fit - a vector is neither integral nor an Int, and asking the vector
-				// itself let a fraction or an out-of-range value through to an Int vector.
-				BaseType scalar = type is Vector vector ? Represented(vector.ElementType) : type;
-				string components = ReferenceEquals(scalar, type) ? string.Empty : $" (each component of the {type.TypeName})";
-
-				// double.IsInteger rather than a comparison against Math.Truncate: it asks the
-				// question directly, and it does not compare two doubles for equality. It also
-				// answers false for an infinity, which is not a whole number and cannot narrow to
-				// one - the comparison called that whole, since truncating an infinity returns it.
-				bool isWholeNumber = double.IsInteger(number.Value);
-				if (scalar.IsIntegral && !isWholeNumber)
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {scalar.TypeName}{components}.");
-				}
-
-				if (scalar is Int && isWholeNumber && !FitsInt32(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}){components}.");
-				}
-
-				if (scalar is Long && isWholeNumber && !FitsInt64(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}){components}.");
-				}
-
-				// A literal past float's range is a compile error in both C# and C++, not an
-				// infinity, so it is refused here rather than by the compiler of whoever generates.
-				if (scalar is Float && !FitsSingle(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}){components}.");
-				}
-
-				// A wrapping range is a period rather than a bound, so a value outside it is
-				// un-normalised rather than wrong -- the same reading a validator must take of
-				// live data, applied here to the default.
-				if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
-				}
-
+				ValidateNumberDefault(issues, carrier, number, type, path, element, kind);
 				return;
 
 			case BooleanDefault:
@@ -506,6 +537,67 @@ public partial class Schema
 			default:
 				Report(issues, path, element, $"Unrecognised default of kind {carrier.DefaultValue.GetType().Name}.");
 				return;
+		}
+	}
+
+	/// <summary>
+	/// A numeric default has to fit the member's type, or each component of its vector, and lie
+	/// inside its range.
+	/// </summary>
+	private static void ValidateNumberDefault(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, NumberDefault number, BaseType type, string path, ISchemaElement element, string kind)
+	{
+		if (!type.IsNumeric && !IsVector(type))
+		{
+			Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
+			return;
+		}
+
+		// A vector's default is written into every component, so it is each component's type
+		// it has to fit - a vector is neither integral nor an Int, and asking the vector
+		// itself let a fraction or an out-of-range value through to an Int vector.
+		BaseType scalar = type is Vector vector ? Represented(vector.ElementType) : type;
+		string components = ReferenceEquals(scalar, type) ? string.Empty : $" (each component of the {type.TypeName})";
+
+		// double.IsInteger rather than a comparison against Math.Truncate: it asks the
+		// question directly, and it does not compare two doubles for equality. It also
+		// answers false for an infinity, which is not a whole number and cannot narrow to
+		// one - the comparison called that whole, since truncating an infinity returns it.
+		bool isWholeNumber = double.IsInteger(number.Value);
+		if (scalar.IsIntegral && !isWholeNumber)
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {scalar.TypeName}{components}.");
+		}
+
+		if (scalar is Int && isWholeNumber && !FitsInt32(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}){components}.");
+		}
+
+		if (scalar is Long && isWholeNumber && !FitsInt64(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}){components}.");
+		}
+
+		// A literal past float's range is a compile error in both C# and C++, not an
+		// infinity, so it is refused here rather than by the compiler of whoever generates.
+		if (scalar is Float && !FitsSingle(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}){components}.");
+		}
+		else if (scalar is Long && isWholeNumber && !IsExactInDouble(number.Value))
+		{
+			// A default is read into a double, which holds every integer only up to 2^53: past
+			// that the file's 9007199254740993 has already become 9007199254740992 before
+			// validation sees it, so the number generated would not be the number written.
+			Report(issues, path, element, $"The default {Number(number.Value)} is beyond ±{MaxExactInteger}, so a double cannot hold it exactly, and Long defaults that large are not supported.");
+		}
+
+		// A wrapping range is a period rather than a bound, so a value outside it is
+		// un-normalised rather than wrong -- the same reading a validator must take of
+		// live data, applied here to the default.
+		if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
 		}
 	}
 
@@ -607,6 +699,17 @@ public partial class Schema
 	/// The upper bound is exclusive because (double)long.MaxValue rounds up to 2^63, which is
 	/// already one past the range: an inclusive check would pass the one value it most needs to stop.
 	/// </summary>
+	/// <summary>
+	/// The largest integer a double holds exactly together with every integer below it: 2^53 - 1.
+	/// </summary>
+	private const long MaxExactInteger = 9007199254740991;
+
+	/// <summary>
+	/// Whether every integer of this magnitude is a double, which is what makes a default this large
+	/// mean the number written. 2^53 is refused too: it is what 9007199254740993 rounds to on load.
+	/// </summary>
+	private static bool IsExactInDouble(double value) => Math.Abs(value) <= MaxExactInteger;
+
 	private static bool FitsInt64(double value) => value is >= -9223372036854775808.0 and < 9223372036854775808.0;
 
 	/// <summary>
@@ -624,6 +727,13 @@ public partial class Schema
 			Element = element,
 		});
 
+	/// <summary>
+	/// How many values an enum may have. Both generators give an enum a one-byte underlying type,
+	/// so that a class holding one is the same bytes in either language, and the 257th value would
+	/// be 256, which neither <c>byte</c> nor <c>std::uint8_t</c> can hold.
+	/// </summary>
+	private const int MaxEnumValues = 256;
+
 	private void ValidateEnums(Collection<SchemaValidationIssue> issues)
 	{
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
@@ -632,6 +742,12 @@ public partial class Schema
 			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath, schemaEnum);
 
 			ReportDuplicates(issues, schemaEnum.Values.Select(v => $"{schemaEnum.Name}.{v}"), "enum value");
+
+			if (schemaEnum.Values.Count > MaxEnumValues)
+			{
+				Report(issues, enumPath, schemaEnum,
+					$"Enum '{schemaEnum.Name}' has {schemaEnum.Values.Count} values, but enums are generated with a one-byte underlying type (byte in C#, std::uint8_t in C++), which holds at most {MaxEnumValues}.");
+			}
 
 			foreach (Names.EnumValueName value in schemaEnum.Values)
 			{
@@ -803,6 +919,8 @@ public partial class Schema
 
 	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
 	{
+		ValidateNameNotEmpty(issues, parameter.Name, "Parameter", path, element);
+
 		switch (parameter.Type)
 		{
 			case None:
@@ -1424,6 +1542,18 @@ public partial class Schema
 					Severity = SchemaValidationSeverity.Warning,
 					Path = codeGenerator.Name,
 					Message = "Code generator does not specify a target language.",
+					Element = codeGenerator,
+				});
+			}
+
+			if (!string.IsNullOrEmpty(codeGenerator.DataSource)
+				&& !DataSourcesInternal.Any(d => d.Name == codeGenerator.DataSource))
+			{
+				issues.Add(new()
+				{
+					Severity = SchemaValidationSeverity.Error,
+					Path = codeGenerator.Name,
+					Message = $"Code generator references unknown data source '{codeGenerator.DataSource}'.",
 					Element = codeGenerator,
 				});
 			}
