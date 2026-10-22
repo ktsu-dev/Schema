@@ -41,6 +41,15 @@ public enum SchemaGenerationStatus
 	/// names both the element and what the target would have to supply.
 	/// </remarks>
 	TargetCannotExpress,
+
+	/// <summary>
+	/// Source was generated, but writing it to the output directory failed.
+	/// </summary>
+	/// <remarks>
+	/// The message names the path that could not be written and what the operating system said
+	/// about it. Files written before the failure are left in place.
+	/// </remarks>
+	WriteFailed,
 }
 
 /// <summary>
