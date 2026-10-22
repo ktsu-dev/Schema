@@ -166,6 +166,61 @@ public sealed class SchemaFileTests
 		Assert.HasCount(1, Directory.GetFiles(scratchDirectory));
 	}
 
+	/// <summary>
+	/// Saving through a symbolic link writes the file the link names and leaves the link a link. The
+	/// atomic rename used to replace the link itself with a plain file, so a schema shared between
+	/// projects through a link silently stopped being shared.
+	/// </summary>
+	[TestMethod]
+	public void SavingThroughASymbolicLinkUpdatesTheFileItNames()
+	{
+		AbsoluteFilePath target = ScratchFile("shared.schema.json");
+		AbsoluteFilePath link = ScratchFile("link.schema.json");
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), target));
+
+		try
+		{
+			File.CreateSymbolicLink(link, target);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			Assert.Inconclusive($"Symbolic links cannot be made here: {exception.Message}");
+		}
+
+		Schema edited = new();
+		edited.AddClass("Order".As<ClassName>());
+		Assert.IsTrue(SchemaFile.TrySave(edited, link));
+
+		Assert.IsNotNull(new FileInfo(link).LinkTarget, "The link was replaced by a plain file.");
+		Assert.IsTrue(SchemaFile.TryLoad(target, out Schema? loaded));
+		Assert.IsNotNull(loaded);
+		Assert.IsNotNull(loaded.GetClass("Order".As<ClassName>()));
+		Assert.HasCount(2, Directory.GetFileSystemEntries(scratchDirectory));
+	}
+
+	/// <summary>
+	/// Saving over a file keeps its permission bits. The rename used to give the saved file the
+	/// process's default mode, so a group-writable schema became writable by its owner alone.
+	/// </summary>
+	[TestMethod]
+	public void SavingOverAFileKeepsItsPermissions()
+	{
+		if (OperatingSystem.IsWindows())
+		{
+			Assert.Inconclusive("Unix file modes do not apply on Windows.");
+			return;
+		}
+
+		AbsoluteFilePath path = ScratchFile("shared-mode.schema.json");
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), path));
+		const UnixFileMode Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead;
+		File.SetUnixFileMode(path, Mode);
+
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), path));
+
+		Assert.AreEqual(Mode, File.GetUnixFileMode(path));
+	}
+
 	[TestMethod]
 	public void SavingWithNoPathFails() =>
 		Assert.IsFalse(SchemaFile.TrySave(new Schema(), new AbsoluteFilePath()));
