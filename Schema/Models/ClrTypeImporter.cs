@@ -40,16 +40,23 @@ internal static class ClrTypeImporter
 		Ensure.NotNull(schema);
 		Ensure.NotNull(type);
 
-		ClassName className = type.Name.As<ClassName>();
+		ClassName className = NameOf(type, "class").As<ClassName>();
 		SchemaClass? schemaClass = schema.AddClass(className);
 		if (schemaClass is null)
 		{
 			return null;
 		}
 
+		// Claimed before the members are read, so a class holding itself finds its own name taken
+		// by its own type rather than by another.
+		ClrImportOrigins.Claim(schema, "class", className.ToString(), type);
+
 		schemaClass.TravelsAsBytes = type.GetCustomAttribute<Runtime.SchemaTravelsAsBytesAttribute>() is not null;
 
-		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+		// An indexer is a property to reflection, but it holds no data of its own - it is the
+		// compiler's spelling of a method taking an index - so it is not a member.
+		foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(property => property.GetIndexParameters().Length == 0))
 		{
 			ImportMember(schema, schemaClass, property, property.PropertyType);
 		}
@@ -207,12 +214,15 @@ internal static class ClrTypeImporter
 	/// </summary>
 	private static BaseType ImportEnum(Schema schema, Type type)
 	{
-		EnumName name = type.Name.As<EnumName>();
+		EnumName name = NameOf(type, "enum").As<EnumName>();
+		ClrImportOrigins.EnsureNotClaimedByAnother(schema, "enum", name.ToString(), type);
 		SchemaEnum? schemaEnum = schema.GetEnum(name) ?? schema.AddEnum(name);
 		if (schemaEnum is null)
 		{
 			return new None();
 		}
+
+		ClrImportOrigins.Claim(schema, "enum", name.ToString(), type);
 
 		foreach (string value in System.Enum.GetNames(type))
 		{
@@ -228,7 +238,8 @@ internal static class ClrTypeImporter
 	/// </summary>
 	private static BaseType ImportClass(Schema schema, Type type)
 	{
-		ClassName name = type.Name.As<ClassName>();
+		ClassName name = NameOf(type, "class").As<ClassName>();
+		ClrImportOrigins.EnsureNotClaimedByAnother(schema, "class", name.ToString(), type);
 		SchemaClass? schemaClass = schema.GetClass(name) ?? Import(schema, type);
 
 		return schemaClass is not null ? new Object() { ClassName = name } : new None();
@@ -246,9 +257,10 @@ internal static class ClrTypeImporter
 	/// </remarks>
 	private static Types.Interface ImportInterface(Schema schema, Type type)
 	{
-		InterfaceName name = type.Name.As<InterfaceName>();
+		InterfaceName name = NameOf(type, "interface").As<InterfaceName>();
 		Types.Interface reference = new() { InterfaceName = name };
 
+		ClrImportOrigins.EnsureNotClaimedByAnother(schema, "interface", name.ToString(), type);
 		if (schema.GetInterface(name) is not null)
 		{
 			return reference;
@@ -260,13 +272,41 @@ internal static class ClrTypeImporter
 			return reference;
 		}
 
-		foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+		ClrImportOrigins.Claim(schema, "interface", name.ToString(), type);
+
+		HashSet<string> seen = [];
+		foreach (MethodInfo method in DeclaredFunctions(type))
 		{
+			if (!seen.Add(method.Name))
+			{
+				throw new InvalidOperationException(
+					$"Interface '{type.Name}' has more than one method named '{method.Name}', counting those it inherits. " +
+					"A schema function is identified by its name alone, so only one of them could be imported.");
+			}
+
 			ImportFunction(schema, declaration, method);
 		}
 
 		return reference;
 	}
+
+	/// <summary>
+	/// The methods an interface offers as functions: its own and every one it inherits, without the
+	/// accessors the compiler writes for a property or an event.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="Type.GetMethods(BindingFlags)"/> on an interface returns only the methods that
+	/// interface declares, so a base interface's methods have to be asked for separately.
+	/// <see cref="Type.GetInterfaces"/> already lists each one once however many paths reach it,
+	/// so a diamond does not produce a duplicate. Accessors are skipped rather than imported as
+	/// <c>get_Count</c>, because an interface regenerated with a <c>get_Count()</c> method is no
+	/// longer the interface its implementations were written against.
+	/// </remarks>
+	private static IEnumerable<MethodInfo> DeclaredFunctions(Type type) =>
+		new[] { type }
+			.Concat(type.GetInterfaces())
+			.SelectMany(declaring => declaring.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+			.Where(method => !method.IsSpecialName);
 
 	/// <summary>
 	/// Reads one method into a function of the interface being imported.
@@ -357,9 +397,10 @@ internal static class ClrTypeImporter
 	/// </remarks>
 	private static Semantic ImportSemanticType(Schema schema, Type type, Runtime.SchemaSemanticTypeAttribute attribute)
 	{
-		SemanticTypeName name = type.Name.As<SemanticTypeName>();
+		SemanticTypeName name = NameOf(type, "semantic type").As<SemanticTypeName>();
 		Semantic reference = new() { SemanticTypeName = name };
 
+		ClrImportOrigins.EnsureNotClaimedByAnother(schema, "semantic type", name.ToString(), type);
 		if (schema.GetSemanticType(name) is not null)
 		{
 			return reference;
@@ -370,6 +411,8 @@ internal static class ClrTypeImporter
 		{
 			return reference;
 		}
+
+		ClrImportOrigins.Claim(schema, "semantic type", name.ToString(), type);
 
 		BaseType underlying = attribute.Refines is Type refined
 			? Element(schema, refined)
@@ -387,6 +430,36 @@ internal static class ClrTypeImporter
 		type.GetProperty(SemanticValueName, BindingFlags.Public | BindingFlags.Instance) is PropertyInfo value
 			? Element(schema, value.PropertyType)
 			: new None();
+
+	/// <summary>
+	/// The name a CLR type is declared under in a schema: its simple name, which is what the
+	/// generator writes back.
+	/// </summary>
+	/// <exception cref="InvalidOperationException">The type is generic. Its CLR name carries an
+	/// arity suffix - <c>Box`1</c> - that is not a name the generator could write, and one schema
+	/// declaration cannot stand for every closed form of it, so a <c>Box&lt;int&gt;</c> and a
+	/// <c>Box&lt;string&gt;</c> would otherwise share one class.</exception>
+	private static string NameOf(Type type, string kind)
+	{
+		if (type.IsGenericType)
+		{
+			throw new InvalidOperationException(
+				$"'{ClrImportOrigins.Describe(type)}' is generic and cannot be imported as a schema {kind}. " +
+				"A schema declaration is not generic, so it cannot stand for every closed form of the type.");
+		}
+
+		return type.Name;
+	}
+
+	/// <summary>
+	/// Refuses a type whose name a declaration imported from a different type already holds.
+	/// </summary>
+	/// <remarks>
+	/// A declaration imported from this same type is reused, which is what makes two members of
+	/// one type describe one declaration. So is one declared without a type - by hand or from a
+	/// file - because that is the schema's own word for the name rather than another type's.
+	/// </remarks>
+	/// <exception cref="InvalidOperationException">The name was imported from a different type.</exception>
 
 	/// <summary>
 	/// Says whether a CLR type is one a generated schema class would have been emitted as.

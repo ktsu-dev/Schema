@@ -66,6 +66,22 @@ public static class SchemaGenerator
 		!string.IsNullOrEmpty(language) && Generators.ContainsKey(language);
 
 	/// <summary>
+	/// Reports whether an error stops the schema being generated from.
+	/// </summary>
+	/// <remarks>
+	/// Generation is refused so that nothing compiles into something the schema does not
+	/// describe. A data source describes where data lives, not a type, and no generator reads
+	/// one, so its errors cannot cause that. A data file that does not exist yet, and a data
+	/// source naming a class that does not, are both still errors to <c>kschema validate</c> and to
+	/// data validation, which is where they mean something. Holding generation hostage to them
+	/// made the same schema generate in memory and fail once saved, on a fresh clone, or wherever
+	/// the data is git-ignored or written by a later build step.
+	/// </remarks>
+	/// <param name="issue">The issue to classify.</param>
+	/// <returns>False for an issue about a data source; true otherwise.</returns>
+	internal static bool BlocksGeneration(SchemaValidationIssue issue) => issue.Element is not DataSource;
+
+	/// <summary>
 	/// Generates source for one of a schema's code generators.
 	/// </summary>
 	/// <param name="schema">The schema to generate from.</param>
@@ -77,7 +93,7 @@ public static class SchemaGenerator
 		Ensure.NotNull(configuration);
 
 		Collection<SchemaValidationIssue> issues = schema.Validate();
-		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error)];
+		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error && BlocksGeneration(i))];
 
 		if (errors.Count > 0)
 		{
@@ -157,7 +173,10 @@ public static class SchemaGenerator
 	/// </remarks>
 	/// <param name="schema">The schema to generate from.</param>
 	/// <param name="configuration">The code generator element to generate under.</param>
-	/// <returns>The outcome. On success, the files it reports have been written.</returns>
+	/// <returns>
+	/// The outcome. On success, the files it reports have been written. A file that cannot be
+	/// written is reported as <see cref="SchemaGenerationStatus.WriteFailed"/> rather than thrown.
+	/// </returns>
 	public static SchemaGenerationResult GenerateToDisk(Models.Schema schema, SchemaCodeGenerator configuration)
 	{
 		Ensure.NotNull(schema);
@@ -178,6 +197,24 @@ public static class SchemaGenerator
 					? $"Code generator '{configuration.Name}' does not specify an output path."
 					: $"Code generator '{configuration.Name}' has an output path, but the schema's own location is unknown so it cannot be resolved.",
 			};
+		}
+
+		// Every destination is checked before anything is written, so a generator naming one file
+		// outside the output directory leaves none of its others behind. A key is whatever the
+		// generator returned, which for a registered one is code this library did not write, and
+		// a name like "../x" or a rooted path would otherwise put a file anywhere the process can.
+		string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory)) + Path.DirectorySeparatorChar;
+		foreach (string key in result.Files.Keys)
+		{
+			string resolved = Path.GetFullPath(Path.Combine(outputDirectory, key));
+			if (!resolved.StartsWith(root, StringComparison.Ordinal))
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Code generator '{configuration.Name}' produced '{key}', which is outside its output directory '{outputDirectory}'. Nothing was written.",
+				};
+			}
 		}
 
 		string manifestPath = Path.Combine(outputDirectory, GeneratedFileManifest.FileNameFor(configuration.Name));
@@ -201,20 +238,57 @@ public static class SchemaGenerator
 			}
 		}
 
-		Directory.CreateDirectory(outputDirectory);
+		try
+		{
+			Directory.CreateDirectory(outputDirectory);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Could not write '{outputDirectory}' for '{configuration.Name}': {exception.Message}",
+			};
+		}
 		foreach (KeyValuePair<string, string> file in result.Files)
 		{
 			string destination = Path.Combine(outputDirectory, file.Key);
-			string? directory = Path.GetDirectoryName(destination);
-			if (!string.IsNullOrEmpty(directory))
-			{
-				Directory.CreateDirectory(directory);
-			}
 
-			File.WriteAllText(destination, file.Value);
+			// A write that fails is an outcome, like a refusal: a read-only directory or a file
+			// standing where a directory is needed says nothing about the schema, and a caller
+			// running several generators should report it and carry on rather than unwind.
+			try
+			{
+				string? directory = Path.GetDirectoryName(destination);
+				if (!string.IsNullOrEmpty(directory))
+				{
+					Directory.CreateDirectory(directory);
+				}
+
+				File.WriteAllText(destination, file.Value);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Could not write '{destination}' for '{configuration.Name}': {exception.Message}",
+				};
+			}
 		}
 
-		GeneratedFileManifest.Write(manifestPath, [.. result.Files.Keys, .. notRemoved]);
+		try
+		{
+			GeneratedFileManifest.Write(manifestPath, [.. result.Files.Keys, .. notRemoved]);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Wrote the files for '{configuration.Name}' but could not record them in '{manifestPath}': {exception.Message}",
+			};
+		}
 
 		string message = $"Wrote {result.Files.Count} file{(result.Files.Count == 1 ? string.Empty : "s")} to '{outputDirectory}'";
 		if (removed.Count > 0)

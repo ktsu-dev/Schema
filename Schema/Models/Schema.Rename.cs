@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Models;
 
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 
@@ -59,7 +60,8 @@ public partial class Schema
 	}
 
 	/// <summary>
-	/// Renames an enum and repoints every member typed as it.
+	/// Renames an enum and repoints every member typed as it, and the schema's error type when it
+	/// names it.
 	/// </summary>
 	/// <param name="schemaEnum">The enum to rename.</param>
 	/// <param name="newName">The new name.</param>
@@ -84,6 +86,13 @@ public partial class Schema
 			{
 				enumType.EnumName = newName;
 			}
+		}
+
+		// The error type names an enum by text, so a rename that left it behind would leave every
+		// fallible signature reported as having nothing to fail with.
+		if (ErrorType == oldName)
+		{
+			ErrorType = newName;
 		}
 
 		return true;
@@ -149,6 +158,31 @@ public partial class Schema
 				elementObject.ClassName == elementClassName)
 			{
 				array.Key = newKey;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Repoints every member default that named <paramref name="oldValue"/> of the given enum.
+	/// </summary>
+	/// <remarks>
+	/// A default of an enum-typed member is the value's name as text, so renaming the value would
+	/// otherwise leave the default naming nothing, which validation then reports. Only a member
+	/// typed as the enum directly carries such a default; a semantic type cannot shim an enum.
+	/// </remarks>
+	/// <param name="enumName">The enum whose value was renamed.</param>
+	/// <param name="oldValue">The value's previous name.</param>
+	/// <param name="newValue">The value's new name.</param>
+	internal void RepointEnumValueDefaults(EnumName enumName, EnumValueName oldValue, EnumValueName newValue)
+	{
+		foreach (SchemaMember member in ClassesInternal.SelectMany(c => c.Members))
+		{
+			if (member.Type is Types.Enum enumType &&
+				enumType.EnumName == enumName &&
+				member.DefaultValue is TextDefault text &&
+				string.Equals(text.Value, oldValue, StringComparison.Ordinal))
+			{
+				member.DefaultValue = new TextDefault { Value = newValue };
 			}
 		}
 	}

@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using ktsu.RoundTripStringJsonConverter;
 using ktsu.Semantics.Paths;
 
 /// <summary>
@@ -14,9 +13,27 @@ using ktsu.Semantics.Paths;
 /// </summary>
 public static class SchemaSerializer
 {
+	/// <summary>
+	/// How a schema file is parsed before anything reads it.
+	/// </summary>
+	/// <remarks>
+	/// A schema is edited by hand and kept beside the C++ generator's options file, which is read
+	/// in this dialect too, so both accept comments and trailing commas. Every parse of a schema
+	/// goes through these, because the format version and the root properties are read before the
+	/// serializer ever sees the document. Comments are skipped rather than kept, so a schema saved
+	/// after loading has none.
+	/// </remarks>
+	private static readonly JsonDocumentOptions DocumentOptions = new()
+	{
+		CommentHandling = JsonCommentHandling.Skip,
+		AllowTrailingCommas = true,
+	};
+
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		WriteIndented = true,
+		ReadCommentHandling = JsonCommentHandling.Skip,
+		AllowTrailingCommas = true,
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
 
@@ -24,10 +41,10 @@ public static class SchemaSerializer
 		// editing a file by hand, and JSON objects are unordered. Without this, a discriminator
 		// that is not the first property threw NotSupportedException out of Load.
 		AllowOutOfOrderMetadataProperties = true,
-		Converters = { new RoundTripStringJsonConverterFactory() },
+		Converters = { new ValidatingStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
-			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage },
+			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage, OmitUnboundDataSource },
 		},
 	};
 
@@ -79,6 +96,30 @@ public static class SchemaSerializer
 		foreach (JsonPropertyInfo property in storageProperties)
 		{
 			property.ShouldSerialize = static (_, value) => value is not Types.Float;
+		}
+	}
+
+	/// <summary>
+	/// Leaves a code generator's data source out of the file when none is bound.
+	/// </summary>
+	/// <remarks>
+	/// The name is an empty string rather than null when unset, so no ignore condition omits it.
+	/// Writing it regardless would add an empty <c>"dataSource"</c> to every code generator in
+	/// every file, including every file written before generators could bind one.
+	/// </remarks>
+	private static void OmitUnboundDataSource(JsonTypeInfo typeInfo)
+	{
+		if (typeInfo.Type != typeof(SchemaCodeGenerator))
+		{
+			return;
+		}
+
+		IEnumerable<JsonPropertyInfo> dataSourceProperties = typeInfo.Properties
+			.Where(property => string.Equals(property.Name, "dataSource", StringComparison.OrdinalIgnoreCase));
+
+		foreach (JsonPropertyInfo property in dataSourceProperties)
+		{
+			property.ShouldSerialize = static (_, value) => !string.IsNullOrEmpty(value?.ToString());
 		}
 	}
 
@@ -193,7 +234,7 @@ public static class SchemaSerializer
 			};
 		}
 
-		JsonNode? document = JsonNode.Parse(json);
+		JsonNode? document = JsonNode.Parse(json, documentOptions: DocumentOptions);
 		string? nullElement = RemoveNulls(document, "$");
 		if (nullElement is not null)
 		{
@@ -229,6 +270,16 @@ public static class SchemaSerializer
 				Message = declaredVersion < Schema.CurrentFormatVersion
 					? $"Migrated from format version {declaredVersion} to {Schema.CurrentFormatVersion}."
 					: "Loaded.",
+			};
+		}
+		catch (JsonException ex) when (ex.InnerException is ArgumentException)
+		{
+			// Well-formed JSON holding a value its type refuses, such as an absolute output path.
+			return new()
+			{
+				Status = SchemaLoadStatus.InvalidJson,
+				FileFormatVersion = declaredVersion,
+				Message = $"The schema has a value at {ex.Path} it cannot hold: {ex.Message}",
 			};
 		}
 		catch (JsonException ex)
@@ -330,7 +381,7 @@ public static class SchemaSerializer
 	/// </remarks>
 	private static string? FindUnrecognisedRootProperty(string json)
 	{
-		using JsonDocument document = JsonDocument.Parse(json);
+		using JsonDocument document = JsonDocument.Parse(json, DocumentOptions);
 		HashSet<string> known = RootPropertyNames.Value;
 
 		return document.RootElement.EnumerateObject()
@@ -358,7 +409,7 @@ public static class SchemaSerializer
 	/// </remarks>
 	private static int ReadFormatVersion(string json)
 	{
-		using JsonDocument document = JsonDocument.Parse(json);
+		using JsonDocument document = JsonDocument.Parse(json, DocumentOptions);
 
 		if (document.RootElement.ValueKind != JsonValueKind.Object)
 		{
