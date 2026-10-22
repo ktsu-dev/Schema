@@ -61,8 +61,16 @@ public partial class Schema : ISchema
 	/// does not quietly drop it - it fails to deserialize the member at all, on a discriminator
 	/// it has never heard of. The version moves so that it says so instead.
 	/// </para>
+	/// <para>
+	/// Version 8 added <see cref="RenameHistory"/>: the renames of classes, enums, members and
+	/// enum values, recorded as they happen so data bound to an earlier version of the schema can
+	/// be migrated rather than re-entered. Omitted when empty, so a schema nothing has been renamed
+	/// in is byte-identical to the version 7 file it would have been; the version moves because a
+	/// version 7 reader would drop the history, and every later migration would then read a rename
+	/// as a removal and lose the renamed member's data.
+	/// </para>
 	/// </remarks>
-	public const int CurrentFormatVersion = 7;
+	public const int CurrentFormatVersion = 8;
 
 	/// <summary>
 	/// The version attributed to a file written before the format carried a version field.
@@ -151,6 +159,25 @@ public partial class Schema : ISchema
 	[JsonInclude]
 	[JsonPropertyName("dataSources")]
 	internal Collection<DataSource> DataSourcesInternal { get; set; } = [];
+
+	[JsonInclude]
+	[JsonPropertyName("renames")]
+	internal Collection<SchemaRename> RenamesInternal { get; set; } = [];
+
+	/// <summary>
+	/// Gets the renames of classes, enums, members and enum values made to this schema, oldest first.
+	/// </summary>
+	/// <remarks>
+	/// Recorded by <see cref="TryRenameClass"/>, <see cref="TryRenameEnum"/>,
+	/// <see cref="SchemaClass.TryRenameMember"/> and <see cref="SchemaEnum.TryRenameValue"/>, and
+	/// read by <see cref="SchemaDiff.Compare"/> to tell a rename from a removal and an addition.
+	/// It only grows: a schema that is a later version of another carries that one's history as its
+	/// own beginning, which is how a diff knows where to start. The one exception is a rename that
+	/// exactly undoes the one before it, which removes that entry instead of recording a second, so
+	/// undoing a rename in an editor leaves no trace.
+	/// </remarks>
+	[JsonIgnore]
+	public IReadOnlyList<SchemaRename> RenameHistory => RenamesInternal;
 
 	/// <summary>
 	/// Gets the collection of schema classes.

@@ -108,6 +108,7 @@ public class SchemaEnum : SchemaChild<EnumName>, ISchemaEnum
 
 		ValuesInternal[index] = newValue;
 		ParentSchema?.RepointEnumValueDefaults(Name, oldValue, newValue);
+		ParentSchema?.RecordRename(SchemaRenameKind.EnumValue, Name, oldValue, newValue);
 		return true;
 	}
 

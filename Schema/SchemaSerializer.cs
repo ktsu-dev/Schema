@@ -44,7 +44,7 @@ public static class SchemaSerializer
 		Converters = { new ValidatingStringJsonConverterFactory() },
 		TypeInfoResolver = new DefaultJsonTypeInfoResolver
 		{
-			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage, OmitUnboundDataSource },
+			Modifiers = { OmitDefaultVectorElement, OmitDefaultQuantityStorage, OmitUnboundDataSource, OmitEmptyRenameHistory },
 		},
 	};
 
@@ -120,6 +120,29 @@ public static class SchemaSerializer
 		foreach (JsonPropertyInfo property in dataSourceProperties)
 		{
 			property.ShouldSerialize = static (_, value) => !string.IsNullOrEmpty(value?.ToString());
+		}
+	}
+
+	/// <summary>
+	/// Leaves a schema's rename history out of the file when nothing has been renamed.
+	/// </summary>
+	/// <remarks>
+	/// Every other collection on the root is always written, but the history arrived in version 8
+	/// and writing an empty one would change every file that predates it for no reason.
+	/// </remarks>
+	private static void OmitEmptyRenameHistory(JsonTypeInfo typeInfo)
+	{
+		if (typeInfo.Type != typeof(Schema))
+		{
+			return;
+		}
+
+		IEnumerable<JsonPropertyInfo> renameProperties = typeInfo.Properties
+			.Where(property => string.Equals(property.Name, "renames", StringComparison.Ordinal));
+
+		foreach (JsonPropertyInfo property in renameProperties)
+		{
+			property.ShouldSerialize = static (_, value) => value is ICollection<SchemaRename> { Count: > 0 };
 		}
 	}
 
