@@ -110,8 +110,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		string name = RecordTypeName(schemaClass);
 		WriteSummary(code, $"One {Escape(schemaClass.Name)} in a data file, read and written in place.");
-		code.WriteLine($"public sealed class {name}(System.Text.Json.Nodes.JsonObject json, System.Action onEdited)");
-		code.WriteLine("\t: ktsu.Schema.Runtime.SchemaDataRecord(json, onEdited)");
+		code.WriteLine($"public sealed class {name}(global::System.Text.Json.Nodes.JsonObject json, global::System.Action onEdited)");
+		code.WriteLine("\t: global::ktsu.Schema.Runtime.SchemaDataRecord(json, onEdited)");
 		using (new Scope(code))
 		{
 			bool first = true;
@@ -136,11 +136,11 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 				code.WriteLine($"public {type} {CSharpKeywords.Identifier(member.Name)}");
 				using (new Scope(code))
 				{
-					code.WriteLine($"get => ktsu.Schema.Runtime.SchemaDataValues.Get{accessor}{typeArguments}(Json, {key});");
+					code.WriteLine($"get => global::ktsu.Schema.Runtime.SchemaDataValues.Get{accessor}{typeArguments}(Json, {key});");
 					code.WriteLine("set");
 					using (new Scope(code))
 					{
-						code.WriteLine($"ktsu.Schema.Runtime.SchemaDataValues.Set{accessor}{typeArguments}(Json, {key}, value);");
+						code.WriteLine($"global::ktsu.Schema.Runtime.SchemaDataValues.Set{accessor}{typeArguments}(Json, {key}, value);");
 						code.WriteLine("MarkEdited();");
 					}
 				}
@@ -162,15 +162,15 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		Float => ("float", "Float", null),
 		Double => ("double", "Double", null),
 		Models.Types.String => ("string", "String", null),
-		Models.Types.DateTime => ("System.DateTime", "DateTime", null),
-		Models.Types.TimeSpan => ("System.TimeSpan", "TimeSpan", null),
+		Models.Types.DateTime => ("global::System.DateTime", "DateTime", null),
+		Models.Types.TimeSpan => ("global::System.TimeSpan", "TimeSpan", null),
 
 		// The colours before their vector bases, as in MapType.
-		ColorRGB => ("ktsu.Schema.Runtime.ColorRgb", "ColorRgb", null),
-		ColorRGBA => ("ktsu.Schema.Runtime.ColorRgba", "ColorRgba", null),
-		Vector2 { ElementType: Float } => ("System.Numerics.Vector2", "Vector2", null),
-		Vector3 { ElementType: Float } => ("System.Numerics.Vector3", "Vector3", null),
-		Vector4 { ElementType: Float } => ("System.Numerics.Vector4", "Vector4", null),
+		ColorRGB => ("global::ktsu.Schema.Runtime.ColorRgb", "ColorRgb", null),
+		ColorRGBA => ("global::ktsu.Schema.Runtime.ColorRgba", "ColorRgba", null),
+		Vector2 { ElementType: Float } => ("global::System.Numerics.Vector2", "Vector2", null),
+		Vector3 { ElementType: Float } => ("global::System.Numerics.Vector3", "Vector3", null),
+		Vector4 { ElementType: Float } => ("global::System.Numerics.Vector4", "Vector4", null),
 		Models.Types.Enum enumType => (CSharpKeywords.Identifier(enumType.EnumName), "Enum", CSharpKeywords.Identifier(enumType.EnumName)),
 		_ => null,
 	};
@@ -197,7 +197,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			WriteSummary(code, $"Loads, validates, edits and saves the {Escape(dataSource.Name)} data file, whose records are each a {Escape(boundClass.Name)}.");
 		}
 
-		code.WriteLine($"public sealed class {name} : ktsu.Schema.Runtime.SchemaDataEditor<{record}>");
+		code.WriteLine($"public sealed class {name} : global::ktsu.Schema.Runtime.SchemaDataEditor<{record}>");
 		using (new Scope(code))
 		{
 			WriteSummary(code, "The schema this editor was generated from, as its file holds it.");
@@ -284,8 +284,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		if (schemaClass.TravelsAsBytes)
 		{
-			code.WriteLine("[ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
-			code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+			code.WriteLine("[global::ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
+			code.WriteLine("[global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]");
 		}
 
 		code.WriteLine($"public {(schemaClass.TravelsAsBytes ? "struct" : "class")} {CSharpKeywords.Identifier(schemaClass.Name)}");
@@ -344,7 +344,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			// `field:` because the member is an auto-property and the attribute is only legal on a
 			// field. That is also the declaration it has to reach: the backing field is what the
 			// marshaller lays out, and what the property is only a pair of accessors over.
-			code.WriteLine("[field: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.U1)]");
+			code.WriteLine("[field: global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.U1)]");
 		}
 	}
 
@@ -398,9 +398,9 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			? string.Empty
 			: $"(Refines = typeof({CSharpKeywords.Identifier(refined.Name)}))";
 
-		code.WriteLine($"[ktsu.Schema.Runtime.SchemaSemanticType{refines}]");
+		code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaSemanticType{refines}]");
 		WriteMetadataAttributes(code, semanticType);
-		code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+		code.WriteLine("[global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]");
 		code.WriteLine($"public readonly record struct {name}");
 
 		using (new Scope(code))
@@ -511,7 +511,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		if (function.IsQuery)
 		{
-			code.WriteLine("[ktsu.Schema.Runtime.SchemaQuery]");
+			code.WriteLine("[global::ktsu.Schema.Runtime.SchemaQuery]");
 		}
 
 		IEnumerable<string> parameters = function.Parameters.Select(MapParameter);
@@ -557,8 +557,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		{
 			string element = MapType(span.ElementType);
 			string view = parameter.Direction == ParameterDirection.In
-				? $"System.ReadOnlySpan<{element}>"
-				: $"System.Span<{element}>";
+				? $"global::System.ReadOnlySpan<{element}>"
+				: $"global::System.Span<{element}>";
 
 			return $"{view} {name}";
 		}
@@ -671,7 +671,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			string.Equals(arrayType.Container, ContainerName.MapName, StringComparison.Ordinal) &&
 			!string.IsNullOrEmpty(arrayType.Key))
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaKey(\"{arrayType.Key}\")]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaKey(\"{arrayType.Key}\")]");
 		}
 	}
 
@@ -693,33 +693,33 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	{
 		if (carrier.Unit is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaUnit({Quote(carrier.Unit)})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaUnit({Quote(carrier.Unit)})]");
 		}
 
 		if (carrier.Range is MemberRange range)
 		{
 			string wrap = range.Wrap ? ", Wrap = true" : string.Empty;
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
 		}
 
 		if (DefaultArgument(carrier.DefaultValue) is string argument)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaDefault({argument})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaDefault({argument})]");
 		}
 
 		if (carrier.Interpolation is not Interpolation.None)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaInterpolation(ktsu.Schema.Models.Metadata.Interpolation.{carrier.Interpolation})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaInterpolation(global::ktsu.Schema.Models.Metadata.Interpolation.{carrier.Interpolation})]");
 		}
 
 		if (carrier.Network is MemberNetwork network)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
 		}
 
 		if (carrier.Editor is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaEditorHint({Quote(carrier.Editor)})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaEditorHint({Quote(carrier.Editor)})]");
 		}
 	}
 
@@ -806,27 +806,27 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		Float => "float",
 		Double => "double",
 		Models.Types.String => "string",
-		Models.Types.DateTime => "System.DateTime",
-		Models.Types.TimeSpan => "System.TimeSpan",
+		Models.Types.DateTime => "global::System.DateTime",
+		Models.Types.TimeSpan => "global::System.TimeSpan",
 
 		// The colours before their vector bases: ColorRGB derives from Vector3.
-		ColorRGB => "ktsu.Schema.Runtime.ColorRgb",
-		ColorRGBA => "ktsu.Schema.Runtime.ColorRgba",
+		ColorRGB => "global::ktsu.Schema.Runtime.ColorRgb",
+		ColorRGBA => "global::ktsu.Schema.Runtime.ColorRgba",
 
 		// System.Numerics vectors hold floats and nothing else, so they represent a vector of
 		// floats and only that. A vector of anything else is one of this library's, which is
 		// generic over the component precisely because the System.Numerics ones are not.
-		Vector2 { ElementType: Float } => "System.Numerics.Vector2",
-		Vector3 { ElementType: Float } => "System.Numerics.Vector3",
-		Vector4 { ElementType: Float } => "System.Numerics.Vector4",
-		Vector2 vector => $"ktsu.Schema.Runtime.Vector2<{MapType(vector.ElementType)}>",
-		Vector3 vector => $"ktsu.Schema.Runtime.Vector3<{MapType(vector.ElementType)}>",
-		Vector4 vector => $"ktsu.Schema.Runtime.Vector4<{MapType(vector.ElementType)}>",
+		Vector2 { ElementType: Float } => "global::System.Numerics.Vector2",
+		Vector3 { ElementType: Float } => "global::System.Numerics.Vector3",
+		Vector4 { ElementType: Float } => "global::System.Numerics.Vector4",
+		Vector2 vector => $"global::ktsu.Schema.Runtime.Vector2<{MapType(vector.ElementType)}>",
+		Vector3 vector => $"global::ktsu.Schema.Runtime.Vector3<{MapType(vector.ElementType)}>",
+		Vector4 vector => $"global::ktsu.Schema.Runtime.Vector4<{MapType(vector.ElementType)}>",
 
 		// What the handle names is a type argument rather than anything stored, so this says which
 		// handles may be passed where without saying that a handle to a mesh is laid out
 		// differently from a handle to a texture - it is not.
-		Handle handle => $"ktsu.Schema.Runtime.Handle<{MapType(handle.ElementType)}>",
+		Handle handle => $"global::ktsu.Schema.Runtime.Handle<{MapType(handle.ElementType)}>",
 
 		// The struct emitted for the semantic type, named the same way a class or an enum is.
 		Semantic semanticType => CSharpKeywords.Identifier(semanticType.SemanticTypeName),
@@ -835,14 +835,14 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// A quantity is written where it lives, closed over the number it is stored in, and
 		// nothing is emitted for it - which is the whole of what makes it different from the
 		// semantic type above.
-		Quantity quantity => $"ktsu.Semantics.Quantities.{quantity.QuantityName}<{MapType(quantity.Storage)}>",
+		Quantity quantity => $"global::ktsu.Semantics.Quantities.{quantity.QuantityName}<{MapType(quantity.Storage)}>",
 
 		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
 		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
 		Models.Types.Interface interfaceType => CSharpKeywords.Identifier(interfaceType.InterfaceName),
 		Models.Types.Array arrayType => MapArray(arrayType),
 
-		Optional optional => $"ktsu.Schema.Runtime.Optional<{MapType(optional.ElementType)}>",
+		Optional optional => $"global::ktsu.Schema.Runtime.Optional<{MapType(optional.ElementType)}>",
 		Models.Types.Result result => MapResult(result),
 
 		// A member left as None is reported by validation as a warning, not an error, so
@@ -878,8 +878,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		string failure = CSharpKeywords.Identifier(error);
 
 		return result.ElementType is Models.Types.Void
-			? $"ktsu.Schema.Runtime.Result<{failure}>"
-			: $"ktsu.Schema.Runtime.Result<{MapType(result.ElementType)}, {failure}>";
+			? $"global::ktsu.Schema.Runtime.Result<{failure}>"
+			: $"global::ktsu.Schema.Runtime.Result<{MapType(result.ElementType)}, {failure}>";
 	}
 
 	private static string MapArray(Models.Types.Array arrayType)
@@ -889,10 +889,10 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		if (!string.Equals(arrayType.Container, ContainerName.MapName, StringComparison.Ordinal))
 		{
 			// vector, and any container a consumer has invented, is a sequence.
-			return $"System.Collections.Generic.List<{elementType}>";
+			return $"global::System.Collections.Generic.List<{elementType}>";
 		}
 
-		return $"System.Collections.Generic.Dictionary<{MapKeyType(arrayType)}, {elementType}>";
+		return $"global::System.Collections.Generic.Dictionary<{MapKeyType(arrayType)}, {elementType}>";
 	}
 
 	/// <summary>

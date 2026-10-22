@@ -175,6 +175,7 @@ public partial class Schema
 			{
 				string memberPath = $"{classPath}.{PathSegment(member.Name)}";
 				ValidateNameNotEmpty(issues, member.Name, "Member", memberPath, member);
+				ValidateNotNamedAfterItsType(issues, member.Name, schemaClass.Name, $"Member '{member.Name}' has the same name as its class", memberPath, member);
 
 				if (member.Type is None)
 				{
@@ -195,6 +196,30 @@ public partial class Schema
 		}
 
 		ValidateContainmentCycles(issues);
+	}
+
+	/// <summary>
+	/// The member a generated semantic type keeps its value in, which is a name the schema does
+	/// not see but the type's own name must not take.
+	/// </summary>
+	private const string SemanticValueMember = "Value";
+
+	/// <summary>
+	/// Reports a member that would be declared with the name of the type declaring it.
+	/// </summary>
+	/// <remarks>
+	/// C# refuses it outright (CS0542), and so does C++ for a member function or a data member of
+	/// a class with a constructor, and neither language has an escape for it - a verbatim
+	/// <c>@Label</c> is still the name <c>Label</c>. So the schema is refused here, naming both,
+	/// rather than validating cleanly and failing when the consumer builds the generated code.
+	/// The comparison is ordinal: <c>label</c> in a class <c>Label</c> is a different name.
+	/// </remarks>
+	private static void ValidateNotNamedAfterItsType(Collection<SchemaValidationIssue> issues, string memberName, string typeName, string what, string path, ISchemaElement element)
+	{
+		if (!string.IsNullOrEmpty(memberName) && string.Equals(memberName, typeName, StringComparison.Ordinal))
+		{
+			Report(issues, path, element, $"{what}; a member cannot be named after the type that declares it. Rename one of them.");
+		}
 	}
 
 	/// <summary>
@@ -743,6 +768,7 @@ public partial class Schema
 		{
 			string path = PathSegment(semanticType.Name);
 			ValidateNameNotEmpty(issues, semanticType.Name, "Semantic type", path, semanticType);
+			ValidateNotNamedAfterItsType(issues, SemanticValueMember, semanticType.Name, $"Semantic type '{semanticType.Name}' has the same name as the '{SemanticValueMember}' member that holds its value", path, semanticType);
 			ValidateUnderlyingType(issues, semanticType, path);
 			ValidateMetadata(issues, semanticType, semanticType.Representation(), path, semanticType, "semantic type");
 		}
@@ -826,7 +852,9 @@ public partial class Schema
 
 			foreach (SchemaFunction function in schemaInterface.Functions)
 			{
-				ValidateFunction(issues, function, $"{interfacePath}.{PathSegment(function.Name)}");
+				string functionPath = $"{interfacePath}.{PathSegment(function.Name)}";
+				ValidateNotNamedAfterItsType(issues, function.Name, schemaInterface.Name, $"Function '{function.Name}' has the same name as its interface", functionPath, function);
+				ValidateFunction(issues, function, functionPath);
 			}
 		}
 	}
