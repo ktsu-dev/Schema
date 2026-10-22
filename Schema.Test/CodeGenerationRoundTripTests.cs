@@ -292,6 +292,8 @@ public class CodeGenerationRoundTripTests
 		AddDefaulted(body, "Scale", new Models.Types.Vector3(), 1);
 		AddDefaulted(body, "Cell", new Models.Types.Vector2 { ElementType = new Models.Types.Int() }, 2);
 		AddDefaulted(body, "Tint", new Models.Types.ColorRGBA(), 0.5);
+		AddDefaulted(body, "Load", new Models.Types.Quantity { QuantityName = "Mass".As<QuantityName>() }, 2.5);
+		AddDefaulted(body, "Drift", new Models.Types.Quantity { QuantityName = "Velocity3D".As<QuantityName>() }, 1.5);
 
 		SchemaGenerationResult result = SchemaGenerator.Generate(original, CodeGenerationTests.ConfigureGenerator(original));
 		Assert.IsTrue(result.IsSuccess, result.Message);
@@ -307,6 +309,12 @@ public class CodeGenerationRoundTripTests
 		Assert.AreEqual(new System.Numerics.Vector3(1f), type.GetProperty("Scale")!.GetValue(instance));
 		Assert.AreEqual(Activator.CreateInstance(type.GetProperty("Cell")!.PropertyType, 2, 2), type.GetProperty("Cell")!.GetValue(instance));
 		Assert.AreEqual(new Runtime.ColorRgba(0.5f, 0.5f, 0.5f, 0.5f), type.GetProperty("Tint")!.GetValue(instance));
+		Assert.AreEqual(2.5f, SemanticValue(instance, "Load"));
+		object drift = type.GetProperty("Drift")!.GetValue(instance)!;
+		foreach (string component in new[] { "X", "Y", "Z" })
+		{
+			Assert.AreEqual(1.5f, drift.GetType().GetProperty(component)!.GetValue(drift), component);
+		}
 
 		static void AddDefaulted(SchemaClass owner, string name, Models.Types.BaseType memberType, double value)
 		{

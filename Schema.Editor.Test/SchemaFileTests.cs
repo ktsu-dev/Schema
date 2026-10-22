@@ -117,6 +117,34 @@ public sealed class SchemaFileTests
 	}
 
 	/// <summary>
+	/// A file the user may not write - read-only, or in a directory they do not own - is refused
+	/// with <see cref="UnauthorizedAccessException"/>, which is not an <see cref="IOException"/>.
+	/// It used to escape the save and close the editor with the work unsaved.
+	/// </summary>
+	[TestMethod]
+	public void AWriteTheUserMayNotMakeFailsAndSaysWhy()
+	{
+		AbsoluteFilePath path = ScratchFile("locked.schema.json");
+
+		bool saved = SchemaFile.TrySave(new Schema(), path, static (_, _) =>
+			throw new UnauthorizedAccessException("Access to the path is denied."), out string? failure);
+
+		Assert.IsFalse(saved);
+		Assert.AreEqual("Access to the path is denied.", failure);
+		Assert.HasCount(0, Directory.GetFiles(scratchDirectory));
+	}
+
+	/// <summary>
+	/// A save that succeeds reports no reason, so a caller can show one whenever there is one.
+	/// </summary>
+	[TestMethod]
+	public void ASuccessfulSaveReportsNoFailure()
+	{
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), ScratchFile("fine.schema.json"), out string? failure));
+		Assert.IsNull(failure);
+	}
+
+	/// <summary>
 	/// Saving over an existing file replaces its content and leaves only that file in the folder.
 	/// </summary>
 	[TestMethod]

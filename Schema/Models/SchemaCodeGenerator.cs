@@ -34,6 +34,17 @@ public class SchemaCodeGenerator : SchemaChild<CodeGeneratorName>
 	public CodeNamespace Namespace { get; set; } = new();
 
 	/// <summary>
+	/// Gets or sets the data source this generator also emits an editor for.
+	/// </summary>
+	/// <remarks>
+	/// Optional. Empty means the generator emits the schema's types and nothing else. When set,
+	/// it names one of the schema's <see cref="Schema.DataSources"/>, and a generator that
+	/// supports it also emits a class that loads, validates, edits and saves that data source's
+	/// records. A name that matches no data source is reported by <see cref="Schema.Validate"/>.
+	/// </remarks>
+	public DataSourceName DataSource { get; set; } = new();
+
+	/// <summary>
 	/// Resolves <see cref="OutputPath"/> against the directory the schema was loaded from.
 	/// </summary>
 	/// <param name="resolved">The absolute output directory, when one could be produced.</param>
