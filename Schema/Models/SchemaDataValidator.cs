@@ -166,6 +166,25 @@ public static class SchemaDataValidator
 		return issues;
 	}
 
+	/// <summary>
+	/// Gets whether a value conforms to a type by the same rules <see cref="ValidateData"/> applies,
+	/// counting only errors.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="SchemaDataMigrator"/> asks this to decide whether a value it carried across a
+	/// schema change can stand as it is. Asking the validator rather than restating its rules is
+	/// what keeps "migrated data validates clean" true by construction.
+	/// </remarks>
+	/// <param name="type">The type the value should conform to.</param>
+	/// <param name="value">The value to check.</param>
+	/// <returns>True if validating the value reports no error.</returns>
+	internal static bool ConformsTo(BaseType type, JsonElement value)
+	{
+		Collection<SchemaValidationIssue> issues = [];
+		ValidateValue(type, value, string.Empty, issues);
+		return !issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error);
+	}
+
 	private static void ValidateObject(SchemaClass schemaClass, JsonElement element, string path, Collection<SchemaValidationIssue> issues)
 	{
 		if (element.ValueKind != JsonValueKind.Object)

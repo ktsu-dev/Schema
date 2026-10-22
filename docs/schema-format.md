@@ -18,14 +18,17 @@ part of the schema.
 
 ```json
 {
-  "formatVersion": 6,
+  "formatVersion": 8,
   "classes": [],
   "enums": [],
   "semanticTypes": [],
   "interfaces": [],
   "codeGenerators": [],
   "dataSources": [],
-  "errorType": "ErrorCode"
+  "errorType": "ErrorCode",
+  "renames": [
+    { "kind": "Member", "owner": "Player", "from": "hp", "to": "health" }
+  ]
 }
 ```
 
@@ -39,8 +42,11 @@ part of the schema.
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
 | `errorType` | string | The enum a failed [`Result`](#result) carries. See [The four conventions](#the-four-conventions). Empty until a schema declares one. |
+| `renames` | array of [rename](#rename-history) | Every rename that changed a name a data file is bound through, oldest first. Omitted when empty. |
 
-All six collections are always written, empty or not.
+All six collections are always written, empty or not. `renames` is the exception: it is history
+rather than definition, and a schema that has never renamed anything is written exactly as it was
+before the history existed.
 
 Property names are camelCase and matched exactly. A file whose root holds a property this list does
 not name - `Classes` rather than `classes`, say, or anything a hand edit added - is refused rather
@@ -714,6 +720,59 @@ since carrying extra data does not by itself contradict the schema.
 Member lookup accepts the casing the serializer would have written, so a data file may use either
 the member's declared name or its camel-cased form.
 
+## Rename history
+
+A data file is bound to a schema by name: a record's properties are its members' names, and an enum
+member holds one of the enum's value names. So a rename is a change to every data file bound through
+the renamed name, and it is the one change that cannot be recovered by comparing two versions of a
+schema - a member renamed and a member removed and another added look the same from the outside.
+`renames` records which it was.
+
+```json
+{ "kind": "Member", "owner": "Player", "from": "hp", "to": "health" }
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `kind` | string | `Class`, `Enum`, `Member` or `EnumValue`. Written by name. |
+| `owner` | string | The class a member belongs to, or the enum a value belongs to, under the name it had when the rename was made. Absent for a class or an enum. |
+| `from` | string | The name before the rename. |
+| `to` | string | The name after it. |
+
+Only those four kinds are recorded, because only those names appear in a data file or decide which
+class a data file is bound to. Renaming an interface, a semantic type, a data source or a code
+generator is not recorded. `Schema.TryRenameClass`, `TryRenameEnum`, `SchemaClass.TryRenameMember`
+and `SchemaEnum.TryRenameValue` append to the history; renaming a name straight back removes the
+entry it undoes rather than adding a second one, so an edit undone leaves no trace.
+
+### Migrating data between versions
+
+`SchemaDiff.Compare(previous, current)` reads two versions of a schema and reports every change that
+affects bound data: a class, member or enum value added, removed or renamed, and a member whose type
+changed. Names are matched through the renames the current version recorded after the history it
+shares with the previous one, so a rename is reported as a rename. If the two histories have diverged
+- the current version is not a continuation of the previous one - the diff says so in `Warnings` and
+matches by name alone.
+
+`SchemaDataMigrator.Migrate(diff, previousClass, json, path)` then rewrites a data file written
+against the previous version into one the current version accepts:
+
+- a renamed member's property is renamed, in the spelling the data used (exact or camelCase);
+- a removed member's property is dropped, with a warning;
+- an added member is given its declared default, or the default for its type, with a warning;
+- an enum value is mapped through its rename, and a removed value is replaced by the default;
+- a value whose member was retyped is kept when it already fits the new type, converted when the
+  conversion loses nothing (a number or a flag to its text, numeric or `true`/`false` text back to a
+  number or a flag, a `Double` with no fractional part to an `Int`), and otherwise
+  replaced by the default, with a warning naming the path;
+- a keyed container is re-keyed when its key member was renamed, and an entry whose key is missing
+  or duplicated is dropped, with a warning;
+- a property the schema does not model is left alone.
+
+Every value it gives up is reported, so `SchemaMigrationResult.Issues` is the list of what the
+migration could not carry across. Data migrated without an error validates clean against the current
+version.
+
 ## Versioning
 
 `formatVersion` is an integer that increases when the shape of the file changes in a way a reader
@@ -729,6 +788,7 @@ needs to know about.
 | `5` | Layout promises and the error type | A class may declare that it `travelsAsBytes`, and the root may name the `errorType` a failed `Result` carries. Additive; the class flag is omitted when false. |
 | `6` | Query functions | A function may declare `isQuery`, saying a call leaves the receiver unchanged. Omitted when false. |
 | `7` | Physical quantities | The type vocabulary gains `Quantity`, which names one of `ktsu.Semantics.Quantities`' quantities. Unlike every step since version 1 this is not something an older reader drops: it fails to deserialize the member at all, on a discriminator it has never heard of. |
+| `8` | Rename history | The root gains `renames`, the [rename history](#rename-history) that lets data bound to one version be migrated to the next. Additive and omitted when empty, but an older reader refuses the unknown root property rather than dropping the history on save. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader

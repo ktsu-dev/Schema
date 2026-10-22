@@ -42,6 +42,7 @@ public partial class Schema
 
 		ClassName oldName = schemaClass.Name;
 		schemaClass.Rename(newName);
+		RecordRename(SchemaRenameKind.Class, null, oldName, newName);
 
 		foreach (BaseType type in EnumerateMemberTypes())
 		{
@@ -79,6 +80,7 @@ public partial class Schema
 
 		EnumName oldName = schemaEnum.Name;
 		schemaEnum.Rename(newName);
+		RecordRename(SchemaRenameKind.Enum, null, oldName, newName);
 
 		foreach (BaseType type in EnumerateMemberTypes())
 		{
@@ -185,6 +187,35 @@ public partial class Schema
 				member.DefaultValue = new TextDefault { Value = newValue };
 			}
 		}
+	}
+
+	/// <summary>
+	/// Records a rename in <see cref="RenameHistory"/>.
+	/// </summary>
+	/// <remarks>
+	/// A rename to the same name records nothing, and a rename that exactly undoes the last one
+	/// removes it rather than adding its inverse, so an undone rename leaves the history as it was.
+	/// </remarks>
+	/// <param name="kind">What was renamed.</param>
+	/// <param name="owner">The class or enum a member or value belongs to; null otherwise.</param>
+	/// <param name="oldName">The name before the rename.</param>
+	/// <param name="newName">The name after the rename.</param>
+	internal void RecordRename(SchemaRenameKind kind, string? owner, string oldName, string newName)
+	{
+		if (string.Equals(oldName, newName, StringComparison.Ordinal))
+		{
+			return;
+		}
+
+		SchemaRename rename = new() { Kind = kind, Owner = owner, From = oldName, To = newName };
+
+		if (RenamesInternal.Count > 0 && rename.Reverses(RenamesInternal[^1]))
+		{
+			RenamesInternal.RemoveAt(RenamesInternal.Count - 1);
+			return;
+		}
+
+		RenamesInternal.Add(rename);
 	}
 
 	/// <summary>
