@@ -4,6 +4,7 @@ namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
 using System.Linq;
+using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
@@ -276,6 +277,81 @@ public class MemberMetadataTests
 		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
 		member.DefaultValue = new NumberDefault { Value = value };
 
+		Assert.AreEqual(0, Errors(schema).Count);
+	}
+
+	/// <summary>
+	/// A literal past float's range does not compile in either generated language, so it is
+	/// refused before generation rather than by the compiler of whoever generates. The same holds
+	/// for every component of a vector of floats, a colour included.
+	/// </summary>
+	[TestMethod]
+	public void ADefaultOutsideFloatRangeIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Float(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1e39 };
+
+		AssertMentions(Errors(schema), "outside the range of Float");
+	}
+
+	[TestMethod]
+	public void ADefaultOutsideFloatRangeOnAFloatVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector3(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = -1e39 };
+
+		AssertMentions(Errors(schema), "outside the range of Float");
+	}
+
+	/// <summary>
+	/// A vector's default is written into each component, so an Int vector holds its default to
+	/// what an Int can hold: a whole number in the 32-bit range.
+	/// </summary>
+	[TestMethod]
+	public void ADefaultOutsideInt32RangeOnAnIntVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 3e9 };
+
+		AssertMentions(Errors(schema), "outside the 32-bit range");
+	}
+
+	[TestMethod]
+	public void AFractionalDefaultOnAnIntVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1.5 };
+
+		AssertMentions(Errors(schema), "not a whole number");
+	}
+
+	[TestMethod]
+	public void AnInvalidVectorDefaultIsNotGenerated()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1.5 };
+		SchemaCodeGenerator generator = schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>())!;
+		generator.Language = CSharpCodeGenerator.LanguageId.As<LanguageName>();
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, SchemaGenerator.Generate(schema, generator).Status);
+	}
+
+	/// <summary>
+	/// The new checks are on the components' own range, so ordinary defaults still pass.
+	/// </summary>
+	[TestMethod]
+	public void DefaultsTheComponentsCanHoldAreAccepted()
+	{
+		SchemaMember intVector = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		intVector.DefaultValue = new NumberDefault { Value = 2 };
+		Assert.AreEqual(0, Errors(schema).Count);
+
+		SchemaMember single = MemberWith(new SchemaTypes.Float(), out schema);
+		single.DefaultValue = new NumberDefault { Value = 2.5 };
+		Assert.AreEqual(0, Errors(schema).Count);
+
+		SchemaMember colour = MemberWith(new SchemaTypes.ColorRGBA(), out schema);
+		colour.DefaultValue = new NumberDefault { Value = 0.5 };
 		Assert.AreEqual(0, Errors(schema).Count);
 	}
 

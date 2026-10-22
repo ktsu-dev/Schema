@@ -519,47 +519,7 @@ public partial class Schema
 				return;
 
 			case NumberDefault number:
-				if (!type.IsNumeric && !IsVector(type))
-				{
-					Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
-					return;
-				}
-
-				// double.IsInteger rather than a comparison against Math.Truncate: it asks the
-				// question directly, and it does not compare two doubles for equality. It also
-				// answers false for an infinity, which is not a whole number and cannot narrow to
-				// one - the comparison called that whole, since truncating an infinity returns it.
-				bool isWholeNumber = double.IsInteger(number.Value);
-				if (type.IsIntegral && !isWholeNumber)
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {type.TypeName}.");
-				}
-
-				if (type is Int && isWholeNumber && !FitsInt32(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}).");
-				}
-
-				if (type is Long && isWholeNumber && !FitsInt64(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}).");
-				}
-				else if (type is Long && isWholeNumber && !IsExactInDouble(number.Value))
-				{
-					// A default is read into a double, which holds every integer only up to 2^53: past
-					// that the file's 9007199254740993 has already become 9007199254740992 before
-					// validation sees it, so the number generated would not be the number written.
-					Report(issues, path, element, $"The default {Number(number.Value)} is beyond ±{MaxExactInteger}, so a double cannot hold it exactly, and Long defaults that large are not supported.");
-				}
-
-				// A wrapping range is a period rather than a bound, so a value outside it is
-				// un-normalised rather than wrong -- the same reading a validator must take of
-				// live data, applied here to the default.
-				if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
-				}
-
+				ValidateNumberDefault(issues, carrier, number, type, path, element, kind);
 				return;
 
 			case BooleanDefault:
@@ -577,6 +537,67 @@ public partial class Schema
 			default:
 				Report(issues, path, element, $"Unrecognised default of kind {carrier.DefaultValue.GetType().Name}.");
 				return;
+		}
+	}
+
+	/// <summary>
+	/// A numeric default has to fit the member's type, or each component of its vector, and lie
+	/// inside its range.
+	/// </summary>
+	private static void ValidateNumberDefault(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, NumberDefault number, BaseType type, string path, ISchemaElement element, string kind)
+	{
+		if (!type.IsNumeric && !IsVector(type))
+		{
+			Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
+			return;
+		}
+
+		// A vector's default is written into every component, so it is each component's type
+		// it has to fit - a vector is neither integral nor an Int, and asking the vector
+		// itself let a fraction or an out-of-range value through to an Int vector.
+		BaseType scalar = type is Vector vector ? Represented(vector.ElementType) : type;
+		string components = ReferenceEquals(scalar, type) ? string.Empty : $" (each component of the {type.TypeName})";
+
+		// double.IsInteger rather than a comparison against Math.Truncate: it asks the
+		// question directly, and it does not compare two doubles for equality. It also
+		// answers false for an infinity, which is not a whole number and cannot narrow to
+		// one - the comparison called that whole, since truncating an infinity returns it.
+		bool isWholeNumber = double.IsInteger(number.Value);
+		if (scalar.IsIntegral && !isWholeNumber)
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {scalar.TypeName}{components}.");
+		}
+
+		if (scalar is Int && isWholeNumber && !FitsInt32(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}){components}.");
+		}
+
+		if (scalar is Long && isWholeNumber && !FitsInt64(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}){components}.");
+		}
+
+		// A literal past float's range is a compile error in both C# and C++, not an
+		// infinity, so it is refused here rather than by the compiler of whoever generates.
+		if (scalar is Float && !FitsSingle(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}){components}.");
+		}
+		else if (scalar is Long && isWholeNumber && !IsExactInDouble(number.Value))
+		{
+			// A default is read into a double, which holds every integer only up to 2^53: past
+			// that the file's 9007199254740993 has already become 9007199254740992 before
+			// validation sees it, so the number generated would not be the number written.
+			Report(issues, path, element, $"The default {Number(number.Value)} is beyond ±{MaxExactInteger}, so a double cannot hold it exactly, and Long defaults that large are not supported.");
+		}
+
+		// A wrapping range is a period rather than a bound, so a value outside it is
+		// un-normalised rather than wrong -- the same reading a validator must take of
+		// live data, applied here to the default.
+		if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
 		}
 	}
 
@@ -669,6 +690,8 @@ public partial class Schema
 	private static bool CanCarryUnit(BaseType type) => type.IsNumeric || IsVector(type);
 
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
+
+	private static bool FitsSingle(double value) => !double.IsFinite(value) || Math.Abs(value) <= float.MaxValue;
 
 	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
 
