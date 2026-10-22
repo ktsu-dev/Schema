@@ -66,7 +66,7 @@ public static class SchemaCommandLine
 		{
 			"generate" => RejectUnknownOptions([.. args.Skip(1)], [GeneratorOption], output, error, host)
 				?? Generate([.. args.Skip(1)], output, error),
-			"validate" => RejectUnknownOptions([.. args.Skip(1)], [], output, error, host)
+			"validate" => RejectUnknownOptions([.. args.Skip(1)], [NoDataOption], output, error, host)
 				?? Validate([.. args.Skip(1)], output, error),
 			_ => UnknownCommand(args[0], output, error, host),
 		};
