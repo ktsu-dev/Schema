@@ -311,7 +311,7 @@ public static class SchemaDataMigrator
 		// a whole number however close it is. The upper bound is exclusive because long.MaxValue
 		// rounds up to 2^63 as a double, which a long cannot hold.
 		private static JsonValue Number(BaseType type, double value) =>
-			IsIntegral(type) && Math.Truncate(value) == value && value >= long.MinValue && value < -(double)long.MinValue
+			IsIntegral(type) && double.IsInteger(value) && value >= long.MinValue && value < -(double)long.MinValue
 				? JsonValue.Create((long)value)
 				: JsonValue.Create(value);
 
