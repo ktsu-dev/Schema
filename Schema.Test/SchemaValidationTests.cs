@@ -526,7 +526,7 @@ public class SchemaValidationTests
 		Assert.IsTrue(issues.Any(i =>
 			i.Severity == SchemaValidationSeverity.Error &&
 			i.Path == "User.Items" &&
-			i.Message.Contains("does not specify a key")));
+			i.Message.Contains("specifies neither a key member nor a key type")));
 	}
 
 	[TestMethod]

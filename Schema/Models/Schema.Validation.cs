@@ -1426,6 +1426,7 @@ public partial class Schema
 	{
 		ValidateType(issues, arrayType.ElementType, path, element, TypePosition.Nested);
 		ValidateArrayContainer(issues, arrayType, path, element);
+		ValidateArrayKeyType(issues, arrayType, path, element);
 
 		if (string.IsNullOrEmpty(arrayType.Key))
 		{
@@ -1499,13 +1500,64 @@ public partial class Schema
 			return;
 		}
 
-		if (arrayType.Container.ToString() == Array.MapContainer && string.IsNullOrEmpty(arrayType.Key))
+		if (arrayType.Container.ToString() == Array.MapContainer && string.IsNullOrEmpty(arrayType.Key) && arrayType.KeyType is null)
 		{
 			issues.Add(new()
 			{
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
-				Message = $"Array uses the '{Array.MapContainer}' container but does not specify a key to map by.",
+				Message = $"Array uses the '{Array.MapContainer}' container but specifies neither a key member nor a key type to map by.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Checks a map that states its key's type rather than naming a member to key by.
+	/// </summary>
+	/// <remarks>
+	/// A key type must be a value a dictionary can be keyed by and a file can write as an object's
+	/// property name, which is a primitive or an enum. Stating it alongside a key member says the
+	/// same thing twice in two ways that can disagree, so that is refused rather than reconciled.
+	/// </remarks>
+	private void ValidateArrayKeyType(Collection<SchemaValidationIssue> issues, Array arrayType, string path, ISchemaElement? element)
+	{
+		if (arrayType.KeyType is not BaseType keyType)
+		{
+			return;
+		}
+
+		if (arrayType.Container.ToString() != Array.MapContainer)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array specifies a key type but does not use the '{Array.MapContainer}' container.",
+				Element = element,
+			});
+		}
+
+		if (!string.IsNullOrEmpty(arrayType.Key))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array specifies both a key member '{arrayType.Key}' and a key type; a map is keyed by one or the other.",
+				Element = element,
+			});
+		}
+
+		ValidateType(issues, keyType, path, element, TypePosition.Nested);
+
+		if (!keyType.IsPrimitive && keyType is not Types.Enum)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array key type must be a primitive type or an enum but is '{keyType.DisplayName}'.",
 				Element = element,
 			});
 		}

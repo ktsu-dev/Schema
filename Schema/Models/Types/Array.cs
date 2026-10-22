@@ -47,6 +47,25 @@ public class Array : BaseType
 	public MemberName Key { get; set; } = new();
 
 	/// <summary>
+	/// Gets or sets the type of a map's keys, for a map whose keys are not a member of its elements.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// A map says what it is keyed by in one of two ways. <see cref="Key"/> names a member of the
+	/// element class, which is the right answer when every element already carries its own key. That
+	/// leaves no way to describe a <c>Dictionary&lt;string, string&gt;</c>, whose elements are not a
+	/// class at all, or a <c>Dictionary&lt;string, Item&gt;</c> whose key is not one of
+	/// <c>Item</c>'s members, so this is the other: the key's type, stated outright.
+	/// </para>
+	/// <para>
+	/// Null when the map is keyed by a member, and then omitted from the file, so a schema written
+	/// before this existed reads and writes exactly as it did. A map states one or the other, never
+	/// both, which validation reports.
+	/// </para>
+	/// </remarks>
+	public BaseType? KeyType { get; set; }
+
+	/// <summary>
 	/// Gets a value indicating whether the array is keyed.
 	/// </summary>
 	[JsonIgnore]
@@ -77,6 +96,7 @@ public class Array : BaseType
 	{
 		base.AssociateWith(schemaMember);
 		ElementType.AssociateWith(schemaMember);
+		KeyType?.AssociateWith(schemaMember);
 	}
 
 	/// <inheritdoc />
@@ -87,6 +107,7 @@ public class Array : BaseType
 	{
 		base.AssociateWith(schema);
 		ElementType.AssociateWith(schema);
+		KeyType?.AssociateWith(schema);
 	}
 
 	/// <inheritdoc />
@@ -94,11 +115,13 @@ public class Array : BaseType
 		other is Array otherArray
 			&& ElementType.Equals(otherArray.ElementType)
 			&& string.Equals(Container, otherArray.Container, StringComparison.Ordinal)
-			&& string.Equals(Key, otherArray.Key, StringComparison.Ordinal);
+			&& string.Equals(Key, otherArray.Key, StringComparison.Ordinal)
+			&& Equals(KeyType, otherArray.KeyType);
 
 	/// <inheritdoc />
 	protected override int GetHashCodeCore() => HashCode.Combine(
 		ElementType,
 		StringComparer.Ordinal.GetHashCode(Container.ToString()),
-		StringComparer.Ordinal.GetHashCode(Key.ToString()));
+		StringComparer.Ordinal.GetHashCode(Key.ToString()),
+		KeyType);
 }

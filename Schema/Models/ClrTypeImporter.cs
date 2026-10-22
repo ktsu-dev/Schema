@@ -137,10 +137,15 @@ internal static class ClrTypeImporter
 			return create();
 		}
 
-		if (TryGetCollectionElementType(type, out Type? elementType, out ContainerName? container) &&
+		if (TryGetCollectionElementType(type, out Type? elementType, out Type? keyType, out ContainerName? container) &&
 			elementType is not null && container is not null)
 		{
-			return new Array() { ElementType = Element(schema, elementType), Container = container };
+			return new Array()
+			{
+				ElementType = Element(schema, elementType),
+				Container = container,
+				KeyType = keyType is null ? null : Element(schema, keyType),
+			};
 		}
 
 		if (type.IsEnum)
@@ -486,7 +491,8 @@ internal static class ClrTypeImporter
 	/// </summary>
 	/// <remarks>
 	/// The CLR type of a keyed map carries the key's type but not which member it came from, so
-	/// this is the only place that information survives a trip through generated code.
+	/// this is the only place that information survives a trip through generated code. A map keyed
+	/// by a member does not also state its key's type, so the one read off the dictionary is dropped.
 	/// </remarks>
 	private static void ApplySchemaKey(BaseType schemaType, MemberInfo member)
 	{
@@ -494,6 +500,7 @@ internal static class ClrTypeImporter
 			member.GetCustomAttribute<Runtime.SchemaKeyAttribute>() is Runtime.SchemaKeyAttribute key)
 		{
 			arrayType.Key = key.KeyMemberName.As<MemberName>();
+			arrayType.KeyType = null;
 		}
 	}
 
@@ -617,9 +624,10 @@ internal static class ClrTypeImporter
 		[typeof(Runtime.Result<,>)] = (schema, arguments) => new Result() { ElementType = Element(schema, arguments[0]) },
 	};
 
-	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out ContainerName? container)
+	private static bool TryGetCollectionElementType(Type type, out Type? elementType, out Type? keyType, out ContainerName? container)
 	{
 		elementType = null;
+		keyType = null;
 		container = null;
 
 		if (type == typeof(string))
@@ -637,6 +645,7 @@ internal static class ClrTypeImporter
 		Type? dictionaryInterface = GetGenericInterface(type, typeof(IDictionary<,>));
 		if (dictionaryInterface is not null)
 		{
+			keyType = dictionaryInterface.GetGenericArguments()[0];
 			elementType = dictionaryInterface.GetGenericArguments()[1];
 			container = Types.Array.MapContainer.As<ContainerName>();
 			return true;

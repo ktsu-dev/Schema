@@ -641,6 +641,7 @@ finds its class.
 | `elementType` | [type](#types) | The element type. May itself be an array, so arrays nest. |
 | `container` | string | The container kind. See [Containers](#containers). |
 | `key` | string | For a keyed container, the member of the element class to key by. Empty when unkeyed. |
+| `keyType` | [type](#types) | For a `map` whose key is not a member of its elements, the key's type. Omitted when absent. |
 
 ## Containers
 
@@ -653,8 +654,26 @@ understands two:
 | `vector` | An ordered sequence. | `List<T>` |
 | `map` | A lookup keyed by `key`. | `Dictionary<TKey, T>` |
 
-For `map`, `key` must name a member of the element class, and that member's type must be a
-primitive. That member's type is also the dictionary's key type.
+A `map` says what it is keyed by in one of two ways, and exactly one:
+
+- `key` names a member of the element class, and that member's type must be a primitive. That
+  member's type is also the dictionary's key type. Use it when every element already carries its
+  own key.
+- `keyType` states the key's type outright, and must be a primitive or an `Enum`. Use it when the
+  elements are not a class, or the key is not one of their members:
+
+```json
+{
+  "TypeName": "Array",
+  "elementType": { "TypeName": "String" },
+  "container": "map",
+  "keyType": { "TypeName": "String" }
+}
+```
+
+A map with neither, or with both, is reported as an error. Importing a .NET type reads a
+`Dictionary<TKey, TValue>` as a map with `keyType` set from `TKey`, unless the member carries the
+`SchemaKey` attribute generated code writes for a member-keyed map.
 
 ## Path resolution
 
@@ -884,7 +903,7 @@ for.
 | `Handle` | `ktsu.Schema.Runtime.Handle<T>`, `T` being what the handle names |
 | `Optional` | `ktsu.Schema.Runtime.Optional<T>` |
 | `Array` with `vector` | `List<T>` |
-| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
+| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` being `keyType`, or the `key` member's type |
 | `Span` | `System.ReadOnlySpan<T>` for an `In` parameter and `System.Span<T>` otherwise. A parameter only - C# has no field of a `ref struct` |
 | `Result` | `ktsu.Schema.Runtime.Result<T, TError>`, or `Result<TError>` for `Result<Void>`. A return type only |
 | `Void` | `void`, as a return type. There is no member of one |
