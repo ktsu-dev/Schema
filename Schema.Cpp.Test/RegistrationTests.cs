@@ -6,6 +6,7 @@ using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -42,6 +43,46 @@ public sealed class RegistrationTests
 		Assert.IsTrue(result.IsSuccess, result.Message);
 		Assert.Contains("Packet.gen.hpp", result.Files.Keys);
 		Assert.Contains("struct Packet", result.Files["Packet.gen.hpp"], StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Renaming a class leaves no header behind for the old name, which a target including every
+	/// generated header would otherwise go on compiling.
+	/// </summary>
+	[TestMethod]
+	public void RenamingAClassRemovesItsOldHeaderFromDisk()
+	{
+		SchemaGenerator.Register(new CppCodeGenerator());
+
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-cpp-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			Models.Schema schema = new();
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+			SchemaCodeGenerator configuration = schema.AddCodeGenerator("Cpp".As<CodeGeneratorName>())!;
+			configuration.Language = CppCodeGenerator.LanguageId.As<LanguageName>();
+			configuration.Namespace = "generated".As<CodeNamespace>();
+			configuration.OutputPath = "include".As<RelativeDirectoryPath>();
+			SchemaClass packet = schema.AddClass("Packet".As<ClassName>())!;
+			packet.AddMember("Sequence".As<MemberName>())!.SetType(new Int());
+
+			SchemaGenerationResult first = SchemaGenerator.GenerateToDisk(schema, configuration);
+			Assert.IsTrue(first.IsSuccess, first.Message);
+			Assert.IsTrue(schema.TryRenameClass(packet, "Frame".As<ClassName>()));
+
+			SchemaGenerationResult second = SchemaGenerator.GenerateToDisk(schema, configuration);
+
+			Assert.IsTrue(second.IsSuccess, second.Message);
+			string output = Path.Combine(directory, "include");
+			Assert.IsFalse(File.Exists(Path.Combine(output, "Packet.gen.hpp")), "The old header was left behind.");
+			Assert.IsTrue(File.Exists(Path.Combine(output, "Frame.gen.hpp")));
+			Assert.Contains("Packet.gen.hpp", second.RemovedFiles);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
 	}
 
 	/// <summary>

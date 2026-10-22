@@ -69,6 +69,13 @@ public class SchemaGenerationResult
 	public IReadOnlyDictionary<string, string> Files { get; init; } = new Dictionary<string, string>();
 
 	/// <summary>
+	/// Gets the files, relative to the output directory, that an earlier run wrote and this one
+	/// removed because it no longer produces them. Only <see cref="SchemaGenerator.GenerateToDisk"/>
+	/// removes anything.
+	/// </summary>
+	public IReadOnlyCollection<string> RemovedFiles { get; init; } = [];
+
+	/// <summary>
 	/// Gets the validation issues that caused generation to be refused, when it was refused for
 	/// that reason.
 	/// </summary>

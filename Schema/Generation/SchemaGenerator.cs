@@ -170,8 +170,19 @@ public static class SchemaGenerator
 	/// </summary>
 	/// <remarks>
 	/// The output directory is relative to the schema file, so the schema must know where it was
-	/// loaded from. Existing files are overwritten; nothing is deleted, so a file that a previous
-	/// run produced and this one did not is left alone rather than being silently removed.
+	/// loaded from. Existing files are overwritten.
+	/// <para>
+	/// A file an earlier run wrote and this one did not - the header of a class since renamed or
+	/// deleted - is removed, because left in place it goes on compiling a type the schema no longer
+	/// declares. Each run records what it wrote in a manifest in the output directory, named for the
+	/// generator, and only files that manifest lists are ever removed, so hand-written files beside
+	/// the generated ones, and another generator's files in the same directory, are never touched.
+	/// The first run after upgrading has no manifest and removes nothing. Stale files are removed
+	/// before the new ones are written, so a rename that changes only the case of a file name lands
+	/// on a case-insensitive file system rather than being deleted after it was written. A file that
+	/// cannot be removed is reported in the message and kept in the manifest, so the next run tries
+	/// again.
+	/// </para>
 	/// </remarks>
 	/// <param name="schema">The schema to generate from.</param>
 	/// <param name="configuration">The code generator element to generate under.</param>
@@ -219,6 +230,39 @@ public static class SchemaGenerator
 			}
 		}
 
+		string manifestPath = Path.Combine(outputDirectory, GeneratedFileManifest.FileNameFor(configuration.Name));
+		List<string> removed = [];
+		List<string> notRemoved = [];
+		foreach (string stale in GeneratedFileManifest.Read(manifestPath).Where(path => !result.Files.ContainsKey(path)))
+		{
+			if (!GeneratedFileManifest.TryResolve(outputDirectory, stale, out string stalePath) || !File.Exists(stalePath))
+			{
+				continue;
+			}
+
+			try
+			{
+				File.Delete(stalePath);
+				removed.Add(stale);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+				notRemoved.Add(stale);
+			}
+		}
+
+		try
+		{
+			Directory.CreateDirectory(outputDirectory);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Could not write '{outputDirectory}' for '{configuration.Name}': {exception.Message}",
+			};
+		}
 		foreach (KeyValuePair<string, string> file in result.Files)
 		{
 			string destination = Path.Combine(outputDirectory, file.Key);
@@ -246,11 +290,37 @@ public static class SchemaGenerator
 			}
 		}
 
+		try
+		{
+			GeneratedFileManifest.Write(manifestPath, [.. result.Files.Keys, .. notRemoved]);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Wrote the files for '{configuration.Name}' but could not record them in '{manifestPath}': {exception.Message}",
+			};
+		}
+
+		string message = $"Wrote {result.Files.Count} file{(result.Files.Count == 1 ? string.Empty : "s")} to '{outputDirectory}'";
+		if (removed.Count > 0)
+		{
+			message += $" and removed {removed.Count} stale file{(removed.Count == 1 ? string.Empty : "s")}";
+		}
+
+		message += ".";
+		if (notRemoved.Count > 0)
+		{
+			message += $" Could not remove: {string.Join(", ", notRemoved)}.";
+		}
+
 		return new()
 		{
 			Status = SchemaGenerationStatus.Success,
 			Files = result.Files,
-			Message = $"Wrote {result.Files.Count} file{(result.Files.Count == 1 ? string.Empty : "s")} to '{outputDirectory}'.",
+			RemovedFiles = removed.AsReadOnly(),
+			Message = message,
 		};
 	}
 }
