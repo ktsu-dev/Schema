@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Generation;
 
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
@@ -64,6 +65,18 @@ public static class SchemaGenerator
 	/// <returns>True when one is registered.</returns>
 	public static bool IsRegistered(string language) =>
 		!string.IsNullOrEmpty(language) && Generators.ContainsKey(language);
+
+	/// <summary>
+	/// Finds the generator registered for a language.
+	/// </summary>
+	/// <param name="language">The language to look for, matched case-insensitively.</param>
+	/// <param name="generator">The generator, when one is registered.</param>
+	/// <returns>True when one is registered.</returns>
+	internal static bool TryGetGenerator(string language, [NotNullWhen(true)] out ISchemaCodeGenerator? generator)
+	{
+		generator = null;
+		return !string.IsNullOrEmpty(language) && Generators.TryGetValue(language, out generator);
+	}
 
 	/// <summary>
 	/// Reports whether an error stops the schema being generated from.

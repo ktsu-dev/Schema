@@ -32,4 +32,16 @@ public interface ISchemaCodeGenerator
 	/// <param name="configuration">The code generator element holding the settings to generate under.</param>
 	/// <returns>File contents keyed by path relative to the generator's output directory.</returns>
 	public IReadOnlyDictionary<string, string> Generate(Models.Schema schema, SchemaCodeGenerator configuration);
+
+	/// <summary>
+	/// Gets the element names this generator cannot accept because it writes a file of that name for itself.
+	/// </summary>
+	/// <remarks>
+	/// Output is keyed by file name and most of those names are the schema's own, so an element
+	/// named after one of the generator's support files would overwrite it. Validation reports such
+	/// a name as an error, which keeps generation from running. Compared case-insensitively.
+	/// </remarks>
+	/// <param name="configuration">The code generator element holding the settings to generate under.</param>
+	/// <returns>The reserved names, without any extension; empty when the generator writes nothing of its own.</returns>
+	public IReadOnlyCollection<string> ReservedNames(SchemaCodeGenerator configuration) => [];
 }
