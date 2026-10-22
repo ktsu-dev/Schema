@@ -127,14 +127,18 @@ public sealed class GeneratorRegistryTests
 		string directory = Path.Combine(Path.GetTempPath(), $"schema-escape-{Guid.NewGuid():N}");
 		string output = Path.Combine(directory, "out");
 		Directory.CreateDirectory(output);
+
+		// A language of its own per row: the rows run in parallel, and a shared one let one row's
+		// generator replace the other's between registering and generating.
+		string language = $"fake-escape-{Guid.NewGuid():N}";
 		try
 		{
-			SchemaGenerator.Register(new FakeGenerator("fake-escape", "// escaped", key));
+			SchemaGenerator.Register(new FakeGenerator(language, "// escaped", key));
 
 			Schema schema = new();
 			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
 			SchemaCodeGenerator configuration = schema.AddCodeGenerator("Fake".As<CodeGeneratorName>())!;
-			configuration.Language = "fake-escape".As<LanguageName>();
+			configuration.Language = language.As<LanguageName>();
 			configuration.OutputPath = "out".As<RelativeDirectoryPath>();
 
 			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, configuration);

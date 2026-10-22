@@ -155,4 +155,18 @@ public sealed class DiagnosticsPanelTests
 
 		Assert.AreEqual("User", harness.Editor.CurrentClass?.Name.ToString());
 	}
+
+	[TestMethod]
+	public void ClickingASemanticTypeRowSelectsTheSemanticType()
+	{
+		Schema schema = new();
+		schema.AddSemanticType("Kilograms".As<SemanticTypeName>());
+		harness.Editor.CurrentSchema = schema;
+		Validate();
+
+		harness.App.Click("diagnostic/Error:Kilograms");
+		harness.App.Step(2);
+
+		Assert.AreEqual("Kilograms", harness.Editor.CurrentSemanticType?.Name.ToString());
+	}
 }

@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Generation;
 
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
@@ -19,7 +20,10 @@ using ktsu.Semantics.Paths;
 /// </remarks>
 public static class SchemaGenerator
 {
-	private static readonly Dictionary<string, ISchemaCodeGenerator> Generators =
+	// Concurrent because registration can overlap: a plain dictionary written from two threads at
+	// once can lose one of the writes, which is how a parallel test run once found a registered
+	// language missing.
+	private static readonly ConcurrentDictionary<string, ISchemaCodeGenerator> Generators =
 		new(StringComparer.OrdinalIgnoreCase)
 		{
 			[CSharpCodeGenerator.LanguageId] = new CSharpCodeGenerator(),
@@ -41,9 +45,9 @@ public static class SchemaGenerator
 	/// builds on ships no <c>net8.0</c> assembly. Registration is what lets one live in its own
 	/// project and still be found by language the way a schema names it.
 	/// <para>
-	/// Meant to be called once while a program starts, before anything generates. It is not
-	/// synchronised, and registering while another thread generates is a race the caller has to
-	/// avoid.
+	/// Meant to be called once while a program starts, before anything generates. It is safe to
+	/// call from several threads, and a generation running at the same time sees either the old
+	/// generator or the new one.
 	/// </para>
 	/// </remarks>
 	public static void Register(ISchemaCodeGenerator generator)

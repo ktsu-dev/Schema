@@ -13,7 +13,8 @@ using ktsu.Schema.Models.Types;
 /// Renaming is the schema's responsibility rather than the individual element's because a name
 /// is referenced from elsewhere in the schema: an <see cref="Object"/> names a class, an
 /// <see cref="Types.Enum"/> names an enum, a <see cref="DataSource"/> names a class, an
-/// <see cref="Array"/> names a key member, and <see cref="ErrorType"/> names the error enum. A
+/// <see cref="Array"/> names a key member, a <see cref="Semantic"/> names a semantic type, an
+/// <see cref="Interface"/> names an interface, and <see cref="ErrorType"/> names the error enum. A
 /// type reference can stand in a member, a function's return type or one of its parameters, and
 /// can be nested inside an <see cref="Array"/>, a <see cref="Vector"/> or a
 /// <see cref="WrapperType"/> at any depth. <see cref="SchemaChild{TName}.Rename"/> changes
@@ -102,6 +103,77 @@ public partial class Schema
 		if (ErrorType == oldName)
 		{
 			ErrorType = newName;
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Renames a semantic type and repoints every reference to it.
+	/// </summary>
+	/// <remarks>
+	/// Every semantic reference to the old name - in a member, a function signature, nested inside
+	/// an array or wrapper, or as the underlying type of another semantic type that refines this one -
+	/// is updated, so the schema stays referentially intact.
+	/// </remarks>
+	/// <param name="semanticType">The semantic type to rename.</param>
+	/// <param name="newName">The new name.</param>
+	/// <returns>True if the semantic type was renamed; false if the name is empty or collides with another semantic type.</returns>
+	public bool TryRenameSemanticType(SchemaSemanticType semanticType, SemanticTypeName newName)
+	{
+		Ensure.NotNull(semanticType);
+		Ensure.NotNull(newName);
+
+		if (!SemanticTypesInternal.Contains(semanticType) ||
+			!CanRename(semanticType.Name, newName, SemanticTypesInternal.Select(t => t.Name.ToString())))
+		{
+			return false;
+		}
+
+		SemanticTypeName oldName = semanticType.Name;
+		semanticType.Rename(newName);
+
+		foreach (BaseType type in EnumerateMemberTypes())
+		{
+			if (type is Semantic semantic && semantic.SemanticTypeName == oldName)
+			{
+				semantic.SemanticTypeName = newName;
+			}
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Renames an interface and repoints every reference to it.
+	/// </summary>
+	/// <remarks>
+	/// Every interface reference to the old name - in a member, a function signature, or nested
+	/// inside an array or wrapper - is updated.
+	/// </remarks>
+	/// <param name="schemaInterface">The interface to rename.</param>
+	/// <param name="newName">The new name.</param>
+	/// <returns>True if the interface was renamed; false if the name is empty or collides with another interface.</returns>
+	public bool TryRenameInterface(SchemaInterface schemaInterface, InterfaceName newName)
+	{
+		Ensure.NotNull(schemaInterface);
+		Ensure.NotNull(newName);
+
+		if (!InterfacesInternal.Contains(schemaInterface) ||
+			!CanRename(schemaInterface.Name, newName, InterfacesInternal.Select(i => i.Name.ToString())))
+		{
+			return false;
+		}
+
+		InterfaceName oldName = schemaInterface.Name;
+		schemaInterface.Rename(newName);
+
+		foreach (BaseType type in EnumerateMemberTypes())
+		{
+			if (type is Interface interfaceType && interfaceType.InterfaceName == oldName)
+			{
+				interfaceType.InterfaceName = newName;
+			}
 		}
 
 		return true;
@@ -236,7 +308,8 @@ public partial class Schema
 
 	/// <summary>
 	/// Enumerates every type reference in the schema: each member's type, each interface function's
-	/// return type and parameter types, and every type nested inside those.
+	/// return type and parameter types, each semantic type's underlying type, and every type nested
+	/// inside those.
 	/// </summary>
 	private IEnumerable<BaseType> EnumerateMemberTypes() =>
 		ClassesInternal
@@ -245,6 +318,7 @@ public partial class Schema
 			.Concat(InterfacesInternal
 				.SelectMany(i => i.Functions)
 				.SelectMany(f => f.Parameters.Select(p => p.Type).Prepend(f.ReturnType)))
+			.Concat(SemanticTypesInternal.Select(t => t.UnderlyingType))
 			.SelectMany(ExpandType);
 
 	/// <summary>

@@ -31,6 +31,7 @@ public partial class SchemaEditor
 	internal DataSource? CurrentDataSource { get; set; }
 	internal SchemaEnum? CurrentEnum { get; set; }
 	internal SchemaCodeGenerator? CurrentCodeGenerator { get; set; }
+	internal SchemaSemanticType? CurrentSemanticType { get; set; }
 	internal AppData Options { get; }
 	internal static float FieldWidth => ImGui.GetIO().DisplaySize.X * 0.15f;
 	private bool OptionsDirty { get; set; }
@@ -49,6 +50,7 @@ public partial class SchemaEditor
 	internal Popups Popups { get; }
 	private TreeSchema TreeSchema { get; init; }
 	private CodeGeneratorPanel CodeGeneratorPanel { get; init; }
+	private SemanticTypePanel SemanticTypePanel { get; init; }
 
 	private MemberGridPanel MemberGrid { get; init; }
 	internal ClassGraphView ClassGraph { get; } = new();
@@ -69,6 +71,7 @@ public partial class SchemaEditor
 		UndoRedo = new UndoRedoService(new StackManager(), new SaveBoundaryManager(), new CommandMerger());
 		TreeSchema = new(this);
 		CodeGeneratorPanel = new(this);
+		SemanticTypePanel = new(this);
 		MemberGrid = new(this);
 		DividerContainerCols =
 			new(
@@ -329,6 +332,10 @@ public partial class SchemaEditor
 		{
 			CodeGeneratorPanel.Show(CurrentSchema, CurrentCodeGenerator);
 		}
+		else if (CurrentSemanticType is not null && CurrentSchema is not null)
+		{
+			SemanticTypePanel.Show(CurrentSchema, CurrentSemanticType);
+		}
 	}
 
 	internal void OnMenu()
@@ -570,6 +577,14 @@ public partial class SchemaEditor
 		QueueSaveOptions();
 	}
 
+	internal void EditSemanticType(SchemaSemanticType? semanticType)
+	{
+		ClearSelection();
+		CurrentSemanticType = semanticType;
+		SelectTree(TreeSchema.SemanticTypesTab);
+		QueueSaveOptions();
+	}
+
 	/// <summary>
 	/// Opens the tree tab holding one kind of element.
 	/// </summary>
@@ -582,5 +597,6 @@ public partial class SchemaEditor
 		CurrentDataSource = null;
 		CurrentEnum = null;
 		CurrentCodeGenerator = null;
+		CurrentSemanticType = null;
 	}
 }
