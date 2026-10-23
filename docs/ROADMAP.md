@@ -41,8 +41,8 @@ time. For what the library actually does, the tests in
 - **Editor tests** — `tests/Schema.Editor.UITests` drives the editor headlessly through
   `ktsu.ImGui.App.Testing`, which rasterizes in software and injects input straight into ImGui, so
   the editor's real draw code runs on a continuous integration runner with no window or display.
-- **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL, NuGet
-  publishing and winget manifest updates; Dependabot with auto-merge.
+- **CI/CD** — GitHub Actions with build, multi-framework test, SonarCloud analysis, CodeQL and NuGet
+  publishing; Dependabot with auto-merge. No winget manifest is generated: see Phase 5.
 
 ### What is left
 
@@ -98,6 +98,17 @@ its class. Generated data editors and generated migrations are
 The `.schema.json` format is documented and versioned with a stated compatibility policy.
 
 Outstanding: editor packaging via winget, and cutting the v2.0 milestone.
+
+Winget packaging is not something this repository can switch on by itself
+([#224](https://github.com/ktsu-dev/Schema/issues/224)). The shared pipeline `ci.yml` runs
+`ktsubuild ci` and `ktsubuild release` and nothing else, so `ktsubuild winget generate` and
+`winget upload` never run for any repository on it, and the org's manifest sync finds no manifests
+on a release to forward. Two changes outside this repository are needed first: a winget stage in
+the shared pipeline after the release, and
+[ktsu-dev/KtsuBuild#162](https://github.com/ktsu-dev/KtsuBuild/issues/162), without which the
+generated installer entry would not name the editor's release archive. The editor itself already
+qualifies: KtsuBuild recognises its `ktsu.Sdk.App` element-form reference as an executable project
+and publishes it.
 
 ### Phase 6 — Test coverage — **the editor is now testable**
 
