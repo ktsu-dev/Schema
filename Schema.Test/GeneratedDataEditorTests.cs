@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Runtime;
 using ktsu.Semantics.Paths;
@@ -61,7 +62,12 @@ public class GeneratedDataEditorTests
 
 		SchemaClass item = schema.AddClass("Item".As<ClassName>())!;
 		item.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.String());
-		item.AddMember("Count".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		SchemaMember count = item.AddMember("Count".As<MemberName>())!;
+		count.SetType(new SchemaTypes.Int());
+
+		// A bound the embedded schema has to carry, so an out-of-range payload below proves the
+		// editor's range check is the validator's rather than one of its own.
+		count.Range = new MemberRange { Minimum = 0, Maximum = 100 };
 		item.AddMember("Weight".As<MemberName>())!.SetType(new SchemaTypes.Float());
 		item.AddMember("Status".As<MemberName>())!.SetType(new SchemaTypes.Enum { EnumName = "Status".As<EnumName>() });
 		item.AddMember("Tint".As<MemberName>())!.SetType(new SchemaTypes.ColorRGB());
@@ -167,6 +173,7 @@ public class GeneratedDataEditorTests
 		"""[ { "Id": "sword", "Count": "three", "Weight": 1, "Status": "Active", "Tint": [0, 0, 0] } ]""",
 		"""[ { "Id": "sword", "Count": 3, "Weight": 1, "Status": "Broken", "Tint": [0, 0, 0] } ]""",
 		"""[ { "Count": 3 } ]""",
+		"""[ { "Id": "sword", "Count": 500, "Weight": 1, "Status": "Active", "Tint": [0, 0, 0] } ]""",
 		"""[ 42 ]""",
 		"{ \"Id\": ",
 		"// a comment\n[]",
@@ -190,6 +197,16 @@ public class GeneratedDataEditorTests
 			CollectionAssert.AreEqual(expected, actual, payload);
 			Assert.AreEqual(expected.Length == 0 || !expected.Any(e => e.StartsWith("Error", StringComparison.Ordinal)), Get(editor, "IsValid"), payload);
 		}
+	}
+
+	[TestMethod]
+	public void TestTheEditorRefusesAValueOutsideAMembersRange()
+	{
+		object editor = CreateEditor(CompileEditor());
+		Invoke(editor, "Parse", """[ { "Id": "sword", "Count": 500, "Weight": 1, "Status": "Active", "Tint": [0, 0, 0] } ]""");
+
+		Assert.IsFalse((bool)Get(editor, "IsValid")!);
+		Assert.IsTrue(Issues(editor).Any(i => i.Path == "Items[0].Count" && i.Severity == SchemaValidationSeverity.Error), string.Join("; ", Issues(editor)));
 	}
 
 	[TestMethod]

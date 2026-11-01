@@ -177,11 +177,13 @@ public static class SchemaDataValidator
 	/// </remarks>
 	/// <param name="type">The type the value should conform to.</param>
 	/// <param name="value">The value to check.</param>
+	/// <param name="range">The range of the member holding the value, if it has one.</param>
 	/// <returns>True if validating the value reports no error.</returns>
-	internal static bool ConformsTo(BaseType type, JsonElement value)
+	internal static bool ConformsTo(BaseType type, JsonElement value, MemberRange? range = null)
 	{
 		Collection<SchemaValidationIssue> issues = [];
 		ValidateValue(type, value, string.Empty, issues);
+		ValidateRange(range, "the member", type, value, string.Empty, issues);
 		return !issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error);
 	}
 
@@ -208,6 +210,7 @@ public static class SchemaDataValidator
 
 			accountedFor.Add(matchedName);
 			ValidateValue(member.Type, value, $"{path}.{member.Name}", issues);
+			ValidateRange(member.Range, $"member '{member.Name}'", member.Type, value, $"{path}.{member.Name}", issues);
 		}
 
 		foreach (string propertyName in element.EnumerateObject()
@@ -357,6 +360,82 @@ public static class SchemaDataValidator
 		if (semantic.Declaration?.Representation() is BaseType representation and not Semantic)
 		{
 			ValidateValue(representation, value, path, issues);
+
+			// Every type on the chain bounds the value: a refinement narrows what it refines, so a
+			// value has to sit inside the range of each one, not only the nearest.
+			foreach (SchemaSemanticType declaration in (IEnumerable<SchemaSemanticType>)[semantic.Declaration, .. semantic.Declaration.Refines()])
+			{
+				ValidateRange(declaration.Range, $"semantic type '{declaration.Name}'", representation, value, path, issues);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Refuses a number outside a range that bounds it.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Without <c>wrap</c> a range is a bound, and a value outside it is invalid. With it the range
+	/// is a period, so any number is the un-normalised form of one inside it and is accepted. This
+	/// is the reading schema validation already takes of a default.
+	/// </para>
+	/// <para>
+	/// A member's own range and the range of a semantic type it holds both apply, each reported
+	/// against its owner, so neither takes precedence: a value has to satisfy both.
+	/// </para>
+	/// <para>
+	/// Only a value of the right shape is judged. One of the wrong type is already reported by
+	/// <see cref="ValidateValue"/>, and a range that is backwards or on a type it means nothing on
+	/// is already reported by schema validation.
+	/// </para>
+	/// </remarks>
+	/// <param name="range">The range, or <see langword="null"/> when there is none.</param>
+	/// <param name="owner">What declared the range, for the message.</param>
+	/// <param name="type">The type the value is declared as.</param>
+	/// <param name="value">The value.</param>
+	/// <param name="path">The value's path.</param>
+	/// <param name="issues">Where issues go.</param>
+	private static void ValidateRange(MemberRange? range, string owner, BaseType type, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
+	{
+		if (range is null || range.Wrap || !range.IsWellFormed)
+		{
+			return;
+		}
+
+		BaseType represented = type switch
+		{
+			Semantic { Declaration: SchemaSemanticType declaration } => declaration.Representation(),
+			Quantity quantity => quantity.Storage,
+			_ => type,
+		};
+
+		if (value.ValueKind == JsonValueKind.Number && represented.IsNumeric)
+		{
+			ExpectInRange(range, owner, value, path, issues);
+			return;
+		}
+
+		// A vector, or a quantity's vector form, is bounded component by component.
+		if (value.ValueKind == JsonValueKind.Array && (represented is Vector || type is Quantity))
+		{
+			int index = 0;
+			foreach (JsonElement component in value.EnumerateArray())
+			{
+				if (component.ValueKind == JsonValueKind.Number)
+				{
+					ExpectInRange(range, owner, component, $"{path}[{index}]", issues);
+				}
+
+				index++;
+			}
+		}
+	}
+
+	private static void ExpectInRange(MemberRange range, string owner, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
+	{
+		if (value.TryGetDouble(out double number) && (number < range.Minimum || number > range.Maximum))
+		{
+			issues.Add(Error(path, $"{value.GetRawText()} is outside the range {range} of {owner}."));
 		}
 	}
 
