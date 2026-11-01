@@ -115,7 +115,7 @@ public static class SchemaDataValues
 	/// <param name="name">The member's declared name.</param>
 	/// <returns>The value.</returns>
 	public static float GetFloat(JsonObject record, string name) =>
-		ReadNumber(record, name, static (JsonElement e, out float v) => e.TryGetSingle(out v));
+		ReadNumber(record, name, static (JsonElement e, out float v) => e.TryGetSingle(out v) && float.IsFinite(v));
 
 	/// <summary>Writes a <c>Float</c> member.</summary>
 	/// <param name="record">The record.</param>
@@ -128,7 +128,7 @@ public static class SchemaDataValues
 	/// <param name="name">The member's declared name.</param>
 	/// <returns>The value.</returns>
 	public static double GetDouble(JsonObject record, string name) =>
-		ReadNumber(record, name, static (JsonElement e, out double v) => e.TryGetDouble(out v));
+		ReadNumber(record, name, static (JsonElement e, out double v) => e.TryGetDouble(out v) && double.IsFinite(v));
 
 	/// <summary>Writes a <c>Double</c> member.</summary>
 	/// <param name="record">The record.</param>
@@ -342,7 +342,8 @@ public static class SchemaDataValues
 		{
 			JsonNode? component = array[i];
 			if (component?.GetValueKind() != JsonValueKind.Number
-				|| !JsonSerializer.SerializeToElement(component).TryGetSingle(out components[i]))
+				|| !JsonSerializer.SerializeToElement(component).TryGetSingle(out components[i])
+				|| !float.IsFinite(components[i]))
 			{
 				throw Malformed(name, $"component {i} is not a number");
 			}

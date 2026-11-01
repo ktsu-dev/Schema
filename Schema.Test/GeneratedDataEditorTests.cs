@@ -309,6 +309,22 @@ public class GeneratedDataEditorTests
 	}
 
 	[TestMethod]
+	public void TestANumberPastItsTypesRangeThrowsRatherThanReadingAsInfinity()
+	{
+		JsonObject record = new()
+		{
+			["Speed"] = JsonNode.Parse("1e39"),
+			["D"] = JsonNode.Parse("1e309"),
+			["Position"] = JsonNode.Parse("[1, 1e39, 2]"),
+		};
+
+		Assert.ThrowsExactly<InvalidOperationException>(() => SchemaDataValues.GetFloat(record, "Speed"));
+		Assert.ThrowsExactly<InvalidOperationException>(() => SchemaDataValues.GetDouble(record, "D"));
+		Assert.ThrowsExactly<InvalidOperationException>(() => SchemaDataValues.GetVector3(record, "Position"));
+		Assert.AreEqual(1e39, SchemaDataValues.GetDouble(record, "Speed"));
+	}
+
+	[TestMethod]
 	public void TestVectorsAndColoursRoundTrip()
 	{
 		JsonObject record = [];
