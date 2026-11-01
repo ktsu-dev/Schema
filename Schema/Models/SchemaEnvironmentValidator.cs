@@ -28,26 +28,14 @@ internal static class SchemaEnvironmentValidator
 			return;
 		}
 
-		try
-		{
-			if (!File.Exists(resolved))
-			{
-				issues.Add(new()
-				{
-					Severity = SchemaValidationSeverity.Error,
-					Path = dataSource.Name,
-					Message = $"Data source file '{dataSource.File}' does not exist (resolved to '{resolved}').",
-					Element = dataSource,
-				});
-			}
-		}
-		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		// File.Exists answers false rather than throwing for a path it can't read, so there is nothing to catch.
+		if (!File.Exists(resolved))
 		{
 			issues.Add(new()
 			{
-				Severity = SchemaValidationSeverity.Warning,
+				Severity = SchemaValidationSeverity.Error,
 				Path = dataSource.Name,
-				Message = $"Data source file '{dataSource.File}' could not be checked: {ex.Message}",
+				Message = $"Data source file '{dataSource.File}' does not exist (resolved to '{resolved}').",
 				Element = dataSource,
 			});
 		}
