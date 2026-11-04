@@ -223,6 +223,26 @@ public class SchemaCommandLineTests
 	}
 
 	[TestMethod]
+	public void TestASchemaWithAnAbsoluteOutputPathIsAFailure()
+	{
+		string path = WriteSchema("absolute-output.schema.json", AbsolutePathLoadTests.AbsoluteOutputPath);
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
+	public void TestASchemaWithAnAbsoluteDataSourceFileIsAFailure()
+	{
+		string path = WriteSchema("absolute-data.schema.json", AbsolutePathLoadTests.AbsoluteDataSourceFile);
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Could not open", StringComparison.Ordinal), result.Error);
+	}
+
+	[TestMethod]
 	public void TestSchemaFromANewerVersionSaysSoRatherThanCallingItCorrupt()
 	{
 		string path = WriteSchema("future.schema.json", ValidSchema.Replace(
@@ -282,6 +302,59 @@ public class SchemaCommandLineTests
 		Assert.IsFalse(result.Output.Contains("0 error(s), 0 warning(s)", StringComparison.Ordinal), "There should be warnings.");
 	}
 
+	private const string BoundSchema = """
+	{
+	  "formatVersion": 1,
+	  "classes": [
+	    {
+	      "members": [ { "type": { "TypeName": "Int" }, "name": "Count", "description": "" } ],
+	      "name": "Item",
+	      "description": ""
+	    }
+	  ],
+	  "enums": [],
+	  "codeGenerators": [],
+	  "dataSources": [ { "file": "items.json", "className": "Item", "name": "Items", "description": "" } ]
+	}
+	""";
+
+	[TestMethod]
+	public void TestValidateFailsWhenADataFileContradictsItsClass()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": "three" } ]""");
+
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Output.Contains("Items[0]", StringComparison.Ordinal), result.Output);
+		Assert.IsTrue(result.Output.Contains("1 error(s)", StringComparison.Ordinal), result.Output);
+	}
+
+	[TestMethod]
+	public void TestValidateSucceedsWhenADataFileConforms()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": 3 } ]""");
+
+		Result result = Run("validate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Output.Contains("0 error(s)", StringComparison.Ordinal), result.Output);
+	}
+
+	[TestMethod]
+	public void TestValidateSkipsDataFilesWhenAskedTo()
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": "three" } ]""");
+
+		Result result = Run("validate", "--no-data", path);
+
+		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Output);
+		Assert.IsFalse(result.Output.Contains("Items[0]", StringComparison.Ordinal), result.Output);
+	}
+
 	// ---- generate -----------------------------------------------------------
 
 	[TestMethod]
@@ -293,6 +366,41 @@ public class SchemaCommandLineTests
 		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Error);
 		Assert.IsTrue(File.Exists(Path.Combine(workingDirectory, "out", "Item.g.cs")), result.Output);
 		Assert.IsTrue(result.Output.Contains("CSharp:", StringComparison.Ordinal), result.Output);
+	}
+
+	/// <summary>
+	/// One generator whose output directory is blocked by a file fails the command, says why on
+	/// stderr, and does not stop the next generator from writing.
+	/// </summary>
+	[TestMethod]
+	public void TestGenerateReportsAWriteFailureAndRunsTheOtherGenerators()
+	{
+		string path = WriteSchema("gen-blocked.schema.json", """
+		{
+		  "formatVersion": 1,
+		  "classes": [
+		    {
+		      "members": [ { "type": { "TypeName": "String" }, "name": "Id", "description": "" } ],
+		      "name": "Item",
+		      "description": ""
+		    }
+		  ],
+		  "enums": [],
+		  "codeGenerators": [
+		    { "outputPath": "blocked", "language": "csharp", "namespace": "Demo", "name": "Blocked", "description": "" },
+		    { "outputPath": "open", "language": "csharp", "namespace": "Demo", "name": "Open", "description": "" }
+		  ],
+		  "dataSources": []
+		}
+		""");
+		File.WriteAllText(Path.Combine(workingDirectory, "blocked"), "in the way");
+
+		Result result = Run("generate", path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode);
+		Assert.IsTrue(result.Error.Contains("Blocked: Could not write", StringComparison.Ordinal), result.Error);
+		Assert.IsTrue(File.Exists(Path.Combine(workingDirectory, "open", "Item.g.cs")), "The second generator did not run.");
+		Assert.IsTrue(result.Output.Contains("Open:", StringComparison.Ordinal), result.Output);
 	}
 
 	[TestMethod]
@@ -370,5 +478,44 @@ public class SchemaCommandLineTests
 		Result result = Run("generate", "--generator", "CSharp", path);
 
 		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Error);
+	}
+
+	/// <summary>
+	/// An option nobody reads is refused before anything is loaded or written, wherever it stands.
+	/// </summary>
+	/// <remarks>
+	/// It used to be stepped over, so a misspelt <c>--generator</c> ran every generator instead
+	/// of the one asked for.
+	/// </remarks>
+	[TestMethod]
+	[DataRow("generate", "--generatr", "CSharp", "{path}")]
+	[DataRow("generate", "{path}", "--generatr", "CSharp")]
+	[DataRow("generate", "{path}", "--cpp-options=holo.json")]
+	[DataRow("validate", "--generator", "CSharp", "{path}")]
+	[DataRow("validate", "{path}", "--strict")]
+	public void TestAnUnknownOptionIsRefusedAndNothingIsWritten(params string[] args)
+	{
+		string path = WriteSchema("unknown.schema.json", ValidSchema);
+		string[] resolved = [.. args.Select(a => a == "{path}" ? path : a)];
+		string option = resolved.First(a => a.StartsWith('-')).Split('=')[0];
+
+		Result result = Run(resolved);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Error.Contains($"Unknown option '{option}'.", StringComparison.Ordinal), result.Error);
+		Assert.IsTrue(result.Output.Contains("usage", StringComparison.OrdinalIgnoreCase), result.Output);
+		Assert.IsFalse(Directory.Exists(Path.Combine(workingDirectory, "out")), "Nothing should have been written.");
+	}
+
+	/// <summary>
+	/// The value an option takes is not read as an option itself, however it is spelt.
+	/// </summary>
+	[TestMethod]
+	public void TestAnOptionsValueIsNotMistakenForAnUnknownOption()
+	{
+		string path = WriteSchema("dashvalue.schema.json", ValidSchema);
+		Result result = Run("generate", path, "--generator", "-CSharp");
+
+		Assert.IsFalse(result.Error.Contains("Unknown option", StringComparison.Ordinal), result.Error);
 	}
 }

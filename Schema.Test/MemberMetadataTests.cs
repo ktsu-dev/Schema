@@ -4,6 +4,7 @@ namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
 using System.Linq;
+using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
@@ -265,17 +266,126 @@ public class MemberMetadataTests
 	}
 
 	/// <summary>
-	/// The largest double below 2^63, and the smallest Long, are both representable.
+	/// Every integer up to 2^53 - 1 is a double, so a default of that size means what it says.
 	/// </summary>
 	[TestMethod]
-	[DataRow(9223372036854774784.0)]
-	[DataRow(-9223372036854775808.0)]
+	[DataRow(9007199254740991.0)]
+	[DataRow(-9007199254740991.0)]
+	[DataRow(0.0)]
 	public void ADefaultInsideInt64RangeOnALongMemberIsAccepted(double value)
 	{
 		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
 		member.DefaultValue = new NumberDefault { Value = value };
 
 		Assert.AreEqual(0, Errors(schema).Count);
+	}
+
+	/// <summary>
+	/// A literal past float's range does not compile in either generated language, so it is
+	/// refused before generation rather than by the compiler of whoever generates. The same holds
+	/// for every component of a vector of floats, a colour included.
+	/// </summary>
+	[TestMethod]
+	public void ADefaultOutsideFloatRangeIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Float(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1e39 };
+
+		AssertMentions(Errors(schema), "outside the range of Float");
+	}
+
+	[TestMethod]
+	public void ADefaultOutsideFloatRangeOnAFloatVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector3(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = -1e39 };
+
+		AssertMentions(Errors(schema), "outside the range of Float");
+	}
+
+	/// <summary>
+	/// A vector's default is written into each component, so an Int vector holds its default to
+	/// what an Int can hold: a whole number in the 32-bit range.
+	/// </summary>
+	[TestMethod]
+	public void ADefaultOutsideInt32RangeOnAnIntVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 3e9 };
+
+		AssertMentions(Errors(schema), "outside the 32-bit range");
+	}
+
+	[TestMethod]
+	public void AFractionalDefaultOnAnIntVectorIsAnError()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1.5 };
+
+		AssertMentions(Errors(schema), "not a whole number");
+	}
+
+	[TestMethod]
+	public void AnInvalidVectorDefaultIsNotGenerated()
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = 1.5 };
+		SchemaCodeGenerator generator = schema.AddCodeGenerator("CSharp".As<CodeGeneratorName>())!;
+		generator.Language = CSharpCodeGenerator.LanguageId.As<LanguageName>();
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, SchemaGenerator.Generate(schema, generator).Status);
+	}
+
+	/// <summary>
+	/// The new checks are on the components' own range, so ordinary defaults still pass.
+	/// </summary>
+	[TestMethod]
+	public void DefaultsTheComponentsCanHoldAreAccepted()
+	{
+		SchemaMember intVector = MemberWith(new SchemaTypes.Vector2 { ElementType = new SchemaTypes.Int() }, out Schema schema);
+		intVector.DefaultValue = new NumberDefault { Value = 2 };
+		Assert.AreEqual(0, Errors(schema).Count);
+
+		SchemaMember single = MemberWith(new SchemaTypes.Float(), out schema);
+		single.DefaultValue = new NumberDefault { Value = 2.5 };
+		Assert.AreEqual(0, Errors(schema).Count);
+
+		SchemaMember colour = MemberWith(new SchemaTypes.ColorRGBA(), out schema);
+		colour.DefaultValue = new NumberDefault { Value = 0.5 };
+		Assert.AreEqual(0, Errors(schema).Count);
+	}
+
+	/// <summary>
+	/// Inside the range of Long but past 2^53, where a double no longer holds every integer, so the
+	/// value validated may not be the one written.
+	/// </summary>
+	[TestMethod]
+	[DataRow(9007199254740992.0)]
+	[DataRow(-9007199254740992.0)]
+	[DataRow(9223372036854774784.0)]
+	[DataRow(-9223372036854775808.0)]
+	public void ADefaultADoubleCannotHoldExactlyOnALongMemberIsAnError(double value)
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Long(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = value };
+
+		AssertMentions(Errors(schema), "cannot hold it exactly");
+	}
+
+	/// <summary>
+	/// 9007199254740993 is not a double: the file says it, and loading it gives 9007199254740992.
+	/// Validation sees only the loaded value, which is why the bound refuses 2^53 itself.
+	/// </summary>
+	[TestMethod]
+	public void ALongDefaultPast2To53InAFileIsAnError()
+	{
+		MemberWith(new SchemaTypes.Long(), out Schema schema).DefaultValue = new NumberDefault { Value = 12345 };
+		string json = SchemaSerializer.Serialize(schema);
+		Assert.Contains("12345", json);
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json.Replace("12345", "9007199254740993", StringComparison.Ordinal), out Schema? loaded));
+
+		AssertMentions(Errors(loaded!), "cannot hold it exactly");
 	}
 
 	[TestMethod]

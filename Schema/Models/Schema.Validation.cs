@@ -47,6 +47,91 @@ public partial class Schema
 		ReportDuplicates(issues, SemanticTypesInternal.Select(t => t.Name.ToString()), "semantic type");
 		ReportDuplicates(issues, DataSourcesInternal.Select(d => d.Name.ToString()), "data source");
 		ReportDuplicates(issues, CodeGeneratorsInternal.Select(g => g.Name.ToString()), "code generator");
+		ReportNamesDifferingOnlyInCase(issues);
+		ReportNamesSharedAcrossKinds(issues);
+	}
+
+	/// <summary>
+	/// Gets every element a generator names an output file after, with that name.
+	/// </summary>
+	internal IEnumerable<(string Name, ISchemaElement Element)> GeneratedFileNames() =>
+		ClassesInternal.Select(c => (c.Name.ToString(), (ISchemaElement)c))
+			.Concat(EnumsInternal.Select(e => (e.Name.ToString(), (ISchemaElement)e)))
+			.Concat(InterfacesInternal.Select(i => (i.Name.ToString(), (ISchemaElement)i)))
+			.Concat(SemanticTypesInternal.Select(t => (t.Name.ToString(), (ISchemaElement)t)));
+
+	/// <summary>
+	/// Reports generatable elements whose names are equal only when case is ignored.
+	/// </summary>
+	/// <remarks>
+	/// Every generator names a file after each element, and Windows and macOS file systems ignore
+	/// case, so <c>Player</c> and <c>player</c> write the same file and one class silently vanishes
+	/// from the output. A name repeated exactly is not reported here: within one kind the duplicate
+	/// check above already reports it, and across kinds it is a clash in its own right whatever the
+	/// file system.
+	/// </remarks>
+	private void ReportNamesDifferingOnlyInCase(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<IGrouping<string, (string Name, ISchemaElement Element)>> groups = GeneratedFileNames()
+			.GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase);
+
+		foreach (IGrouping<string, (string Name, ISchemaElement Element)> group in groups)
+		{
+			List<string> spellings = [.. group.Select(entry => entry.Name).Distinct(StringComparer.Ordinal)];
+			if (spellings.Count < 2)
+			{
+				continue;
+			}
+
+			string quoted = string.Join(", ", spellings.Select(name => $"'{name}'"));
+			(string laterName, ISchemaElement laterElement) = group.Last(entry => entry.Name != spellings[0]);
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = laterName,
+				Message = $"Names {quoted} differ only in case, so their generated files overwrite each other on a case-insensitive file system.",
+				Element = laterElement,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Reports a name used by more than one kind of type, which the generators would write to the
+	/// same file - one silently overwriting the other.
+	/// </summary>
+	/// <remarks>
+	/// Classes, enums, interfaces and semantic types are all emitted as a type named for the element,
+	/// one file each, so two of different kinds sharing a name collide in the output even though each
+	/// kind's own list is unique. A name repeated within one kind keeps the message above alone.
+	/// </remarks>
+	private void ReportNamesSharedAcrossKinds(Collection<SchemaValidationIssue> issues)
+	{
+		IEnumerable<(string Name, string Kind)> types =
+		[
+			.. ClassesInternal.Select(c => (c.Name.ToString(), "a class")),
+			.. EnumsInternal.Select(e => (e.Name.ToString(), "an enum")),
+			.. InterfacesInternal.Select(i => (i.Name.ToString(), "an interface")),
+			.. SemanticTypesInternal.Select(t => (t.Name.ToString(), "a semantic type")),
+		];
+
+		foreach (IGrouping<string, string> shared in types.GroupBy(t => t.Name, t => t.Kind))
+		{
+			List<string> kinds = [.. shared.Distinct()];
+			if (kinds.Count < 2)
+			{
+				continue;
+			}
+
+			string joined = kinds.Count == 2
+				? $"both {kinds[0]} and {kinds[1]}"
+				: $"{string.Join(", ", kinds.Take(kinds.Count - 1))} and {kinds[^1]}";
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = shared.Key,
+				Message = $"Name '{shared.Key}' is used by {joined}; the generated types would overwrite each other.",
+			});
+		}
 	}
 
 	private static void ReportDuplicates(Collection<SchemaValidationIssue> issues, IEnumerable<string> names, string kind)
@@ -68,8 +153,8 @@ public partial class Schema
 	private static string PathSegment(string name) => string.IsNullOrEmpty(name) ? "(unnamed)" : name;
 
 	/// <summary>
-	/// Reports an element whose name is empty. Such an element cannot be code-generated, and
-	/// duplicate detection only catches multiple empty names by accident.
+	/// Reports an element whose name is empty, or is not an identifier. Such an element cannot be
+	/// code-generated, and duplicate detection only catches multiple empty names by accident.
 	/// </summary>
 	private static void ValidateNameNotEmpty(Collection<SchemaValidationIssue> issues, string name, string kind, string path, ISchemaElement? element)
 	{
@@ -83,6 +168,43 @@ public partial class Schema
 				Element = element,
 			});
 		}
+		else if (!IsIdentifier(name))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"{kind} name '{name}' is not an identifier. Use letters, digits and underscores, starting with a letter or an underscore.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Whether a name can be written as an identifier in every target language, and as a file name
+	/// that stays inside the directory it is written to.
+	/// </summary>
+	/// <remarks>
+	/// ASCII only, because that is the set every generator's target accepts. A name with a space, a
+	/// hyphen or a leading digit generates code that does not compile, and one with a separator or
+	/// <c>..</c> names a file outside the output directory.
+	/// </remarks>
+	internal static bool IsIdentifier(string name)
+	{
+		if (string.IsNullOrEmpty(name) || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+		{
+			return false;
+		}
+
+		foreach (char character in name)
+		{
+			if (!(char.IsAsciiLetterOrDigit(character) || character == '_'))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void ValidateClasses(Collection<SchemaValidationIssue> issues)
@@ -98,6 +220,7 @@ public partial class Schema
 			{
 				string memberPath = $"{classPath}.{PathSegment(member.Name)}";
 				ValidateNameNotEmpty(issues, member.Name, "Member", memberPath, member);
+				ValidateNotNamedAfterItsType(issues, member.Name, schemaClass.Name, $"Member '{member.Name}' has the same name as its class", memberPath, member);
 
 				if (member.Type is None)
 				{
@@ -118,6 +241,30 @@ public partial class Schema
 		}
 
 		ValidateContainmentCycles(issues);
+	}
+
+	/// <summary>
+	/// The member a generated semantic type keeps its value in, which is a name the schema does
+	/// not see but the type's own name must not take.
+	/// </summary>
+	private const string SemanticValueMember = "Value";
+
+	/// <summary>
+	/// Reports a member that would be declared with the name of the type declaring it.
+	/// </summary>
+	/// <remarks>
+	/// C# refuses it outright (CS0542), and so does C++ for a member function or a data member of
+	/// a class with a constructor, and neither language has an escape for it - a verbatim
+	/// <c>@Label</c> is still the name <c>Label</c>. So the schema is refused here, naming both,
+	/// rather than validating cleanly and failing when the consumer builds the generated code.
+	/// The comparison is ordinal: <c>label</c> in a class <c>Label</c> is a different name.
+	/// </remarks>
+	private static void ValidateNotNamedAfterItsType(Collection<SchemaValidationIssue> issues, string memberName, string typeName, string what, string path, ISchemaElement element)
+	{
+		if (!string.IsNullOrEmpty(memberName) && string.Equals(memberName, typeName, StringComparison.Ordinal))
+		{
+			Report(issues, path, element, $"{what}; a member cannot be named after the type that declares it. Rename one of them.");
+		}
 	}
 
 	/// <summary>
@@ -442,40 +589,7 @@ public partial class Schema
 				return;
 
 			case NumberDefault number:
-				if (!type.IsNumeric && !IsVector(type))
-				{
-					Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
-					return;
-				}
-
-				// double.IsInteger rather than a comparison against Math.Truncate: it asks the
-				// question directly, and it does not compare two doubles for equality. It also
-				// answers false for an infinity, which is not a whole number and cannot narrow to
-				// one - the comparison called that whole, since truncating an infinity returns it.
-				bool isWholeNumber = double.IsInteger(number.Value);
-				if (type.IsIntegral && !isWholeNumber)
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {type.TypeName}.");
-				}
-
-				if (type is Int && isWholeNumber && !FitsInt32(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}).");
-				}
-
-				if (type is Long && isWholeNumber && !FitsInt64(number.Value))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}).");
-				}
-
-				// A wrapping range is a period rather than a bound, so a value outside it is
-				// un-normalised rather than wrong -- the same reading a validator must take of
-				// live data, applied here to the default.
-				if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
-				{
-					Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
-				}
-
+				ValidateNumberDefault(issues, carrier, number, type, path, element, kind);
 				return;
 
 			case BooleanDefault:
@@ -493,6 +607,67 @@ public partial class Schema
 			default:
 				Report(issues, path, element, $"Unrecognised default of kind {carrier.DefaultValue.GetType().Name}.");
 				return;
+		}
+	}
+
+	/// <summary>
+	/// A numeric default has to fit the member's type, or each component of its vector, and lie
+	/// inside its range.
+	/// </summary>
+	private static void ValidateNumberDefault(Collection<SchemaValidationIssue> issues, ISchemaMetadataCarrier carrier, NumberDefault number, BaseType type, string path, ISchemaElement element, string kind)
+	{
+		if (!type.IsNumeric && !IsVector(type))
+		{
+			Report(issues, path, element, $"A numeric default does not fit a {type.TypeName} {kind}.");
+			return;
+		}
+
+		// A vector's default is written into every component, so it is each component's type
+		// it has to fit - a vector is neither integral nor an Int, and asking the vector
+		// itself let a fraction or an out-of-range value through to an Int vector.
+		BaseType scalar = type is Vector vector ? Represented(vector.ElementType) : type;
+		string components = ReferenceEquals(scalar, type) ? string.Empty : $" (each component of the {type.TypeName})";
+
+		// double.IsInteger rather than a comparison against Math.Truncate: it asks the
+		// question directly, and it does not compare two doubles for equality. It also
+		// answers false for an infinity, which is not a whole number and cannot narrow to
+		// one - the comparison called that whole, since truncating an infinity returns it.
+		bool isWholeNumber = double.IsInteger(number.Value);
+		if (scalar.IsIntegral && !isWholeNumber)
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is not a whole number, but the member is {scalar.TypeName}{components}.");
+		}
+
+		if (scalar is Int && isWholeNumber && !FitsInt32(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 32-bit range of Int ({int.MinValue}..{int.MaxValue}){components}.");
+		}
+
+		if (scalar is Long && isWholeNumber && !FitsInt64(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the 64-bit range of Long ({long.MinValue}..{long.MaxValue}){components}.");
+		}
+
+		// A literal past float's range is a compile error in both C# and C++, not an
+		// infinity, so it is refused here rather than by the compiler of whoever generates.
+		if (scalar is Float && !FitsSingle(number.Value))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}){components}.");
+		}
+		else if (scalar is Long && isWholeNumber && !IsExactInDouble(number.Value))
+		{
+			// A default is read into a double, which holds every integer only up to 2^53: past
+			// that the file's 9007199254740993 has already become 9007199254740992 before
+			// validation sees it, so the number generated would not be the number written.
+			Report(issues, path, element, $"The default {Number(number.Value)} is beyond ±{MaxExactInteger}, so a double cannot hold it exactly, and Long defaults that large are not supported.");
+		}
+
+		// A wrapping range is a period rather than a bound, so a value outside it is
+		// un-normalised rather than wrong -- the same reading a validator must take of
+		// live data, applied here to the default.
+		if (carrier.Range is { Wrap: false } range && (number.Value < range.Minimum || number.Value > range.Maximum))
+		{
+			Report(issues, path, element, $"The default {Number(number.Value)} is outside the member's own range {range}.");
 		}
 	}
 
@@ -586,12 +761,25 @@ public partial class Schema
 
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
 
+	private static bool FitsSingle(double value) => !double.IsFinite(value) || Math.Abs(value) <= float.MaxValue;
+
 	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
 
 	/// <summary>
 	/// The upper bound is exclusive because (double)long.MaxValue rounds up to 2^63, which is
 	/// already one past the range: an inclusive check would pass the one value it most needs to stop.
 	/// </summary>
+	/// <summary>
+	/// The largest integer a double holds exactly together with every integer below it: 2^53 - 1.
+	/// </summary>
+	private const long MaxExactInteger = 9007199254740991;
+
+	/// <summary>
+	/// Whether every integer of this magnitude is a double, which is what makes a default this large
+	/// mean the number written. 2^53 is refused too: it is what 9007199254740993 rounds to on load.
+	/// </summary>
+	private static bool IsExactInDouble(double value) => Math.Abs(value) <= MaxExactInteger;
+
 	private static bool FitsInt64(double value) => value is >= -9223372036854775808.0 and < 9223372036854775808.0;
 
 	/// <summary>
@@ -609,6 +797,13 @@ public partial class Schema
 			Element = element,
 		});
 
+	/// <summary>
+	/// How many values an enum may have. Both generators give an enum a one-byte underlying type,
+	/// so that a class holding one is the same bytes in either language, and the 257th value would
+	/// be 256, which neither <c>byte</c> nor <c>std::uint8_t</c> can hold.
+	/// </summary>
+	private const int MaxEnumValues = 256;
+
 	private void ValidateEnums(Collection<SchemaValidationIssue> issues)
 	{
 		foreach (SchemaEnum schemaEnum in EnumsInternal)
@@ -617,6 +812,12 @@ public partial class Schema
 			ValidateNameNotEmpty(issues, schemaEnum.Name, "Enum", enumPath, schemaEnum);
 
 			ReportDuplicates(issues, schemaEnum.Values.Select(v => $"{schemaEnum.Name}.{v}"), "enum value");
+
+			if (schemaEnum.Values.Count > MaxEnumValues)
+			{
+				Report(issues, enumPath, schemaEnum,
+					$"Enum '{schemaEnum.Name}' has {schemaEnum.Values.Count} values, but enums are generated with a one-byte underlying type (byte in C#, std::uint8_t in C++), which holds at most {MaxEnumValues}.");
+			}
 
 			foreach (Names.EnumValueName value in schemaEnum.Values)
 			{
@@ -635,6 +836,7 @@ public partial class Schema
 		{
 			string path = PathSegment(semanticType.Name);
 			ValidateNameNotEmpty(issues, semanticType.Name, "Semantic type", path, semanticType);
+			ValidateNotNamedAfterItsType(issues, SemanticValueMember, semanticType.Name, $"Semantic type '{semanticType.Name}' has the same name as the '{SemanticValueMember}' member that holds its value", path, semanticType);
 			ValidateUnderlyingType(issues, semanticType, path);
 			ValidateMetadata(issues, semanticType, semanticType.Representation(), path, semanticType, "semantic type");
 		}
@@ -718,7 +920,9 @@ public partial class Schema
 
 			foreach (SchemaFunction function in schemaInterface.Functions)
 			{
-				ValidateFunction(issues, function, $"{interfacePath}.{PathSegment(function.Name)}");
+				string functionPath = $"{interfacePath}.{PathSegment(function.Name)}";
+				ValidateNotNamedAfterItsType(issues, function.Name, schemaInterface.Name, $"Function '{function.Name}' has the same name as its interface", functionPath, function);
+				ValidateFunction(issues, function, functionPath);
 			}
 		}
 	}
@@ -788,6 +992,8 @@ public partial class Schema
 
 	private void ValidateParameter(Collection<SchemaValidationIssue> issues, SchemaParameter parameter, string path, ISchemaElement element)
 	{
+		ValidateNameNotEmpty(issues, parameter.Name, "Parameter", path, element);
+
 		switch (parameter.Type)
 		{
 			case None:
@@ -1220,6 +1426,7 @@ public partial class Schema
 	{
 		ValidateType(issues, arrayType.ElementType, path, element, TypePosition.Nested);
 		ValidateArrayContainer(issues, arrayType, path, element);
+		ValidateArrayKeyType(issues, arrayType, path, element);
 
 		if (string.IsNullOrEmpty(arrayType.Key))
 		{
@@ -1293,13 +1500,64 @@ public partial class Schema
 			return;
 		}
 
-		if (arrayType.Container.ToString() == Array.MapContainer && string.IsNullOrEmpty(arrayType.Key))
+		if (arrayType.Container.ToString() == Array.MapContainer && string.IsNullOrEmpty(arrayType.Key) && arrayType.KeyType is null)
 		{
 			issues.Add(new()
 			{
 				Severity = SchemaValidationSeverity.Error,
 				Path = path,
-				Message = $"Array uses the '{Array.MapContainer}' container but does not specify a key to map by.",
+				Message = $"Array uses the '{Array.MapContainer}' container but specifies neither a key member nor a key type to map by.",
+				Element = element,
+			});
+		}
+	}
+
+	/// <summary>
+	/// Checks a map that states its key's type rather than naming a member to key by.
+	/// </summary>
+	/// <remarks>
+	/// A key type must be a value a dictionary can be keyed by and a file can write as an object's
+	/// property name, which is a primitive or an enum. Stating it alongside a key member says the
+	/// same thing twice in two ways that can disagree, so that is refused rather than reconciled.
+	/// </remarks>
+	private void ValidateArrayKeyType(Collection<SchemaValidationIssue> issues, Array arrayType, string path, ISchemaElement? element)
+	{
+		if (arrayType.KeyType is not BaseType keyType)
+		{
+			return;
+		}
+
+		if (arrayType.Container.ToString() != Array.MapContainer)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array specifies a key type but does not use the '{Array.MapContainer}' container.",
+				Element = element,
+			});
+		}
+
+		if (!string.IsNullOrEmpty(arrayType.Key))
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array specifies both a key member '{arrayType.Key}' and a key type; a map is keyed by one or the other.",
+				Element = element,
+			});
+		}
+
+		ValidateType(issues, keyType, path, element, TypePosition.Nested);
+
+		if (!keyType.IsPrimitive && keyType is not Types.Enum)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = path,
+				Message = $"Array key type must be a primitive type or an enum but is '{keyType.DisplayName}'.",
 				Element = element,
 			});
 		}
@@ -1340,50 +1598,13 @@ public partial class Schema
 					Element = dataSource,
 				});
 			}
-			else
+			else if (CanResolvePaths)
 			{
-				ValidateDataSourceFileExists(issues, dataSource);
+				// Only possible once the schema knows its own location, since the path is relative to it.
+				// A schema built in memory has no anchor, and its data sources are left unchecked rather
+				// than resolved against whatever the working directory happens to be.
+				SchemaEnvironmentValidator.ReportMissingDataSourceFile(issues, dataSource);
 			}
-		}
-	}
-
-	/// <summary>
-	/// Reports a data source whose file is not there.
-	/// </summary>
-	/// <remarks>
-	/// Only possible once the schema knows its own location, since the path is relative to it.
-	/// A schema built in memory has no anchor, and its data sources are left unchecked rather
-	/// than resolved against whatever the working directory happens to be.
-	/// </remarks>
-	private void ValidateDataSourceFileExists(Collection<SchemaValidationIssue> issues, DataSource dataSource)
-	{
-		if (!CanResolvePaths || !dataSource.TryResolveFile(out Semantics.Paths.AbsoluteFilePath resolved))
-		{
-			return;
-		}
-
-		try
-		{
-			if (!File.Exists(resolved))
-			{
-				issues.Add(new()
-				{
-					Severity = SchemaValidationSeverity.Error,
-					Path = dataSource.Name,
-					Message = $"Data source file '{dataSource.File}' does not exist (resolved to '{resolved}').",
-					Element = dataSource,
-				});
-			}
-		}
-		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-		{
-			issues.Add(new()
-			{
-				Severity = SchemaValidationSeverity.Warning,
-				Path = dataSource.Name,
-				Message = $"Data source file '{dataSource.File}' could not be checked: {ex.Message}",
-				Element = dataSource,
-			});
 		}
 	}
 
@@ -1412,6 +1633,19 @@ public partial class Schema
 					Element = codeGenerator,
 				});
 			}
+
+			if (!string.IsNullOrEmpty(codeGenerator.DataSource)
+				&& !DataSourcesInternal.Any(d => d.Name == codeGenerator.DataSource))
+			{
+				issues.Add(new()
+				{
+					Severity = SchemaValidationSeverity.Error,
+					Path = codeGenerator.Name,
+					Message = $"Code generator references unknown data source '{codeGenerator.DataSource}'.",
+					Element = codeGenerator,
+				});
+			}
+			SchemaEnvironmentValidator.ReportReservedNames(issues, codeGenerator, GeneratedFileNames());
 		}
 	}
 }

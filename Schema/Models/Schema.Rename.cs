@@ -2,6 +2,7 @@
 
 namespace ktsu.Schema.Models;
 
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
 
@@ -10,9 +11,13 @@ using ktsu.Schema.Models.Types;
 /// </summary>
 /// <remarks>
 /// Renaming is the schema's responsibility rather than the individual element's because a name
-/// is referenced from elsewhere in the schema: an <see cref="Object"/> member names a class, an
-/// <see cref="Types.Enum"/> member names an enum, a <see cref="DataSource"/> names a class, and
-/// an <see cref="Array"/> names a key member. <see cref="SchemaChild{TName}.Rename"/> changes
+/// is referenced from elsewhere in the schema: an <see cref="Object"/> names a class, an
+/// <see cref="Types.Enum"/> names an enum, a <see cref="DataSource"/> names a class, an
+/// <see cref="Array"/> names a key member, a <see cref="Semantic"/> names a semantic type, an
+/// <see cref="Interface"/> names an interface, and <see cref="ErrorType"/> names the error enum. A
+/// type reference can stand in a member, a function's return type or one of its parameters, and
+/// can be nested inside an <see cref="Array"/>, a <see cref="Vector"/> or a
+/// <see cref="WrapperType"/> at any depth. <see cref="SchemaChild{TName}.Rename"/> changes
 /// only the name and would leave those references dangling, so the operations here cascade the
 /// new name to every referrer and reject a name that collides with a sibling.
 /// </remarks>
@@ -22,8 +27,9 @@ public partial class Schema
 	/// Renames a class and repoints every reference to it.
 	/// </summary>
 	/// <remarks>
-	/// Object-typed members and data sources that referenced the old name are updated to the new
-	/// one, so the schema stays referentially intact.
+	/// Every object reference to the old name - in a member, a function signature, or nested inside
+	/// an array or wrapper - and every data source that named it is updated to the new one, so the
+	/// schema stays referentially intact.
 	/// </remarks>
 	/// <param name="schemaClass">The class to rename.</param>
 	/// <param name="newName">The new name.</param>
@@ -41,6 +47,7 @@ public partial class Schema
 
 		ClassName oldName = schemaClass.Name;
 		schemaClass.Rename(newName);
+		RecordRename(SchemaRenameKind.Class, null, oldName, newName);
 
 		foreach (BaseType type in EnumerateMemberTypes())
 		{
@@ -59,8 +66,12 @@ public partial class Schema
 	}
 
 	/// <summary>
-	/// Renames an enum and repoints every member typed as it.
+	/// Renames an enum and repoints every reference to it.
 	/// </summary>
+	/// <remarks>
+	/// Every enum reference to the old name - in a member, a function signature, or nested inside an
+	/// array or wrapper - is updated, as is <see cref="ErrorType"/> when it named this enum.
+	/// </remarks>
 	/// <param name="schemaEnum">The enum to rename.</param>
 	/// <param name="newName">The new name.</param>
 	/// <returns>True if the enum was renamed; false if the name is empty or collides with another enum.</returns>
@@ -77,12 +88,91 @@ public partial class Schema
 
 		EnumName oldName = schemaEnum.Name;
 		schemaEnum.Rename(newName);
+		RecordRename(SchemaRenameKind.Enum, null, oldName, newName);
 
 		foreach (BaseType type in EnumerateMemberTypes())
 		{
 			if (type is Types.Enum enumType && enumType.EnumName == oldName)
 			{
 				enumType.EnumName = newName;
+			}
+		}
+
+		// The error type names an enum by text, so a rename that left it behind would leave every
+		// fallible signature reported as having nothing to fail with.
+		if (ErrorType == oldName)
+		{
+			ErrorType = newName;
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Renames a semantic type and repoints every reference to it.
+	/// </summary>
+	/// <remarks>
+	/// Every semantic reference to the old name - in a member, a function signature, nested inside
+	/// an array or wrapper, or as the underlying type of another semantic type that refines this one -
+	/// is updated, so the schema stays referentially intact.
+	/// </remarks>
+	/// <param name="semanticType">The semantic type to rename.</param>
+	/// <param name="newName">The new name.</param>
+	/// <returns>True if the semantic type was renamed; false if the name is empty or collides with another semantic type.</returns>
+	public bool TryRenameSemanticType(SchemaSemanticType semanticType, SemanticTypeName newName)
+	{
+		Ensure.NotNull(semanticType);
+		Ensure.NotNull(newName);
+
+		if (!SemanticTypesInternal.Contains(semanticType) ||
+			!CanRename(semanticType.Name, newName, SemanticTypesInternal.Select(t => t.Name.ToString())))
+		{
+			return false;
+		}
+
+		SemanticTypeName oldName = semanticType.Name;
+		semanticType.Rename(newName);
+
+		foreach (BaseType type in EnumerateMemberTypes())
+		{
+			if (type is Semantic semantic && semantic.SemanticTypeName == oldName)
+			{
+				semantic.SemanticTypeName = newName;
+			}
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Renames an interface and repoints every reference to it.
+	/// </summary>
+	/// <remarks>
+	/// Every interface reference to the old name - in a member, a function signature, or nested
+	/// inside an array or wrapper - is updated.
+	/// </remarks>
+	/// <param name="schemaInterface">The interface to rename.</param>
+	/// <param name="newName">The new name.</param>
+	/// <returns>True if the interface was renamed; false if the name is empty or collides with another interface.</returns>
+	public bool TryRenameInterface(SchemaInterface schemaInterface, InterfaceName newName)
+	{
+		Ensure.NotNull(schemaInterface);
+		Ensure.NotNull(newName);
+
+		if (!InterfacesInternal.Contains(schemaInterface) ||
+			!CanRename(schemaInterface.Name, newName, InterfacesInternal.Select(i => i.Name.ToString())))
+		{
+			return false;
+		}
+
+		InterfaceName oldName = schemaInterface.Name;
+		schemaInterface.Rename(newName);
+
+		foreach (BaseType type in EnumerateMemberTypes())
+		{
+			if (type is Interface interfaceType && interfaceType.InterfaceName == oldName)
+			{
+				interfaceType.InterfaceName = newName;
 			}
 		}
 
@@ -154,6 +244,60 @@ public partial class Schema
 	}
 
 	/// <summary>
+	/// Repoints every member default that named <paramref name="oldValue"/> of the given enum.
+	/// </summary>
+	/// <remarks>
+	/// A default of an enum-typed member is the value's name as text, so renaming the value would
+	/// otherwise leave the default naming nothing, which validation then reports. Only a member
+	/// typed as the enum directly carries such a default; a semantic type cannot shim an enum.
+	/// </remarks>
+	/// <param name="enumName">The enum whose value was renamed.</param>
+	/// <param name="oldValue">The value's previous name.</param>
+	/// <param name="newValue">The value's new name.</param>
+	internal void RepointEnumValueDefaults(EnumName enumName, EnumValueName oldValue, EnumValueName newValue)
+	{
+		foreach (SchemaMember member in ClassesInternal.SelectMany(c => c.Members))
+		{
+			if (member.Type is Types.Enum enumType &&
+				enumType.EnumName == enumName &&
+				member.DefaultValue is TextDefault text &&
+				string.Equals(text.Value, oldValue, StringComparison.Ordinal))
+			{
+				member.DefaultValue = new TextDefault { Value = newValue };
+			}
+		}
+	}
+
+	/// <summary>
+	/// Records a rename in <see cref="RenameHistory"/>.
+	/// </summary>
+	/// <remarks>
+	/// A rename to the same name records nothing, and a rename that exactly undoes the last one
+	/// removes it rather than adding its inverse, so an undone rename leaves the history as it was.
+	/// </remarks>
+	/// <param name="kind">What was renamed.</param>
+	/// <param name="owner">The class or enum a member or value belongs to; null otherwise.</param>
+	/// <param name="oldName">The name before the rename.</param>
+	/// <param name="newName">The name after the rename.</param>
+	internal void RecordRename(SchemaRenameKind kind, string? owner, string oldName, string newName)
+	{
+		if (string.Equals(oldName, newName, StringComparison.Ordinal))
+		{
+			return;
+		}
+
+		SchemaRename rename = new() { Kind = kind, Owner = owner, From = oldName, To = newName };
+
+		if (RenamesInternal.Count > 0 && rename.Reverses(RenamesInternal[^1]))
+		{
+			RenamesInternal.RemoveAt(RenamesInternal.Count - 1);
+			return;
+		}
+
+		RenamesInternal.Add(rename);
+	}
+
+	/// <summary>
 	/// Determines whether a rename is permitted: the new name must be non-empty, and must not be
 	/// taken by a sibling unless it is the element's own current name.
 	/// </summary>
@@ -163,22 +307,40 @@ public partial class Schema
 			!siblingNames.Any(n => string.Equals(n, newName, StringComparison.Ordinal)));
 
 	/// <summary>
-	/// Enumerates every member type in the schema, including the element types nested inside arrays.
+	/// Enumerates every type reference in the schema: each member's type, each interface function's
+	/// return type and parameter types, each semantic type's underlying type, and every type nested
+	/// inside those.
 	/// </summary>
 	private IEnumerable<BaseType> EnumerateMemberTypes() =>
 		ClassesInternal
 			.SelectMany(c => c.Members)
-			.SelectMany(m => ExpandType(m.Type));
+			.Select(m => m.Type)
+			.Concat(InterfacesInternal
+				.SelectMany(i => i.Functions)
+				.SelectMany(f => f.Parameters.Select(p => p.Type).Prepend(f.ReturnType)))
+			.Concat(SemanticTypesInternal.Select(t => t.UnderlyingType))
+			.SelectMany(ExpandType);
 
+	/// <summary>
+	/// Yields a type and every type nested inside it, through arrays, vectors and wrappers.
+	/// </summary>
 	private static IEnumerable<BaseType> ExpandType(BaseType type)
 	{
 		yield return type;
 
-		if (type is Array array)
+		BaseType? nested = type switch
 		{
-			foreach (BaseType nested in ExpandType(array.ElementType))
+			Array array => array.ElementType,
+			Vector vector => vector.ElementType,
+			WrapperType wrapper => wrapper.ElementType,
+			_ => null,
+		};
+
+		if (nested is not null)
+		{
+			foreach (BaseType inner in ExpandType(nested))
 			{
-				yield return nested;
+				yield return inner;
 			}
 		}
 	}

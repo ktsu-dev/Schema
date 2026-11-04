@@ -2,6 +2,8 @@
 
 namespace ktsu.Schema.Tests;
 
+using System.Globalization;
+
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
@@ -112,6 +114,19 @@ public class CodeGenerationTests
 	}
 
 	// ---- refusal ------------------------------------------------------------
+
+	[TestMethod]
+	public void TestGenerationIsRefusedWhenAClassAndAnEnumShareAName()
+	{
+		Schema schema = CreateFullSchema();
+		SchemaCodeGenerator generator = ConfigureGenerator(schema);
+		Assert.IsTrue(schema.TryAddEnum("Item".As<EnumName>()));
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, result.Status);
+		Assert.IsTrue(result.Issues.Any(i => i.Message.Contains("Name 'Item' is used by both a class and an enum")));
+	}
 
 	[TestMethod]
 	public void TestGenerationIsRefusedForASchemaWithErrors()
@@ -233,17 +248,17 @@ public class CodeGenerationTests
 	[DataRow("Ratio", "public float Ratio")]
 	[DataRow("Precise", "public double Precise")]
 	[DataRow("Name", "public string Name")]
-	[DataRow("CreatedAt", "public System.DateTime CreatedAt")]
-	[DataRow("Uptime", "public System.TimeSpan Uptime")]
-	[DataRow("Position2", "public System.Numerics.Vector2 Position2")]
-	[DataRow("Position3", "public System.Numerics.Vector3 Position3")]
-	[DataRow("Position4", "public System.Numerics.Vector4 Position4")]
-	[DataRow("Tint", "public ktsu.Schema.Runtime.ColorRgb Tint")]
-	[DataRow("Overlay", "public ktsu.Schema.Runtime.ColorRgba Overlay")]
+	[DataRow("CreatedAt", "public global::System.DateTime CreatedAt")]
+	[DataRow("Uptime", "public global::System.TimeSpan Uptime")]
+	[DataRow("Position2", "public global::System.Numerics.Vector2 Position2")]
+	[DataRow("Position3", "public global::System.Numerics.Vector3 Position3")]
+	[DataRow("Position4", "public global::System.Numerics.Vector4 Position4")]
+	[DataRow("Tint", "public global::ktsu.Schema.Runtime.ColorRgb Tint")]
+	[DataRow("Overlay", "public global::ktsu.Schema.Runtime.ColorRgba Overlay")]
 	[DataRow("Role", "public Role Role")]
 	[DataRow("Favourite", "public Item Favourite")]
-	[DataRow("Tags", "public System.Collections.Generic.List<string> Tags")]
-	[DataRow("Items", "public System.Collections.Generic.Dictionary<string, Item> Items")]
+	[DataRow("Tags", "public global::System.Collections.Generic.List<string> Tags")]
+	[DataRow("Items", "public global::System.Collections.Generic.Dictionary<string, Item> Items")]
 	public void TestEveryTypeMapsAsDocumented(string memberName, string expectedDeclaration)
 	{
 		Schema schema = CreateFullSchema();
@@ -291,6 +306,139 @@ public class CodeGenerationTests
 		}
 	}
 
+	/// <summary>
+	/// Generates into a fresh directory, runs <paramref name="change"/>, then generates again.
+	/// </summary>
+	private static void GenerateTwice(Action<Schema, string> beforeFirst, Action<Schema> change, Action<string, SchemaGenerationResult> verify)
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+			string output = Path.Combine(directory, "generated");
+
+			beforeFirst(schema, output);
+			SchemaGenerationResult first = SchemaGenerator.GenerateToDisk(schema, generator);
+			Assert.IsTrue(first.IsSuccess, first.Message);
+
+			change(schema);
+			SchemaGenerationResult second = SchemaGenerator.GenerateToDisk(schema, generator);
+			Assert.IsTrue(second.IsSuccess, second.Message);
+
+			verify(output, second);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	[TestMethod]
+	public void TestRenamingAClassRemovesItsOldFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Thing".As<ClassName>())),
+			(output, result) =>
+			{
+				Assert.IsFalse(File.Exists(Path.Combine(output, "Item.g.cs")), "The renamed class's old file was left behind.");
+				Assert.IsTrue(File.Exists(Path.Combine(output, "Thing.g.cs")));
+				Assert.AreEqual("Item.g.cs", result.RemovedFiles.Single());
+				Assert.IsTrue(result.Message.Contains("removed 1 stale file", StringComparison.Ordinal), result.Message);
+			});
+
+	[TestMethod]
+	public void TestDeletingAnElementRemovesItsFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.GetClass("Packet".As<ClassName>())!.TryRemove()),
+			(output, result) =>
+			{
+				Assert.IsFalse(File.Exists(Path.Combine(output, "Packet.g.cs")), "The deleted class's file was left behind.");
+				Assert.IsTrue(File.Exists(Path.Combine(output, "User.g.cs")));
+				Assert.AreEqual(1, result.RemovedFiles.Count);
+			});
+
+	[TestMethod]
+	public void TestARenameThatOnlyChangesCaseLeavesTheNewFile() =>
+		GenerateTwice(
+			(_, _) => { },
+			schema => Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "ITEM".As<ClassName>())),
+			(output, _) => Assert.IsTrue(
+				Directory.GetFiles(output).Select(Path.GetFileName).Contains("ITEM.g.cs"),
+				"The new file was deleted along with the old one."));
+
+	[TestMethod]
+	public void TestFilesTheGeneratorDidNotWriteAreLeftAlone() =>
+		GenerateTwice(
+			(_, output) =>
+			{
+				Directory.CreateDirectory(output);
+				File.WriteAllText(Path.Combine(output, "Handwritten.cs"), "// mine");
+			},
+			schema => Assert.IsTrue(schema.GetClass("Packet".As<ClassName>())!.TryRemove()),
+			(output, _) => Assert.IsTrue(File.Exists(Path.Combine(output, "Handwritten.cs")), "A hand-written file was removed."));
+
+	[TestMethod]
+	public void TestAManifestEntryOutsideTheOutputDirectoryIsIgnored()
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		string output = Path.Combine(directory, "generated");
+		Directory.CreateDirectory(output);
+		try
+		{
+			string bystander = Path.Combine(directory, "bystander.txt");
+			File.WriteAllText(bystander, "keep me");
+			File.WriteAllLines(
+				Path.Combine(output, GeneratedFileManifest.FileNameFor("CSharp")),
+				[Path.Combine("..", "bystander.txt"), bystander]);
+
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+
+			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, generator);
+
+			Assert.IsTrue(result.IsSuccess, result.Message);
+			Assert.IsTrue(File.Exists(bystander), "A manifest entry outside the output directory was followed.");
+			Assert.AreEqual(0, result.RemovedFiles.Count);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	/// <summary>
+	/// A file standing where the output directory should be is a failure to write, not a fault:
+	/// it is reported as a result naming the path rather than thrown out of the caller.
+	/// </summary>
+	[TestMethod]
+	public void TestGenerateToDiskReportsAWriteItCannotMake()
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-gen-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			File.WriteAllText(Path.Combine(directory, "generated"), "in the way");
+			Schema schema = CreateFullSchema();
+			SchemaCodeGenerator generator = ConfigureGenerator(schema);
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+
+			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, generator);
+
+			Assert.AreEqual(SchemaGenerationStatus.WriteFailed, result.Status, result.Message);
+			Assert.IsTrue(result.Message.Contains("generated", StringComparison.Ordinal), result.Message);
+			Assert.IsFalse(result.IsSuccess);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
 	[TestMethod]
 	public void TestGenerateToDiskNeedsToKnowWhereTheSchemaLives()
 	{
@@ -301,5 +449,43 @@ public class CodeGenerationTests
 
 		Assert.AreEqual(SchemaGenerationStatus.GeneratorNotConfigured, result.Status);
 		Assert.IsTrue(result.Message.Contains("location is unknown", StringComparison.Ordinal), result.Message);
+	}
+
+	/// <summary>
+	/// Swedish, Finnish and Norwegian format a negative number with U+2212 rather than a
+	/// hyphen-minus, which is not a C# operator, so a default written in the current culture does
+	/// not compile there. The culture is built rather than looked up, so the test does not depend
+	/// on the host having ICU data.
+	/// </summary>
+	[TestMethod]
+	public void TestNegativeIntegralDefaultsAreWrittenInvariantly()
+	{
+		Schema schema = new();
+		SchemaClass owner = schema.AddClass("Counter".As<ClassName>())!;
+		SchemaMember small = owner.AddMember("Small".As<MemberName>())!;
+		small.SetType(new SchemaTypes.Int());
+		small.DefaultValue = new NumberDefault { Value = -5.0 };
+		SchemaMember large = owner.AddMember("Large".As<MemberName>())!;
+		large.SetType(new SchemaTypes.Long());
+		large.DefaultValue = new NumberDefault { Value = -7.0 };
+
+		CultureInfo original = CultureInfo.CurrentCulture;
+		SchemaGenerationResult result;
+		try
+		{
+			CultureInfo minusSign = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+			minusSign.NumberFormat.NegativeSign = "\u2212";
+			CultureInfo.CurrentCulture = minusSign;
+			result = SchemaGenerator.Generate(schema, ConfigureGenerator(schema));
+		}
+		finally
+		{
+			CultureInfo.CurrentCulture = original;
+		}
+
+		Assert.IsTrue(result.IsSuccess, result.Message);
+		string source = result.Files["Counter.g.cs"];
+		Assert.IsTrue(source.Contains("= -5;", StringComparison.Ordinal), source);
+		Assert.IsTrue(source.Contains("= -7L;", StringComparison.Ordinal), source);
 	}
 }

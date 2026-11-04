@@ -9,18 +9,26 @@ Nulls are omitted, and a null written by hand reads as if the property were omit
 in a list is refused, with its path in the message. Round-tripping is the contract: loading a file and saving it again must not
 lose information.
 
+A file is usually written by hand, so it is read with `//` and `/* */` comments and trailing commas
+allowed, the same dialect as a C++ generator options file. The serializer never writes either, so
+comments do not survive being loaded and saved again; they are the one thing in a file that is not
+part of the schema.
+
 ## Root
 
 ```json
 {
-  "formatVersion": 6,
+  "formatVersion": 8,
   "classes": [],
   "enums": [],
   "semanticTypes": [],
   "interfaces": [],
   "codeGenerators": [],
   "dataSources": [],
-  "errorType": "ErrorCode"
+  "errorType": "ErrorCode",
+  "renames": [
+    { "kind": "Member", "owner": "Player", "from": "hp", "to": "health" }
+  ]
 }
 ```
 
@@ -34,8 +42,11 @@ lose information.
 | `codeGenerators` | array of [code generator](#code-generator) | Code generator configurations. |
 | `dataSources` | array of [data source](#data-source) | Bindings from a data file to a class. |
 | `errorType` | string | The enum a failed [`Result`](#result) carries. See [The four conventions](#the-four-conventions). Empty until a schema declares one. |
+| `renames` | array of [rename](#rename-history) | Every rename that changed a name a data file is bound through, oldest first. Omitted when empty. |
 
-All six collections are always written, empty or not.
+All six collections are always written, empty or not. `renames` is the exception: it is history
+rather than definition, and a schema that has never renamed anything is written exactly as it was
+before the history existed.
 
 Property names are camelCase and matched exactly. A file whose root holds a property this list does
 not name - `Classes` rather than `classes`, say, or anything a hand edit added - is refused rather
@@ -61,7 +72,7 @@ when empty. It is the natural source for a doc comment in generated code.
 | --- | --- | --- |
 | `members` | array of [member](#member) | The class's members, **in declaration order**. |
 | `travelsAsBytes` | bool | Whether an instance is copied whole, without anyone reading a field on the way. Omitted when false. See below. |
-| `name` | string | The class name. Unique among classes. |
+| `name` | string | The class name. Unique among classes, enums, interfaces and semantic types, since each becomes a generated type. |
 | `description` | string | Free text. |
 
 Member order is meaningful: it is preserved through a round trip and is the order generated code
@@ -172,6 +183,10 @@ Polymorphic, discriminated by `DefaultKind`, matching the `TypeName` discriminat
 `TextDefault` a string member's contents, or the **name** of an enum value. The name rather than
 the ordinal, so that reordering an enum cannot silently change what a default means.
 
+The number is read as a double, which holds every integer only up to ±9007199254740991 (2^53 - 1).
+A `Long` default beyond that is refused rather than accepted as a nearby value: by the time the
+schema is validated, `9007199254740993` in the file has already become `9007199254740992`.
+
 A default is not the same as a zeroed value. `default(T)` in C# and a value-initialised struct in
 C++ are all-zero bytes, which is rarely what a schema means by "the default".
 
@@ -209,7 +224,7 @@ and neither is interchangeable with the other or with a bare number.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `underlyingType` | [type](#types) | What values of this type are represented as. |
-| `name` | string | The type name. Unique among semantic types. |
+| `name` | string | The type name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 | `unit`, `range`, `defaultValue`, `interpolation`, `network`, `editor` | see [Member](#member) | The same six properties a member may carry, for the cases where they belong to the *type* rather than to a use of it. |
 
@@ -305,7 +320,7 @@ has a `Result` to emit and nothing to put in its error position.
 | Property | Type | Meaning |
 | --- | --- | --- |
 | `functions` | array of [function](#function) | The interface's functions, **in declaration order**. |
-| `name` | string | The interface name. Unique among interfaces. |
+| `name` | string | The interface name. Unique among classes, enums, interfaces and semantic types. |
 | `description` | string | Free text. |
 
 Order is preserved, for the same reason member order is: a generated header that reorders itself
@@ -401,7 +416,7 @@ Some things are refused in a signature, and the refusals are what keep the conve
 ```
 
 `values` is an array of strings, in declaration order. Values are unique within the enum and may
-not be empty.
+not be empty. The enum's own name is unique among classes, enums, interfaces and semantic types.
 
 ## Data source
 
@@ -436,8 +451,18 @@ not be empty.
 | `outputPath` | string | A relative directory to write generated files into. See [Path resolution](#path-resolution). |
 | `language` | string | Which generator handles this configuration. Matched case-insensitively; `csharp` is the only one built in. |
 | `namespace` | string | The namespace generated code is emitted into. Optional; omitting it emits into the global namespace. |
+| `dataSource` | string | A [data source](#data-source) to generate an editor for. Optional, and omitted from the file when unset. Naming a data source the schema does not declare is a validation error. |
 
 See [Code generation](#code-generation) for what a generator does with these.
+
+### `dataSource` - a generated data editor
+
+With `dataSource` set, the C# generator also writes two classes: `<Class>Record`, a typed view
+over one record of the bound class, and `<DataSource>Editor`, which loads the data file, lists its
+records, adds and removes them, and saves it again. The editor validates through
+`SchemaDataValidator`, the same check `kschema validate` runs, so it accepts exactly what that
+accepts. Members the schema does not model are kept as they were written, and a record's keys keep
+the spelling the file gave them.
 
 ## Types
 
@@ -616,6 +641,7 @@ finds its class.
 | `elementType` | [type](#types) | The element type. May itself be an array, so arrays nest. |
 | `container` | string | The container kind. See [Containers](#containers). |
 | `key` | string | For a keyed container, the member of the element class to key by. Empty when unkeyed. |
+| `keyType` | [type](#types) | For a `map` whose key is not a member of its elements, the key's type. Omitted when absent. |
 
 ## Containers
 
@@ -628,8 +654,26 @@ understands two:
 | `vector` | An ordered sequence. | `List<T>` |
 | `map` | A lookup keyed by `key`. | `Dictionary<TKey, T>` |
 
-For `map`, `key` must name a member of the element class, and that member's type must be a
-primitive. That member's type is also the dictionary's key type.
+A `map` says what it is keyed by in one of two ways, and exactly one:
+
+- `key` names a member of the element class, and that member's type must be a primitive. That
+  member's type is also the dictionary's key type. Use it when every element already carries its
+  own key.
+- `keyType` states the key's type outright, and must be a primitive or an `Enum`. Use it when the
+  elements are not a class, or the key is not one of their members:
+
+```json
+{
+  "TypeName": "Array",
+  "elementType": { "TypeName": "String" },
+  "container": "map",
+  "keyType": { "TypeName": "String" }
+}
+```
+
+A map with neither, or with both, is reported as an error. Importing a .NET type reads a
+`Dictionary<TKey, TValue>` as a map with `keyType` set from `TKey`, unless the member carries the
+`SchemaKey` attribute generated code writes for a member-keyed map.
 
 ## Path resolution
 
@@ -639,6 +683,16 @@ containing the `.schema.json` file**. A schema at `/work/game/game.schema.json` 
 
 This anchor is what makes a schema and its data movable together: checked out somewhere else, the
 relative paths still resolve.
+
+Moving the schema without its data is different, and the editor handles it: **Save As** into
+another directory rewrites each `file` and `outputPath` so that it still names the same file from
+the new location (`data.json` saved one directory up becomes `sub/data.json`). The rewrite is one
+undoable step, and it happens only when the save succeeds. A path that cannot be expressed relative
+to the new directory, such as one on another drive, is left as written.
+
+An absolute path is refused. A schema whose `outputPath` is `/tmp/out` loads as
+`SchemaLoadStatus.InvalidJson`, with a message naming the property (`codeGenerators[0].outputPath`)
+and saying that paths in a schema are relative to the schema file.
 
 The anchor is supplied by whoever read the file, so the serializer itself stays free of the
 filesystem:
@@ -685,6 +739,59 @@ since carrying extra data does not by itself contradict the schema.
 Member lookup accepts the casing the serializer would have written, so a data file may use either
 the member's declared name or its camel-cased form.
 
+## Rename history
+
+A data file is bound to a schema by name: a record's properties are its members' names, and an enum
+member holds one of the enum's value names. So a rename is a change to every data file bound through
+the renamed name, and it is the one change that cannot be recovered by comparing two versions of a
+schema - a member renamed and a member removed and another added look the same from the outside.
+`renames` records which it was.
+
+```json
+{ "kind": "Member", "owner": "Player", "from": "hp", "to": "health" }
+```
+
+| Property | Type | Meaning |
+| --- | --- | --- |
+| `kind` | string | `Class`, `Enum`, `Member` or `EnumValue`. Written by name. |
+| `owner` | string | The class a member belongs to, or the enum a value belongs to, under the name it had when the rename was made. Absent for a class or an enum. |
+| `from` | string | The name before the rename. |
+| `to` | string | The name after it. |
+
+Only those four kinds are recorded, because only those names appear in a data file or decide which
+class a data file is bound to. Renaming an interface, a semantic type, a data source or a code
+generator is not recorded. `Schema.TryRenameClass`, `TryRenameEnum`, `SchemaClass.TryRenameMember`
+and `SchemaEnum.TryRenameValue` append to the history; renaming a name straight back removes the
+entry it undoes rather than adding a second one, so an edit undone leaves no trace.
+
+### Migrating data between versions
+
+`SchemaDiff.Compare(previous, current)` reads two versions of a schema and reports every change that
+affects bound data: a class, member or enum value added, removed or renamed, and a member whose type
+changed. Names are matched through the renames the current version recorded after the history it
+shares with the previous one, so a rename is reported as a rename. If the two histories have diverged
+- the current version is not a continuation of the previous one - the diff says so in `Warnings` and
+matches by name alone.
+
+`SchemaDataMigrator.Migrate(diff, previousClass, json, path)` then rewrites a data file written
+against the previous version into one the current version accepts:
+
+- a renamed member's property is renamed, in the spelling the data used (exact or camelCase);
+- a removed member's property is dropped, with a warning;
+- an added member is given its declared default, or the default for its type, with a warning;
+- an enum value is mapped through its rename, and a removed value is replaced by the default;
+- a value whose member was retyped is kept when it already fits the new type, converted when the
+  conversion loses nothing (a number or a flag to its text, numeric or `true`/`false` text back to a
+  number or a flag, a `Double` with no fractional part to an `Int`), and otherwise
+  replaced by the default, with a warning naming the path;
+- a keyed container is re-keyed when its key member was renamed, and an entry whose key is missing
+  or duplicated is dropped, with a warning;
+- a property the schema does not model is left alone.
+
+Every value it gives up is reported, so `SchemaMigrationResult.Issues` is the list of what the
+migration could not carry across. Data migrated without an error validates clean against the current
+version.
+
 ## Versioning
 
 `formatVersion` is an integer that increases when the shape of the file changes in a way a reader
@@ -700,6 +807,7 @@ needs to know about.
 | `5` | Layout promises and the error type | A class may declare that it `travelsAsBytes`, and the root may name the `errorType` a failed `Result` carries. Additive; the class flag is omitted when false. |
 | `6` | Query functions | A function may declare `isQuery`, saying a call leaves the receiver unchanged. Omitted when false. |
 | `7` | Physical quantities | The type vocabulary gains `Quantity`, which names one of `ktsu.Semantics.Quantities`' quantities. Unlike every step since version 1 this is not something an older reader drops: it fails to deserialize the member at all, on a discriminator it has never heard of. |
+| `8` | Rename history | The root gains `renames`, the [rename history](#rename-history) that lets data bound to one version be migrated to the next. Additive and omitted when empty, but an older reader refuses the unknown root property rather than dropping the history on save. |
 
 Version 2 is purely additive: a file that uses none of the new properties is byte-identical to
 the version 1 file it would have been. The version still moves, because a version 1 reader
@@ -795,7 +903,7 @@ for.
 | `Handle` | `ktsu.Schema.Runtime.Handle<T>`, `T` being what the handle names |
 | `Optional` | `ktsu.Schema.Runtime.Optional<T>` |
 | `Array` with `vector` | `List<T>` |
-| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` taken from the `key` member's type |
+| `Array` with `map` | `Dictionary<TKey, T>`, `TKey` being `keyType`, or the `key` member's type |
 | `Span` | `System.ReadOnlySpan<T>` for an `In` parameter and `System.Span<T>` otherwise. A parameter only - C# has no field of a `ref struct` |
 | `Result` | `ktsu.Schema.Runtime.Result<T, TError>`, or `Result<TError>` for `Result<Void>`. A return type only |
 | `Void` | `void`, as a return type. There is no member of one |

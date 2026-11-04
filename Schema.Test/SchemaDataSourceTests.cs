@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
+using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
@@ -211,6 +212,56 @@ public class SchemaDataSourceTests
 			string.Join("; ", issues));
 	}
 
+	/// <summary>
+	/// A data file nothing has written yet stops nothing being generated, because no generator
+	/// reads it: the same schema must generate whether it is in memory or saved beside no data.
+	/// </summary>
+	[TestMethod]
+	public void TestMissingDataFileDoesNotBlockGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		Assert.IsTrue(schema.Validate().Any(i => i.Severity == SchemaValidationSeverity.Error), "The premise is a schema whose validation reports the missing file.");
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.Success, result.Status, result.Message);
+	}
+
+	/// <summary>
+	/// A data source naming a class that is not there is the same: wrong for data validation,
+	/// irrelevant to the types generated.
+	/// </summary>
+	[TestMethod]
+	public void TestDataSourceNamingAnUnknownClassDoesNotBlockGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", $"[{ConformingItem}]");
+		schema.GetDataSource("Items".As<DataSourceName>())!.ClassName = "Missing".As<ClassName>();
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.Success, result.Status, result.Message);
+	}
+
+	/// <summary>
+	/// The exemption is for data sources only: an error in a class still refuses.
+	/// </summary>
+	[TestMethod]
+	public void TestAnErrorOutsideADataSourceStillBlocksGeneration()
+	{
+		Schema schema = CreateAnchoredSchema();
+		schema.GetClass("Item".As<ClassName>())!.AddMember("Owner".As<MemberName>())!.SetType(new SchemaTypes.Object { ClassName = "Missing".As<ClassName>() });
+		SchemaCodeGenerator generator = CodeGenerationTests.ConfigureGenerator(schema);
+
+		SchemaGenerationResult result = SchemaGenerator.Generate(schema, generator);
+
+		Assert.AreEqual(SchemaGenerationStatus.SchemaInvalid, result.Status);
+		Assert.IsFalse(result.Issues.Any(i => i.Element is DataSource), "A data source's issue was reported as a reason generation was refused.");
+	}
+
 	[TestMethod]
 	public void TestPresentDataFileIsNotReportedByValidate()
 	{
@@ -277,6 +328,47 @@ public class SchemaDataSourceTests
 			i.Severity == SchemaValidationSeverity.Warning &&
 			i.Message.Contains("'Extra'", StringComparison.Ordinal)),
 			string.Join("; ", issues));
+	}
+
+	/// <summary>
+	/// A member is found whatever the casing, so the property it was found under is accounted for
+	/// too. camelCase is what System.Text.Json writes with its web defaults.
+	/// </summary>
+	[TestMethod]
+	public void TestCamelCaseDataProducesNoIssues()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "id": "s", "count": 1, "status": "Active", "tint": [1,1,1] }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(0, issues.Count, string.Join("; ", issues));
+	}
+
+	[TestMethod]
+	public void TestAnUnknownPropertyInCamelCaseDataIsStillAWarning()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "id": "s", "count": 1, "status": "Active", "tint": [1,1,1], "extra": 5 }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(1, issues.Count, string.Join("; ", issues));
+		Assert.AreEqual(SchemaValidationSeverity.Warning, issues[0].Severity);
+		StringAssert.Contains(issues[0].Message, "'extra'");
+	}
+
+	/// <summary>
+	/// Only the property a member matched is accounted for, so a second spelling of the same name
+	/// is reported rather than silently ignored.
+	/// </summary>
+	[TestMethod]
+	public void TestASecondCasingOfAMatchedPropertyIsAWarning()
+	{
+		Schema schema = CreateAnchoredSchema();
+		WriteDataFile("data/items.json", """{ "Id": "s", "id": "t", "Count": 1, "Status": "Active", "Tint": [1,1,1] }""");
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateDataSources(schema);
+		Assert.AreEqual(1, issues.Count, string.Join("; ", issues));
+		StringAssert.Contains(issues[0].Message, "'id'");
 	}
 
 	[TestMethod]

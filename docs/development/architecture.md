@@ -373,7 +373,7 @@ public SchemaMember AddMember(MemberName memberName) =>
 1. **Plugin System**: Runtime loading of custom types and generators
 2. **Schema Diffing**: Compare schemas and generate migration scripts
 3. **Validation Rules**: Declarative validation system
-4. **Multi-Schema Support**: References between schemas
+4. **Multi-Schema Support**: References between schemas. Proposed design: [multi-schema-design.md](multi-schema-design.md)
 
 ### Backward Compatibility
 

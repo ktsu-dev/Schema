@@ -60,17 +60,21 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 		ImGui.SameLine();
 		if (EditField.Text($"##CodeGeneratorOutput{codeGenerator.Name}", SchemaEditor.FieldWidth * 2, codeGenerator.OutputPath, out string outputPath))
 		{
-			SetOutputPath(codeGenerator, outputPath.As<RelativeDirectoryPath>());
+			SetOutputPath(schema, codeGenerator, outputPath);
 		}
 
 		ImGui.SameLine();
 		bool browse = ImGui.Button($"Browse...##CodeGeneratorBrowse{codeGenerator.Name}");
 		ImGuiProbes.MarkItem("browse", codeGenerator.Name);
-		if (browse)
+		if (browse && !schema.CanResolvePaths)
+		{
+			Popups.OpenMessageOK("Save First", "Save the schema before choosing an output directory: output paths are relative to the schema file.");
+		}
+		else if (browse)
 		{
 			SchemaCodeGenerator captured = codeGenerator;
 			Popups.OpenBrowserDirectory("Choose Output Directory", (directory) =>
-				SetOutputPath(captured, ((string)directory).As<RelativeDirectoryPath>()));
+				SetOutputPath(schema, captured, directory));
 		}
 
 		schemaEditor.ShowDescriptionEditor(
@@ -113,8 +117,21 @@ internal sealed class CodeGeneratorPanel(SchemaEditor schemaEditor)
 		ImGui.EndPopup();
 	}
 
-	private void SetOutputPath(SchemaCodeGenerator codeGenerator, RelativeDirectoryPath path)
+	/// <summary>
+	/// Records an output path typed or chosen by the user, made relative to the schema file.
+	/// </summary>
+	/// <remarks>
+	/// A value that cannot be held - an absolute path in an unsaved schema, or one with no relative
+	/// form - is reported and the previous path kept, rather than thrown out of the frame.
+	/// </remarks>
+	private void SetOutputPath(Schema schema, SchemaCodeGenerator codeGenerator, string input)
 	{
+		if (!SchemaRelativePath.TryCreate(schema, input, out RelativeDirectoryPath path, out string problem))
+		{
+			Popups.OpenMessageOK("Invalid Output Path", problem);
+			return;
+		}
+
 		RelativeDirectoryPath previous = codeGenerator.OutputPath;
 		schemaEditor.Execute(new DelegateCommand(
 			$"Set Output Path '{path}'",

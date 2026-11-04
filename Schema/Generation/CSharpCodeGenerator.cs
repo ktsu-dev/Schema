@@ -77,7 +77,146 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			files[$"{schemaInterface.Name}.g.cs"] = GenerateInterface(schemaInterface, configuration.Namespace);
 		}
 
+		// Bound to a data source, the output also gets an editor for the data file it names. An
+		// unknown name is a validation error, so it has already been reported by the time this
+		// finds nothing.
+		if (!string.IsNullOrEmpty(configuration.DataSource) &&
+			schema.GetDataSource(configuration.DataSource) is { Class: SchemaClass boundClass } dataSource)
+		{
+			files[$"{RecordTypeName(boundClass)}.g.cs"] = GenerateDataRecord(boundClass, configuration.Namespace);
+			files[$"{EditorTypeName(dataSource)}.g.cs"] = GenerateDataEditor(schema, dataSource, boundClass, configuration.Namespace);
+		}
+
 		return files;
+	}
+
+	private static string RecordTypeName(SchemaClass schemaClass) => CSharpKeywords.Identifier($"{schemaClass.Name}Record");
+
+	private static string EditorTypeName(DataSource dataSource) => CSharpKeywords.Identifier($"{dataSource.Name}Editor");
+
+	/// <summary>
+	/// Writes the typed view of one record in a data file.
+	/// </summary>
+	/// <remarks>
+	/// A record is a view over its JSON object rather than a copy of it, so a member the class does
+	/// not model survives a save, and a member whose type has no accessor here is still in the file
+	/// rather than lost. Only the types a data file spells as one JSON value get an accessor; the
+	/// rest are read through <see cref="Runtime.SchemaDataRecord.Json"/>.
+	/// </remarks>
+	private static string GenerateDataRecord(SchemaClass schemaClass, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		string name = RecordTypeName(schemaClass);
+		WriteSummary(code, $"One {Escape(schemaClass.Name)} in a data file, read and written in place.");
+		code.WriteLine($"public sealed class {name}(global::System.Text.Json.Nodes.JsonObject json, global::System.Action onEdited)");
+		code.WriteLine("\t: global::ktsu.Schema.Runtime.SchemaDataRecord(json, onEdited)");
+		using (new Scope(code))
+		{
+			bool first = true;
+			foreach (SchemaMember member in schemaClass.Members)
+			{
+				if (DataAccessor(member.Type) is not { } dataAccessor)
+				{
+					continue;
+				}
+
+				(string type, string accessor, string? typeArgument) = dataAccessor;
+
+				if (!first)
+				{
+					code.NewLine();
+				}
+
+				first = false;
+				string typeArguments = typeArgument is null ? string.Empty : $"<{typeArgument}>";
+				string key = Quote(member.Name);
+				WriteDocComment(code, member.Description);
+				code.WriteLine($"public {type} {CSharpKeywords.Identifier(member.Name)}");
+				using (new Scope(code))
+				{
+					code.WriteLine($"get => global::ktsu.Schema.Runtime.SchemaDataValues.Get{accessor}{typeArguments}(Json, {key});");
+					code.WriteLine("set");
+					using (new Scope(code))
+					{
+						code.WriteLine($"global::ktsu.Schema.Runtime.SchemaDataValues.Set{accessor}{typeArguments}(Json, {key}, value);");
+						code.WriteLine("MarkEdited();");
+					}
+				}
+			}
+		}
+
+		return code.ToString();
+	}
+
+	/// <summary>
+	/// Names the C# type and the <see cref="Runtime.SchemaDataValues"/> accessor pair for a member
+	/// type, or nothing for a type a data file does not spell as a single value.
+	/// </summary>
+	private static (string Type, string Accessor, string? TypeArgument)? DataAccessor(BaseType type) => type switch
+	{
+		Bool => ("bool", "Bool", null),
+		Int => ("int", "Int", null),
+		Long => ("long", "Long", null),
+		Float => ("float", "Float", null),
+		Double => ("double", "Double", null),
+		Models.Types.String => ("string", "String", null),
+		Models.Types.DateTime => ("global::System.DateTime", "DateTime", null),
+		Models.Types.TimeSpan => ("global::System.TimeSpan", "TimeSpan", null),
+
+		// The colours before their vector bases, as in MapType.
+		ColorRGB => ("global::ktsu.Schema.Runtime.ColorRgb", "ColorRgb", null),
+		ColorRGBA => ("global::ktsu.Schema.Runtime.ColorRgba", "ColorRgba", null),
+		Vector2 { ElementType: Float } => ("global::System.Numerics.Vector2", "Vector2", null),
+		Vector3 { ElementType: Float } => ("global::System.Numerics.Vector3", "Vector3", null),
+		Vector4 { ElementType: Float } => ("global::System.Numerics.Vector4", "Vector4", null),
+		Models.Types.Enum enumType => (CSharpKeywords.Identifier(enumType.EnumName), "Enum", CSharpKeywords.Identifier(enumType.EnumName)),
+		_ => null,
+	};
+
+	/// <summary>
+	/// Writes the editor for a bound data source.
+	/// </summary>
+	/// <remarks>
+	/// The schema is embedded as the text it serializes to, so the editor validates against the
+	/// schema it was generated from and through <see cref="SchemaDataValidator"/> itself - the
+	/// validator the schema tool runs - rather than through a second set of rules that would
+	/// drift from it.
+	/// </remarks>
+	private static string GenerateDataEditor(Models.Schema schema, DataSource dataSource, SchemaClass boundClass, CodeNamespace codeNamespace)
+	{
+		using CodeBlocker code = CodeBlocker.Create();
+		WriteHeader(code, codeNamespace);
+
+		string record = RecordTypeName(boundClass);
+		string name = EditorTypeName(dataSource);
+		WriteDocComment(code, dataSource.Description);
+		if (string.IsNullOrEmpty(dataSource.Description))
+		{
+			WriteSummary(code, $"Loads, validates, edits and saves the {Escape(dataSource.Name)} data file, whose records are each a {Escape(boundClass.Name)}.");
+		}
+
+		code.WriteLine($"public sealed class {name} : global::ktsu.Schema.Runtime.SchemaDataEditor<{record}>");
+		using (new Scope(code))
+		{
+			WriteSummary(code, "The schema this editor was generated from, as its file holds it.");
+			code.WriteLine($"public const string SchemaJson = {Quote(SchemaSerializer.Serialize(schema))};");
+			code.NewLine();
+			WriteSummary(code, $"Where the schema says the {Escape(dataSource.Name)} data file is, relative to the schema.");
+			// Written with forward slashes whatever the host: the path type takes the platform's separator,
+			// and generated source has to be the same bytes on every machine that generates it.
+			code.WriteLine($"public const string RelativeFilePath = {Quote(((string)dataSource.File).Replace('\\', '/'))};");
+			code.NewLine();
+			WriteSummary(code, "Creates an editor holding no data.");
+			code.WriteLine($"public {name}()");
+			code.WriteLine($"\t: base(SchemaJson, {Quote(boundClass.Name)}, {Quote(dataSource.Name)}, static (json, onEdited) => new {record}(json, onEdited))");
+			using (new Scope(code))
+			{
+			}
+		}
+
+		return code.ToString();
 	}
 
 	/// <summary>
@@ -145,8 +284,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		if (schemaClass.TravelsAsBytes)
 		{
-			code.WriteLine("[ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
-			code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+			code.WriteLine("[global::ktsu.Schema.Runtime.SchemaTravelsAsBytes]");
+			code.WriteLine("[global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]");
 		}
 
 		code.WriteLine($"public {(schemaClass.TravelsAsBytes ? "struct" : "class")} {CSharpKeywords.Identifier(schemaClass.Name)}");
@@ -205,7 +344,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			// `field:` because the member is an auto-property and the attribute is only legal on a
 			// field. That is also the declaration it has to reach: the backing field is what the
 			// marshaller lays out, and what the property is only a pair of accessors over.
-			code.WriteLine("[field: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.U1)]");
+			code.WriteLine("[field: global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.U1)]");
 		}
 	}
 
@@ -259,9 +398,9 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			? string.Empty
 			: $"(Refines = typeof({CSharpKeywords.Identifier(refined.Name)}))";
 
-		code.WriteLine($"[ktsu.Schema.Runtime.SchemaSemanticType{refines}]");
+		code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaSemanticType{refines}]");
 		WriteMetadataAttributes(code, semanticType);
-		code.WriteLine("[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
+		code.WriteLine("[global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]");
 		code.WriteLine($"public readonly record struct {name}");
 
 		using (new Scope(code))
@@ -372,7 +511,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		if (function.IsQuery)
 		{
-			code.WriteLine("[ktsu.Schema.Runtime.SchemaQuery]");
+			code.WriteLine("[global::ktsu.Schema.Runtime.SchemaQuery]");
 		}
 
 		IEnumerable<string> parameters = function.Parameters.Select(MapParameter);
@@ -418,8 +557,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		{
 			string element = MapType(span.ElementType);
 			string view = parameter.Direction == ParameterDirection.In
-				? $"System.ReadOnlySpan<{element}>"
-				: $"System.Span<{element}>";
+				? $"global::System.ReadOnlySpan<{element}>"
+				: $"global::System.Span<{element}>";
 
 			return $"{view} {name}";
 		}
@@ -465,12 +604,43 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		}
 
 		code.WriteLine(SummaryOpen);
-		foreach (string line in description.Split('\n'))
+		foreach (string line in SplitLines(description))
 		{
-			code.WriteLine($"/// {Escape(line.TrimEnd('\r'))}");
+			code.WriteLine($"/// {Escape(line)}");
 		}
 
 		code.WriteLine(SummaryClose);
+	}
+
+	/// <summary>
+	/// Splits text at every sequence the C# lexer ends a line at.
+	/// </summary>
+	/// <remarks>
+	/// Not only <c>\n</c>: a lone <c>\r</c>, U+0085, U+2028 and U+2029 end a line too, so splitting
+	/// on <c>\n</c> alone left the text after one of them outside the <c>///</c> comment, where it
+	/// was compiled as code.
+	/// </remarks>
+	/// <param name="text">The text to split.</param>
+	/// <returns>The lines, without their terminators.</returns>
+	internal static IEnumerable<string> SplitLines(string text)
+	{
+		int start = 0;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+			{
+				yield return text[start..i];
+				if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+				{
+					i++;
+				}
+
+				start = i + 1;
+			}
+		}
+
+		yield return text[start..];
 	}
 
 	/// <summary>
@@ -501,7 +671,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 			string.Equals(arrayType.Container, ContainerName.MapName, StringComparison.Ordinal) &&
 			!string.IsNullOrEmpty(arrayType.Key))
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaKey(\"{arrayType.Key}\")]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaKey(\"{arrayType.Key}\")]");
 		}
 	}
 
@@ -523,33 +693,33 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	{
 		if (carrier.Unit is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaUnit({Quote(carrier.Unit)})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaUnit({Quote(carrier.Unit)})]");
 		}
 
 		if (carrier.Range is MemberRange range)
 		{
 			string wrap = range.Wrap ? ", Wrap = true" : string.Empty;
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaRange({Literal(range.Minimum)}, {Literal(range.Maximum)}{wrap})]");
 		}
 
 		if (DefaultArgument(carrier.DefaultValue) is string argument)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaDefault({argument})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaDefault({argument})]");
 		}
 
 		if (carrier.Interpolation is not Interpolation.None)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaInterpolation(ktsu.Schema.Models.Metadata.Interpolation.{carrier.Interpolation})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaInterpolation(global::ktsu.Schema.Models.Metadata.Interpolation.{carrier.Interpolation})]");
 		}
 
 		if (carrier.Network is MemberNetwork network)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaNetwork({Literal(network.Quantise)}, {(network.Delta ? "true" : "false")})]");
 		}
 
 		if (carrier.Editor is not null)
 		{
-			code.WriteLine($"[ktsu.Schema.Runtime.SchemaEditorHint({Quote(carrier.Editor)})]");
+			code.WriteLine($"[global::ktsu.Schema.Runtime.SchemaEditorHint({Quote(carrier.Editor)})]");
 		}
 	}
 
@@ -636,27 +806,27 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		Float => "float",
 		Double => "double",
 		Models.Types.String => "string",
-		Models.Types.DateTime => "System.DateTime",
-		Models.Types.TimeSpan => "System.TimeSpan",
+		Models.Types.DateTime => "global::System.DateTime",
+		Models.Types.TimeSpan => "global::System.TimeSpan",
 
 		// The colours before their vector bases: ColorRGB derives from Vector3.
-		ColorRGB => "ktsu.Schema.Runtime.ColorRgb",
-		ColorRGBA => "ktsu.Schema.Runtime.ColorRgba",
+		ColorRGB => "global::ktsu.Schema.Runtime.ColorRgb",
+		ColorRGBA => "global::ktsu.Schema.Runtime.ColorRgba",
 
 		// System.Numerics vectors hold floats and nothing else, so they represent a vector of
 		// floats and only that. A vector of anything else is one of this library's, which is
 		// generic over the component precisely because the System.Numerics ones are not.
-		Vector2 { ElementType: Float } => "System.Numerics.Vector2",
-		Vector3 { ElementType: Float } => "System.Numerics.Vector3",
-		Vector4 { ElementType: Float } => "System.Numerics.Vector4",
-		Vector2 vector => $"ktsu.Schema.Runtime.Vector2<{MapType(vector.ElementType)}>",
-		Vector3 vector => $"ktsu.Schema.Runtime.Vector3<{MapType(vector.ElementType)}>",
-		Vector4 vector => $"ktsu.Schema.Runtime.Vector4<{MapType(vector.ElementType)}>",
+		Vector2 { ElementType: Float } => "global::System.Numerics.Vector2",
+		Vector3 { ElementType: Float } => "global::System.Numerics.Vector3",
+		Vector4 { ElementType: Float } => "global::System.Numerics.Vector4",
+		Vector2 vector => $"global::ktsu.Schema.Runtime.Vector2<{MapType(vector.ElementType)}>",
+		Vector3 vector => $"global::ktsu.Schema.Runtime.Vector3<{MapType(vector.ElementType)}>",
+		Vector4 vector => $"global::ktsu.Schema.Runtime.Vector4<{MapType(vector.ElementType)}>",
 
 		// What the handle names is a type argument rather than anything stored, so this says which
 		// handles may be passed where without saying that a handle to a mesh is laid out
 		// differently from a handle to a texture - it is not.
-		Handle handle => $"ktsu.Schema.Runtime.Handle<{MapType(handle.ElementType)}>",
+		Handle handle => $"global::ktsu.Schema.Runtime.Handle<{MapType(handle.ElementType)}>",
 
 		// The struct emitted for the semantic type, named the same way a class or an enum is.
 		Semantic semanticType => CSharpKeywords.Identifier(semanticType.SemanticTypeName),
@@ -665,14 +835,14 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// A quantity is written where it lives, closed over the number it is stored in, and
 		// nothing is emitted for it - which is the whole of what makes it different from the
 		// semantic type above.
-		Quantity quantity => $"ktsu.Semantics.Quantities.{quantity.QuantityName}<{MapType(quantity.Storage)}>",
+		Quantity quantity => $"global::ktsu.Semantics.Quantities.{quantity.QuantityName}<{MapType(quantity.Storage)}>",
 
 		Models.Types.Enum enumType => CSharpKeywords.Identifier(enumType.EnumName),
 		Models.Types.Object objectType => CSharpKeywords.Identifier(objectType.ClassName),
 		Models.Types.Interface interfaceType => CSharpKeywords.Identifier(interfaceType.InterfaceName),
 		Models.Types.Array arrayType => MapArray(arrayType),
 
-		Optional optional => $"ktsu.Schema.Runtime.Optional<{MapType(optional.ElementType)}>",
+		Optional optional => $"global::ktsu.Schema.Runtime.Optional<{MapType(optional.ElementType)}>",
 		Models.Types.Result result => MapResult(result),
 
 		// A member left as None is reported by validation as a warning, not an error, so
@@ -708,8 +878,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		string failure = CSharpKeywords.Identifier(error);
 
 		return result.ElementType is Models.Types.Void
-			? $"ktsu.Schema.Runtime.Result<{failure}>"
-			: $"ktsu.Schema.Runtime.Result<{MapType(result.ElementType)}, {failure}>";
+			? $"global::ktsu.Schema.Runtime.Result<{failure}>"
+			: $"global::ktsu.Schema.Runtime.Result<{MapType(result.ElementType)}, {failure}>";
 	}
 
 	private static string MapArray(Models.Types.Array arrayType)
@@ -719,21 +889,27 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		if (!string.Equals(arrayType.Container, ContainerName.MapName, StringComparison.Ordinal))
 		{
 			// vector, and any container a consumer has invented, is a sequence.
-			return $"System.Collections.Generic.List<{elementType}>";
+			return $"global::System.Collections.Generic.List<{elementType}>";
 		}
 
-		return $"System.Collections.Generic.Dictionary<{MapKeyType(arrayType)}, {elementType}>";
+		return $"global::System.Collections.Generic.Dictionary<{MapKeyType(arrayType)}, {elementType}>";
 	}
 
 	/// <summary>
-	/// Gets the C# type of a map's key, taken from the member the array keys on.
+	/// Gets the C# type of a map's key: the key type the map states, or the type of the member
+	/// it keys on.
 	/// </summary>
 	/// <remarks>
-	/// Validation guarantees a keyed map names a primitive member of its element class, so this
-	/// only falls back when the schema is one validation would have refused generation for.
+	/// Validation guarantees a map does one or the other, so this only falls back when the schema
+	/// is one validation would have refused generation for.
 	/// </remarks>
 	private static string MapKeyType(Models.Types.Array arrayType)
 	{
+		if (arrayType.KeyType is Models.Types.BaseType keyType)
+		{
+			return MapType(keyType);
+		}
+
 		if (arrayType.TryGetKeyMember(out SchemaMember? keyMember) && keyMember is not null)
 		{
 			return MapType(keyMember.Type);
@@ -804,8 +980,8 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	/// </remarks>
 	private static string? DefaultLiteralFor(MemberDefault value, BaseType type) => (value, type) switch
 	{
-		(NumberDefault number, Int) => $"{(long)number.Value}",
-		(NumberDefault number, Long) => $"{(long)number.Value}L",
+		(NumberDefault number, Int) => ((long)number.Value).ToString(CultureInfo.InvariantCulture),
+		(NumberDefault number, Long) => $"{((long)number.Value).ToString(CultureInfo.InvariantCulture)}L",
 		(NumberDefault number, Float) when !double.IsFinite(number.Value) => $"float.{NonFinite(number.Value)}",
 		(NumberDefault number, Double) when !double.IsFinite(number.Value) => $"double.{NonFinite(number.Value)}",
 		(NumberDefault number, Float) => $"{number.Value.ToString("R", CultureInfo.InvariantCulture)}f",
@@ -817,6 +993,7 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 		// The colours before their vector bases, as in MapType: ColorRGB derives from Vector3.
 		(NumberDefault, ColorRGB or ColorRGBA) => ComponentsLiteral(value, type, new Float()),
 		(NumberDefault, Vector vector) => ComponentsLiteral(value, vector, vector.ElementType),
+		(NumberDefault, Quantity quantity) => QuantityLiteral(value, quantity),
 
 		// A representation that is itself a semantic type is a refinement chain that never reached
 		// anything real, which validation reports; following it again would have no bottom.
@@ -827,6 +1004,31 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 
 		_ => null,
 	};
+
+	/// <summary>
+	/// Writes a quantity default, which is a value in the SI base unit - the unit a quantity
+	/// stores, and the one the C++ generator writes the same number in.
+	/// </summary>
+	/// <remarks>
+	/// A magnitude or a signed scalar is built with <c>Create</c>, which takes the base unit and,
+	/// unlike the <c>From{Unit}</c> factories, names no unit at all. A vector form has no such
+	/// factory, so it is its <c>One</c> - every component the base unit - scaled by the number,
+	/// which puts the number in every component, as the C++ generator does. A quantity this
+	/// generator cannot resolve is one validation refuses, so it falls through like any other
+	/// default that does not fit.
+	/// </remarks>
+	private static string? QuantityLiteral(MemberDefault value, Quantity quantity)
+	{
+		if (quantity.Resolved is not { } resolved || DefaultLiteralFor(value, quantity.Storage) is not string number)
+		{
+			return null;
+		}
+
+		string type = MapType(quantity);
+		return resolved.Components > 1
+			? $"{type}.One * {number}"
+			: $"{type}.Create({number})";
+	}
 
 	/// <summary>
 	/// Writes a vector or colour default: one number, in every component.

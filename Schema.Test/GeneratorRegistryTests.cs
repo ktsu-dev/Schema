@@ -5,6 +5,7 @@ namespace ktsu.Schema.Tests;
 using ktsu.Schema.Generation;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Names;
+using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -19,10 +20,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 /// found by the language a schema names, which is the whole reason the registry is not a fixed
 /// table.
 /// <para>
-/// The registry is process-wide, so each test here registers a language nothing else uses.
+/// The registry is process-wide, so each test here registers a language nothing else uses. It is
+/// also an unsynchronised dictionary, documented as meant to be filled once at start-up, so two of
+/// these tests registering at once can lose a write while it resizes. That failed CI once on
+/// Windows, with a generator registered a line earlier reported as unknown, so the class runs its
+/// tests one at a time.
 /// </para>
 /// </remarks>
 [TestClass]
+[DoNotParallelize]
 public sealed class GeneratorRegistryTests
 {
 	/// <summary>
@@ -109,15 +115,64 @@ public sealed class GeneratorRegistryTests
 		Assert.ThrowsExactly<ArgumentNullException>(() => SchemaGenerator.Register(null!));
 
 	/// <summary>
-	/// A generator that emits one file, standing in for one that cannot ship in this project.
+	/// A registered generator is code this library did not write, and the paths it returns are
+	/// whatever it says. One naming a file outside the output directory is refused before anything
+	/// is written, so its other files are not left behind either.
+	/// </summary>
+	[TestMethod]
+	[DataRow("../escaped.txt")]
+	[DataRow("nested/../../escaped.txt")]
+	public void AGeneratorCannotWriteOutsideItsOutputDirectory(string key)
+	{
+		string directory = Path.Combine(Path.GetTempPath(), $"schema-escape-{Guid.NewGuid():N}");
+		string output = Path.Combine(directory, "out");
+		Directory.CreateDirectory(output);
+
+		// A language of its own per row: the rows run in parallel, and a shared one let one row's
+		// generator replace the other's between registering and generating.
+		string language = $"fake-escape-{Guid.NewGuid():N}";
+		try
+		{
+			SchemaGenerator.Register(new FakeGenerator(language, "// escaped", key));
+
+			Schema schema = new();
+			schema.SetSourceFile(Path.Combine(directory, "test.schema.json").As<AbsoluteFilePath>());
+			SchemaCodeGenerator configuration = schema.AddCodeGenerator("Fake".As<CodeGeneratorName>())!;
+			configuration.Language = language.As<LanguageName>();
+			configuration.OutputPath = "out".As<RelativeDirectoryPath>();
+
+			SchemaGenerationResult result = SchemaGenerator.GenerateToDisk(schema, configuration);
+
+			Assert.AreEqual(SchemaGenerationStatus.WriteFailed, result.Status, result.Message);
+			Assert.Contains(key, result.Message);
+			Assert.IsFalse(File.Exists(Path.Combine(directory, "escaped.txt")), "The file was written outside the output directory.");
+			Assert.IsFalse(File.Exists(Path.Combine(output, "fake.txt")), "The generator's other file was written although one of its paths was refused.");
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	/// <summary>
+	/// A generator that emits a file or two, standing in for one that cannot ship in this project.
 	/// </summary>
 	/// <param name="language">The language it answers to.</param>
 	/// <param name="content">What it writes.</param>
-	private sealed class FakeGenerator(string language, string content = "// fake") : ISchemaCodeGenerator
+	/// <param name="extraPath">A second path to write the same content to, when there is one.</param>
+	private sealed class FakeGenerator(string language, string content = "// fake", string? extraPath = null) : ISchemaCodeGenerator
 	{
 		public string Language { get; } = language;
 
-		public IReadOnlyDictionary<string, string> Generate(Schema schema, SchemaCodeGenerator configuration) =>
-			new Dictionary<string, string> { ["fake.txt"] = content };
+		public IReadOnlyDictionary<string, string> Generate(Schema schema, SchemaCodeGenerator configuration)
+		{
+			Dictionary<string, string> files = new() { ["fake.txt"] = content };
+			if (extraPath is not null)
+			{
+				files[extraPath] = content;
+			}
+
+			return files;
+		}
 	}
 }

@@ -101,6 +101,15 @@ public sealed class CppCodeGenerator(CppGeneratorOptions options) : ISchemaCodeG
 		return files;
 	}
 
+	/// <inheritdoc />
+	/// <remarks>
+	/// With <see cref="CppGeneratorOptions.Reflection"/> on, the vocabulary and the table are two
+	/// files beside the schema's own, named <c>reflect</c> and <c>reflection</c>; with it off, the
+	/// generator writes nothing that is not named after an element.
+	/// </remarks>
+	public IReadOnlyCollection<string> ReservedNames(SchemaCodeGenerator configuration) =>
+		Options.Reflection ? [CppReflection.Header, CppReflection.TablesHeader] : [];
+
 	private void Emit(Dictionary<string, string> files, SourceFile file) =>
 		files[$"{file.Name}{Options.HeaderExtension}"] = new CppGenerator().Generate(file);
 }

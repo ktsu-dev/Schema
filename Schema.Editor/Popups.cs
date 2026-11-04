@@ -23,6 +23,15 @@ internal sealed class Popups
 	[JsonInclude] private FilesystemBrowser PopupFilesystemBrowser { get; init; } = new();
 	[JsonIgnore] private Queue<Action> Queue { get; init; } = [];
 
+	/// <summary>What to run if the browser now open closes with nothing chosen, if anything.</summary>
+	private Action? browserDismissed;
+
+	/// <summary>
+	/// Set once the browser has been drawn open, so the frame that requests it - before it has
+	/// opened - is not taken for it having closed.
+	/// </summary>
+	private bool browserSeenOpen;
+
 	internal void OpenMessageOK(string title, string message) =>
 		Queue.Enqueue(() => PopupMessageOK.Open(title, message));
 
@@ -41,8 +50,28 @@ internal sealed class Popups
 	internal void OpenBrowserFileOpen(string title, Action<AbsoluteFilePath> onConfirm, string glob = "*") =>
 		Queue.Enqueue(() => PopupFilesystemBrowser.FileOpen(title, onConfirm, glob));
 
-	internal void OpenBrowserFileSave(string title, Action<AbsoluteFilePath> onConfirm, string glob = "*") =>
-		Queue.Enqueue(() => PopupFilesystemBrowser.FileSave(title, onConfirm, glob));
+	/// <summary>
+	/// Opens the file browser to choose where to save.
+	/// </summary>
+	/// <param name="title">The popup title.</param>
+	/// <param name="onConfirm">Receives the chosen file.</param>
+	/// <param name="glob">The pattern the listed files are filtered by.</param>
+	/// <param name="onDismiss">
+	/// Run if the browser closes without a file being chosen. The browser itself has no such
+	/// callback, so <see cref="Update"/> watches for it closing.
+	/// </param>
+	internal void OpenBrowserFileSave(string title, Action<AbsoluteFilePath> onConfirm, string glob = "*", Action? onDismiss = null) =>
+		Queue.Enqueue(() =>
+		{
+			browserDismissed = onDismiss;
+			browserSeenOpen = false;
+			PopupFilesystemBrowser.FileSave(title, (filePath) =>
+			{
+				// A choice was made, so closing afterwards is not a dismissal.
+				browserDismissed = null;
+				onConfirm(filePath);
+			}, glob);
+		});
 
 	internal void OpenBrowserDirectory(string title, Action<AbsoluteDirectoryPath> onConfirm) =>
 		Queue.Enqueue(() => PopupFilesystemBrowser.ChooseDirectory(title, onConfirm));
@@ -110,6 +139,17 @@ internal sealed class Popups
 		PopupMessageOK.ShowIfOpen();
 		PopupPrompt.ShowIfOpen();
 		PopupInputString.ShowIfOpen();
-		PopupFilesystemBrowser.ShowIfOpen();
+		bool browserOpen = PopupFilesystemBrowser.ShowIfOpen();
+		if (browserOpen)
+		{
+			browserSeenOpen = true;
+		}
+		else if (browserSeenOpen && browserDismissed is not null)
+		{
+			Action dismissed = browserDismissed;
+			browserDismissed = null;
+			browserSeenOpen = false;
+			dismissed();
+		}
 	}
 }

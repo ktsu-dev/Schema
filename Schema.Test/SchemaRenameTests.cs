@@ -3,6 +3,7 @@
 namespace ktsu.Schema.Tests;
 
 using ktsu.Schema.Models;
+using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Semantics.Paths;
 using ktsu.Semantics.Strings;
@@ -260,5 +261,353 @@ public class SchemaRenameTests
 
 		Assert.IsNotNull(reloaded.GetClass("Product".As<ClassName>()));
 		Assert.AreEqual(0, reloaded.Validate().Count, string.Join("; ", reloaded.Validate()));
+	}
+
+	/// <summary>
+	/// Builds a schema whose references to <c>Item</c> and <c>Status</c> sit only in nested or
+	/// signature positions: inside Optional, Handle and Result wrappers, inside an array of
+	/// optionals, and in an interface function's return and parameter types.
+	/// </summary>
+	private static Schema CreateNestedReferencingSchema()
+	{
+		Schema schema = new();
+
+		SchemaEnum? status = schema.AddEnum("Status".As<EnumName>());
+		status?.TryAddValue("Active".As<EnumValueName>());
+		schema.ErrorType = "Status".As<EnumName>();
+
+		schema.AddClass("Item".As<ClassName>())?.AddMember("Id".As<MemberName>())?.SetType(new SchemaTypes.Int());
+
+		SchemaClass? holder = schema.AddClass("Holder".As<ClassName>());
+		holder?.AddMember("MaybeItem".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = ItemReference() });
+		holder?.AddMember("ItemHandle".As<MemberName>())?.SetType(new SchemaTypes.Handle() { ElementType = ItemReference() });
+		holder?.AddMember("MaybeStatus".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = StatusReference() });
+		holder?.AddMember("MaybeItems".As<MemberName>())?.SetType(new SchemaTypes.Array()
+		{
+			ElementType = new SchemaTypes.Optional() { ElementType = ItemReference() },
+		});
+
+		SchemaFunction? lookup = schema.AddInterface("Store".As<InterfaceName>())?.AddFunction("Lookup".As<FunctionName>());
+		lookup?.SetReturnType(new SchemaTypes.Result() { ElementType = ItemReference() });
+		lookup?.AddParameter("Filter".As<ParameterName>())?.SetType(StatusReference());
+		lookup?.AddParameter("Like".As<ParameterName>())?.SetType(ItemReference());
+
+		return schema;
+	}
+
+	private static SchemaTypes.Object ItemReference() => new() { ClassName = "Item".As<ClassName>() };
+
+	private static SchemaTypes.Enum StatusReference() => new() { EnumName = "Status".As<EnumName>() };
+
+	private static SchemaFunction Lookup(Schema schema) =>
+		schema.Interfaces.Single().Functions.Single();
+
+	private static SchemaTypes.BaseType Inner(Schema schema, string member) =>
+		((SchemaTypes.WrapperType)schema.GetClass("Holder".As<ClassName>())!.GetMember(member.As<MemberName>())!.Type).ElementType;
+
+	private static void AssertNoIssueNames(Schema schema, string oldName)
+	{
+		string[] dangling = [.. schema.Validate()
+			.Select(issue => issue.ToString())
+			.Where(issue => issue.Contains($"'{oldName}'", StringComparison.Ordinal))];
+		Assert.IsEmpty(dangling, string.Join("; ", dangling));
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsReferencesInsideWrappers()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		Assert.AreEqual("Product", ((SchemaTypes.Object)Inner(schema, "MaybeItem")).ClassName.ToString());
+		Assert.AreEqual("Product", ((SchemaTypes.Object)Inner(schema, "ItemHandle")).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsReferencesInsideAnArrayOfOptionals()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		SchemaTypes.Array items = (SchemaTypes.Array)schema.GetClass("Holder".As<ClassName>())!.GetMember("MaybeItems".As<MemberName>())!.Type;
+		SchemaTypes.Optional optional = (SchemaTypes.Optional)items.ElementType;
+		Assert.AreEqual("Product", ((SchemaTypes.Object)optional.ElementType).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameClassRepointsFunctionReturnAndParameterTypes()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameClass(schema.GetClass("Item".As<ClassName>())!, "Product".As<ClassName>()));
+
+		SchemaFunction lookup = Lookup(schema);
+		SchemaTypes.Result result = (SchemaTypes.Result)lookup.ReturnType;
+		Assert.AreEqual("Product", ((SchemaTypes.Object)result.ElementType).ClassName.ToString());
+		Assert.AreEqual("Product", ((SchemaTypes.Object)lookup.Parameters.Single(p => p.Name.ToString() == "Like").Type).ClassName.ToString());
+		AssertNoIssueNames(schema, "Item");
+	}
+
+	[TestMethod]
+	public void TestRenameEnumRepointsReferencesInsideWrappersAndSignatures()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Status".As<EnumName>())!, "State".As<EnumName>()));
+
+		Assert.AreEqual("State", ((SchemaTypes.Enum)Inner(schema, "MaybeStatus")).EnumName.ToString());
+		Assert.AreEqual("State", ((SchemaTypes.Enum)Lookup(schema).Parameters.Single(p => p.Name.ToString() == "Filter").Type).EnumName.ToString());
+		AssertNoIssueNames(schema, "Status");
+	}
+
+	[TestMethod]
+	public void TestRenameEnumRepointsTheSchemaErrorType()
+	{
+		Schema schema = CreateNestedReferencingSchema();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Status".As<EnumName>())!, "State".As<EnumName>()));
+
+		Assert.AreEqual("State", schema.ErrorType.ToString());
+	}
+
+	/// <summary>
+	/// Builds a schema where a semantic type and an interface are referenced from a member, from
+	/// inside a wrapper, from a function signature, and - for the semantic type - from another
+	/// semantic type that refines it.
+	/// </summary>
+	private static Schema CreateSemanticAndInterfaceReferencingSchema()
+	{
+		Schema schema = new();
+
+		schema.AddSemanticType("Mass".As<SemanticTypeName>())?.SetUnderlyingType(new SchemaTypes.Float());
+		schema.AddSemanticType("Weight".As<SemanticTypeName>())?.SetUnderlyingType(MassReference());
+
+		SchemaInterface? store = schema.AddInterface("Store".As<InterfaceName>());
+		SchemaFunction? weigh = store?.AddFunction("Weigh".As<FunctionName>());
+		weigh?.SetReturnType(MassReference());
+		weigh?.AddParameter("Into".As<ParameterName>())?.SetType(StoreReference());
+
+		SchemaClass? crate = schema.AddClass("Crate".As<ClassName>());
+		crate?.AddMember("Mass".As<MemberName>())?.SetType(MassReference());
+		crate?.AddMember("MaybeMass".As<MemberName>())?.SetType(new SchemaTypes.Optional() { ElementType = MassReference() });
+		crate?.AddMember("Owner".As<MemberName>())?.SetType(StoreReference());
+
+		return schema;
+	}
+
+	private static SchemaTypes.Semantic MassReference() => new() { SemanticTypeName = "Mass".As<SemanticTypeName>() };
+
+	private static SchemaTypes.Interface StoreReference() => new() { InterfaceName = "Store".As<InterfaceName>() };
+
+	private static SchemaTypes.BaseType CrateMember(Schema schema, string member) =>
+		schema.GetClass("Crate".As<ClassName>())!.GetMember(member.As<MemberName>())!.Type;
+
+	[TestMethod]
+	public void TestRenameSemanticTypeCascadesToEveryReference()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(schema.TryRenameSemanticType(mass, "Kilograms".As<SemanticTypeName>()));
+
+		Assert.AreEqual("Kilograms", mass.Name.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Optional)CrateMember(schema, "MaybeMass")).ElementType).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)schema.Interfaces.Single().Functions.Single().ReturnType).SemanticTypeName.ToString());
+
+		SchemaSemanticType weight = schema.GetSemanticType("Weight".As<SemanticTypeName>())!;
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)weight.UnderlyingType).SemanticTypeName.ToString());
+		Assert.AreSame(mass, ((SchemaTypes.Semantic)weight.UnderlyingType).Declaration);
+		AssertNoIssueNames(schema, "Mass");
+	}
+
+	[TestMethod]
+	public void TestRenameSemanticTypeRejectsACollision()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsFalse(schema.TryRenameSemanticType(mass, "Weight".As<SemanticTypeName>()));
+		Assert.AreEqual("Mass", mass.Name.ToString());
+		Assert.AreEqual("Mass", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+	}
+
+	[TestMethod]
+	public void TestRenameInterfaceCascadesToEveryReference()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsTrue(schema.TryRenameInterface(store, "Warehouse".As<InterfaceName>()));
+
+		Assert.AreEqual("Warehouse", store.Name.ToString());
+		Assert.AreEqual("Warehouse", ((SchemaTypes.Interface)CrateMember(schema, "Owner")).InterfaceName.ToString());
+		Assert.AreEqual("Warehouse", ((SchemaTypes.Interface)store.Functions.Single().Parameters.Single().Type).InterfaceName.ToString());
+		AssertNoIssueNames(schema, "Store");
+	}
+
+	[TestMethod]
+	public void TestRenameInterfaceRejectsAnEmptyName()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsFalse(schema.TryRenameInterface(store, string.Empty.As<InterfaceName>()));
+		Assert.AreEqual("Store", store.Name.ToString());
+	}
+
+	[TestMethod]
+	public void TestRestoredSemanticTypeIsFoundAgain()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(mass.TryRemove());
+		Assert.IsFalse(schema.TryGetSemanticType("Mass".As<SemanticTypeName>(), out _));
+
+		Assert.IsTrue(schema.RestoreSemanticType(mass));
+		Assert.AreSame(mass, schema.GetSemanticType("Mass".As<SemanticTypeName>()));
+	}
+
+	/// <summary>
+	/// An array and a vector hold their component type the same way a wrapper does, so a semantic
+	/// type named only from inside one has to be found there too.
+	/// </summary>
+	[TestMethod]
+	public void TestRenameSemanticTypeReachesInsideArraysAndVectors()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaClass crate = schema.GetClass("Crate".As<ClassName>())!;
+		crate.AddMember("Masses".As<MemberName>())!.SetType(new SchemaTypes.Array() { ElementType = MassReference() });
+		crate.AddMember("Moment".As<MemberName>())!.SetType(new SchemaTypes.Vector3() { ElementType = MassReference() });
+		SchemaSemanticType mass = schema.GetSemanticType("Mass".As<SemanticTypeName>())!;
+
+		Assert.IsTrue(schema.TryRenameSemanticType(mass, "Kilograms".As<SemanticTypeName>()));
+
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Array)CrateMember(schema, "Masses")).ElementType).SemanticTypeName.ToString());
+		Assert.AreEqual("Kilograms", ((SchemaTypes.Semantic)((SchemaTypes.Vector3)CrateMember(schema, "Moment")).ElementType).SemanticTypeName.ToString());
+	}
+
+	/// <summary>
+	/// A schema only renames what it owns: one holding a semantic type or an interface of the same
+	/// name must not rename another schema's element, nor repoint its own references to it.
+	/// </summary>
+	[TestMethod]
+	public void TestRenameRefusesAnElementFromAnotherSchema()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		Schema other = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaSemanticType foreignMass = other.GetSemanticType("Mass".As<SemanticTypeName>())!;
+		SchemaInterface foreignStore = other.Interfaces.Single();
+
+		Assert.IsFalse(schema.TryRenameSemanticType(foreignMass, "Kilograms".As<SemanticTypeName>()));
+		Assert.IsFalse(schema.TryRenameInterface(foreignStore, "Warehouse".As<InterfaceName>()));
+
+		Assert.AreEqual("Mass", foreignMass.Name.ToString());
+		Assert.AreEqual("Store", foreignStore.Name.ToString());
+		Assert.AreEqual("Mass", ((SchemaTypes.Semantic)CrateMember(schema, "Mass")).SemanticTypeName.ToString());
+		Assert.AreEqual("Store", ((SchemaTypes.Interface)CrateMember(schema, "Owner")).InterfaceName.ToString());
+	}
+
+	[TestMethod]
+	public void TestRestoredInterfaceIsFoundAgainAndRefusesADuplicate()
+	{
+		Schema schema = CreateSemanticAndInterfaceReferencingSchema();
+		SchemaInterface store = schema.Interfaces.Single();
+
+		Assert.IsTrue(store.TryRemove());
+		Assert.IsEmpty(schema.Interfaces);
+
+		Assert.IsTrue(schema.RestoreInterface(store));
+		Assert.AreSame(store, schema.Interfaces.Single());
+		Assert.IsFalse(schema.RestoreInterface(store), "Restoring an interface already present added it twice.");
+	}
+
+	/// <summary>
+	/// The schema the issue was filed against: an error type, and an enum-typed member whose
+	/// default names one of the enum's values.
+	/// </summary>
+	private static Schema CreateSchemaNamingEnumsByText()
+	{
+		Schema schema = new();
+		SchemaEnum failure = schema.AddEnum("Failure".As<EnumName>())!;
+		failure.TryAddValue("NotFound".As<EnumValueName>());
+		schema.ErrorType = "Failure".As<EnumName>();
+
+		SchemaEnum mood = schema.AddEnum("Mood".As<EnumName>())!;
+		mood.TryAddValue("Calm".As<EnumValueName>());
+		mood.TryAddValue("Angry".As<EnumValueName>());
+
+		SchemaMember member = schema.AddClass("Npc".As<ClassName>())!.AddMember("Mood".As<MemberName>())!;
+		member.SetType(new SchemaTypes.Enum() { EnumName = "Mood".As<EnumName>() });
+		member.DefaultValue = new TextDefault { Value = "Calm" };
+
+		return schema;
+	}
+
+	[TestMethod]
+	public void TestRenamingTheErrorEnumRepointsTheErrorType()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaEnum failure = schema.GetEnum("Failure".As<EnumName>())!;
+
+		Assert.IsTrue(schema.TryRenameEnum(failure, "ErrorCode".As<EnumName>()));
+		Assert.AreEqual("ErrorCode", schema.ErrorType.ToString());
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+
+		Assert.IsTrue(schema.TryRenameEnum(failure, "Failure".As<EnumName>()));
+		Assert.AreEqual("Failure", schema.ErrorType.ToString(), "Renaming back did not restore the error type.");
+	}
+
+	[TestMethod]
+	public void TestRenamingAnotherEnumLeavesTheErrorTypeAlone()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+
+		Assert.IsTrue(schema.TryRenameEnum(schema.GetEnum("Mood".As<EnumName>())!, "Temper".As<EnumName>()));
+		Assert.AreEqual("Failure", schema.ErrorType.ToString());
+	}
+
+	[TestMethod]
+	public void TestRenamingAnEnumValueRepointsTheDefaultsNamingIt()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaEnum mood = schema.GetEnum("Mood".As<EnumName>())!;
+		SchemaMember member = schema.GetClass("Npc".As<ClassName>())!.GetMember("Mood".As<MemberName>())!;
+
+		Assert.IsTrue(mood.TryRenameValue("Calm".As<EnumValueName>(), "Serene".As<EnumValueName>()));
+		Assert.AreEqual("Serene", ((TextDefault)member.DefaultValue!).Value);
+		Assert.AreEqual(0, schema.Validate().Count, string.Join("; ", schema.Validate()));
+
+		Assert.IsTrue(mood.TryRenameValue("Serene".As<EnumValueName>(), "Calm".As<EnumValueName>()));
+		Assert.AreEqual("Calm", ((TextDefault)member.DefaultValue!).Value, "Renaming back did not restore the default.");
+	}
+
+	/// <summary>
+	/// Only a default of the renamed enum moves: a string member, or a member of another enum,
+	/// whose default happens to spell the same word is a different value.
+	/// </summary>
+	[TestMethod]
+	public void TestRenamingAnEnumValueLeavesUnrelatedDefaultsAlone()
+	{
+		Schema schema = CreateSchemaNamingEnumsByText();
+		SchemaClass npc = schema.GetClass("Npc".As<ClassName>())!;
+		SchemaMember text = npc.AddMember("Note".As<MemberName>())!;
+		text.SetType(new SchemaTypes.String());
+		text.DefaultValue = new TextDefault { Value = "Calm" };
+
+		SchemaEnum weather = schema.AddEnum("Weather".As<EnumName>())!;
+		weather.TryAddValue("Calm".As<EnumValueName>());
+		SchemaMember sky = npc.AddMember("Sky".As<MemberName>())!;
+		sky.SetType(new SchemaTypes.Enum() { EnumName = "Weather".As<EnumName>() });
+		sky.DefaultValue = new TextDefault { Value = "Calm" };
+
+		Assert.IsTrue(schema.GetEnum("Mood".As<EnumName>())!.TryRenameValue("Calm".As<EnumValueName>(), "Serene".As<EnumValueName>()));
+		Assert.AreEqual("Calm", ((TextDefault)text.DefaultValue!).Value);
+		Assert.AreEqual("Calm", ((TextDefault)sky.DefaultValue!).Value);
 	}
 }

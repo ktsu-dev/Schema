@@ -343,6 +343,74 @@ public sealed class DocumentGuardTests
 	}
 
 	/// <summary>
+	/// Choosing Save for a document with no path raises the file browser, and dismissing that is
+	/// backing out of the guard just as Cancel is: the action it was guarding must not run, and
+	/// whoever asked has to hear that it did not.
+	/// </summary>
+	[TestMethod]
+	public void DismissingTheSaveAsBrowserCancelsTheGuardedAction()
+	{
+		OpenDirtyDocument();
+		bool proceeded = false;
+		bool cancelled = false;
+
+		harness.Editor.WithUnsavedChangesGuard(() => proceeded = true, () => cancelled = true);
+		AnswerPrompt("Save");
+		AnswerPrompt("filesystem-browser/cancel");
+		harness.App.Step(2);
+
+		Assert.IsFalse(proceeded, "The action ran although nothing was saved.");
+		Assert.IsTrue(cancelled, "Dismissing the file browser was not reported as backing out.");
+	}
+
+	/// <summary>
+	/// Saving from the close prompt and then dismissing the file browser has to release the close
+	/// latch, or no later close would raise a prompt and the editor could not be closed at all.
+	/// </summary>
+	[TestMethod]
+	public void DismissingTheSaveAsBrowserFromTheClosePromptLeavesTheCloseButtonWorking()
+	{
+		OpenDirtyDocument();
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		AnswerPrompt("Save");
+		AnswerPrompt("filesystem-browser/cancel");
+		harness.App.Step(2);
+
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		harness.App.Step(4);
+
+		Assert.IsTrue(
+			harness.IsOnScreen("prompt/Discard"),
+			"A second close raised no prompt, so the editor could no longer be closed.");
+	}
+
+	/// <summary>
+	/// A save that fails to write leaves the work unsaved, so the close it was started for must not
+	/// go ahead, and the close button must still raise its prompt afterwards.
+	/// </summary>
+	[TestMethod]
+	public void AFailedSaveFromTheClosePromptLeavesTheCloseButtonWorking()
+	{
+		OpenDirtyDocument();
+
+		// A file standing where the directory would have to be, so the write cannot succeed.
+		File.WriteAllText(ScratchFile("blocker"), string.Empty);
+		harness.Editor.CurrentSchemaPath = scratchDirectory / "blocker".As<DirectoryName>() / "unwritable.schema.json".As<FileName>();
+
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		AnswerPrompt("Save");
+		AnswerPrompt("prompt/OK");
+
+		Assert.IsTrue(harness.Editor.HasUnsavedChanges, "This test is about a save that did not happen.");
+		Assert.IsFalse(harness.Editor.ShouldClose());
+		harness.App.Step(4);
+
+		Assert.IsTrue(
+			harness.IsOnScreen("prompt/Discard"),
+			"A second close raised no prompt, so the editor could no longer be closed.");
+	}
+
+	/// <summary>
 	/// Hitting the close button repeatedly must not stack a prompt per press, which would leave the
 	/// user dismissing the same question several times.
 	/// </summary>

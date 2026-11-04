@@ -14,6 +14,7 @@ using ktsu.ImGui.App;
 using ktsu.ImGui.Probes;
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
+using ktsu.UndoRedo;
 
 /// <summary>
 /// Opening, saving and closing the schema document, and the unsaved-changes guard around each.
@@ -148,7 +149,7 @@ public partial class SchemaEditor
 			$"{DocumentName} has unsaved changes.",
 			new Dictionary<string, Action?>
 			{
-				["Save"] = () => SaveThen(proceed),
+				["Save"] = () => SaveThen(proceed, onCancel),
 				["Discard"] = proceed,
 				["Cancel"] = onCancel,
 			});
@@ -217,11 +218,16 @@ public partial class SchemaEditor
 	/// appeared has to wait for that answer rather than running immediately.
 	/// </remarks>
 	/// <param name="continuation">What to do after a successful save, if anything.</param>
-	internal void SaveThen(Action? continuation)
+	/// <param name="onAbandoned">
+	/// Run if the save does not happen: the write fails, or the user dismisses the file browser.
+	/// Whoever is waiting on the continuation has to hear that it is not coming, or a latch it set
+	/// before asking stays set for the rest of the session.
+	/// </param>
+	internal void SaveThen(Action? continuation, Action? onAbandoned = null)
 	{
 		if (string.IsNullOrEmpty(CurrentSchemaPath))
 		{
-			SaveAs(continuation);
+			SaveAs(continuation, onAbandoned);
 			return;
 		}
 
@@ -229,24 +235,56 @@ public partial class SchemaEditor
 		{
 			continuation?.Invoke();
 		}
+		else
+		{
+			onAbandoned?.Invoke();
+		}
 	}
 
-	private void SaveAs(Action? continuation = null) =>
+	private void SaveAs(Action? continuation = null, Action? onAbandoned = null) =>
 		Popups.OpenBrowserFileSave("Save Schema", (filePath) =>
 		{
+			// The document only moves if the save does: a failed save leaves it where it was, so the
+			// next Save does not quietly retry the place that just refused it.
+			AbsoluteFilePath previousPath = CurrentSchemaPath;
 			CurrentSchemaPath = filePath;
 			if (SaveToCurrentPath())
 			{
 				continuation?.Invoke();
 			}
-		}, "*.schema.json");
+			else
+			{
+				CurrentSchemaPath = previousPath;
+				onAbandoned?.Invoke();
+			}
+		}, "*.schema.json", onAbandoned);
 
 	private bool SaveToCurrentPath()
 	{
-		if (CurrentSchema is null || !SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath))
+		// A relative path is anchored to the schema's directory, so saving somewhere else would
+		// quietly point every data source and output directory at a file the user never moved.
+		// The paths are rewritten before the file is written, so the file carries them.
+		SchemaPathRebase? rebase = CurrentSchema is null ? null : SchemaPathRebase.Plan(CurrentSchema, CurrentSchemaPath);
+		rebase?.Apply();
+
+		string? failure = null;
+		if (CurrentSchema is null || !SchemaFile.TrySave(CurrentSchema, CurrentSchemaPath, out failure))
 		{
-			Popups.OpenMessageOK("Error", $"Failed to save schema to '{CurrentSchemaPath}'.");
+			rebase?.Revert();
+			string reason = string.IsNullOrEmpty(failure) ? string.Empty : $"\n\n{failure}";
+			Popups.OpenMessageOK("Error", $"Failed to save schema to '{CurrentSchemaPath}'.{reason}");
 			return false;
+		}
+
+		// Recorded as one step, so undoing it puts the paths back as they were written for anyone
+		// who wanted them kept rather than followed. Executing it again is harmless: it is applied.
+		if (rebase is { IsEmpty: false })
+		{
+			Execute(new DelegateCommand(
+				$"Rewrite {rebase.Count} relative path(s) for the new location",
+				rebase.Apply,
+				rebase.Revert,
+				ChangeType.Modify));
 		}
 
 		UndoRedo.MarkAsSaved();

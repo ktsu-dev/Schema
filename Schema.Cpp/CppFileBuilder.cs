@@ -89,6 +89,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		ClassDeclaration declaration = new(CppNaming.Type(schemaClass.Name.ToString(), "Class")) { Kind = TypeDeclarationKind.Struct };
 		Describe(declaration, schemaClass.Description);
 
+		CppNaming.EnsureDistinct(schemaClass.Members.Select(m => m.Name.ToString()), options.MemberNaming, "Member", schemaClass.Name.ToString());
+
 		foreach (SchemaMember member in schemaClass.Members)
 		{
 			declaration.Members.Add(Field(member, mapper));
@@ -115,7 +117,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		Describe(declaration, semanticType.Description);
 		foreach (string line in CppMemberDocumentation.ForCarrier(semanticType))
 		{
-			declaration.Documentation.Add(line);
+			AddDocumentation(declaration, line);
 		}
 
 		declaration.Members.Add(new UsingAlias(UnderlyingAlias, mapper.Map(semanticType.Representation())));
@@ -209,6 +211,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 			Definition = FunctionDefinition.Defaulted,
 		});
 
+		CppNaming.EnsureDistinct(schemaInterface.Functions.Select(f => f.Name.ToString()), options.MemberNaming, "Function", name);
+
 		foreach (SchemaFunction function in schemaInterface.Functions)
 		{
 			declaration.Members.Add(Method(function, mapper));
@@ -235,6 +239,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		Describe(method, function.Description);
 
+		CppNaming.EnsureDistinct(function.Parameters.Select(p => p.Name.ToString()), options.MemberNaming, "Parameter", function.Name.ToString());
+
 		foreach (SchemaParameter parameter in function.Parameters)
 		{
 			method.Parameters.Add(new Parameter(CppNaming.Member(parameter.Name.ToString(), options.MemberNaming, "Parameter"))
@@ -254,7 +260,7 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 
 		foreach (string line in CppMemberDocumentation.For(member))
 		{
-			field.Documentation.Add(line);
+			AddDocumentation(field, line);
 		}
 
 		if (member.DefaultValue is not null)
@@ -381,7 +387,48 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 				+ "Give it a finite default, or none.");
 		}
 
-		return represented is Float ? $"{FloatText(number.Value)}f" : value.ToString();
+		return represented switch
+		{
+			Float => $"{FloatText(number.Value)}f",
+			Int or Long => IntegerText(member, number.Value, represented),
+			_ => value.ToString(),
+		};
+	}
+
+	/// <summary>
+	/// Writes a default stored as an integer as the integer it is.
+	/// </summary>
+	/// <remarks>
+	/// A default is held as a double, and a double's own text switches to an exponent from 1e15 on:
+	/// <c>1E+15</c> is a floating literal in C++, and a braced initialiser refuses it for an
+	/// integer member as narrowing. So the value is converted rather than echoed. The lowest
+	/// <c>std::int64_t</c> has no literal of its own - <c>9223372036854775808</c> does not fit the
+	/// type the minus is then applied to - so it is spelled as the expression that reaches it.
+	/// </remarks>
+	/// <param name="member">The member the default belongs to, named if it cannot be written.</param>
+	/// <param name="value">The default.</param>
+	/// <param name="represented">What the member is stored as.</param>
+	/// <returns>The literal.</returns>
+	private static string IntegerText(SchemaMember member, double value, BaseType represented)
+	{
+		bool isLong = represented is Long;
+
+		// (double)long.MaxValue rounds up to 2^63, so the upper bound is exclusive.
+		bool fits = double.IsInteger(value) && (isLong
+			? value is >= long.MinValue and < 9223372036854775808d
+			: value is >= int.MinValue and <= int.MaxValue);
+
+		if (!fits)
+		{
+			throw new CppGenerationException(
+				$"Member '{member.Name}' defaults to {value.ToString("R", CultureInfo.InvariantCulture)}, "
+				+ $"which is not a whole number its {(isLong ? "64" : "32")}-bit integer type can hold.");
+		}
+
+		long whole = (long)value;
+		return whole == long.MinValue
+			? "(-9223372036854775807LL - 1)"
+			: whole.ToString(CultureInfo.InvariantCulture);
 	}
 
 	/// <summary>
@@ -580,8 +627,37 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 	{
 		if (!string.IsNullOrEmpty(description))
 		{
-			declaration.Documentation.Add(description.ToString());
+			AddDocumentation(declaration, description.ToString());
 		}
+	}
+
+	/// <summary>
+	/// Adds text written by a person to a declaration's documentation, one entry per line.
+	/// </summary>
+	/// <remarks>
+	/// Each entry becomes a <c>//</c> comment, and a <c>//</c> comment ends at a line terminator -
+	/// including the lone <c>\r</c> GCC and Clang both honour - so text after one would be compiled
+	/// as code. Splitting at every terminator a description might carry keeps all of it a comment.
+	/// </remarks>
+	private static void AddDocumentation(IHasDocumentation declaration, string text)
+	{
+		int start = 0;
+		for (int i = 0; i < text.Length; i++)
+		{
+			char c = text[i];
+			if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+			{
+				declaration.Documentation.Add(text[start..i]);
+				if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+				{
+					i++;
+				}
+
+				start = i + 1;
+			}
+		}
+
+		declaration.Documentation.Add(text[start..]);
 	}
 
 	/// <summary>

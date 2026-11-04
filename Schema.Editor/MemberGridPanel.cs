@@ -351,10 +351,23 @@ internal sealed class MemberGridPanel(SchemaEditor schemaEditor)
 	private void SetArrayKey(SchemaTypes.Array array, MemberName key)
 	{
 		MemberName previous = array.Key;
+		SchemaTypes.BaseType? previousKeyType = array.KeyType;
+
+		// A map is keyed by a member or by a stated key type, never both, so choosing a member
+		// replaces a key type an imported dictionary arrived with.
+		SchemaTypes.BaseType? keyType = string.IsNullOrEmpty(key) ? previousKeyType : null;
 		schemaEditor.Execute(new DelegateCommand(
 			$"Set Array Key '{key}'",
-			() => array.Key = key,
-			() => array.Key = previous,
+			() =>
+			{
+				array.Key = key;
+				array.KeyType = keyType;
+			},
+			() =>
+			{
+				array.Key = previous;
+				array.KeyType = previousKeyType;
+			},
 			ChangeType.Modify));
 	}
 }

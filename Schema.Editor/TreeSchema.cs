@@ -12,7 +12,7 @@ using ktsu.ImGui.Probes;
 /// The schema tree panel: one tab per kind of schema element.
 /// </summary>
 /// <remarks>
-/// Tabbed rather than stacked because the four trees share one narrow column, and a schema with a
+/// Tabbed rather than stacked because the trees share one narrow column, and a schema with a
 /// dozen classes pushed the data sources and code generators off the bottom of it. Each tree keeps
 /// its own heading, which is where its count is shown.
 /// </remarks>
@@ -22,11 +22,13 @@ internal sealed class TreeSchema(SchemaEditor schemaEditor)
 	internal const string ClassesTab = "Classes";
 	internal const string DataSourcesTab = "Data Sources";
 	internal const string CodeGeneratorsTab = "Code Generators";
+	internal const string SemanticTypesTab = "Semantic Types";
 
 	private TreeEnum TreeEnum { get; } = new(schemaEditor);
 	private TreeClass TreeClass { get; } = new(schemaEditor);
 	private TreeDataSource TreeDataSource { get; } = new(schemaEditor);
 	private TreeCodeGenerator TreeCodeGenerator { get; } = new(schemaEditor);
+	private TreeSemanticType TreeSemanticType { get; } = new(schemaEditor);
 
 	/// <summary>
 	/// The tab to open on the next frame, or null when the open tab is whatever was clicked last.
@@ -53,6 +55,7 @@ internal sealed class TreeSchema(SchemaEditor schemaEditor)
 
 		ShowTab(EnumsTab, TreeEnum.Show);
 		ShowTab(ClassesTab, TreeClass.Show);
+		ShowTab(SemanticTypesTab, TreeSemanticType.Show);
 		ShowTab(DataSourcesTab, TreeDataSource.Show);
 		ShowTab(CodeGeneratorsTab, TreeCodeGenerator.Show);
 

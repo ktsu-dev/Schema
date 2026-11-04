@@ -417,6 +417,12 @@ commands find the schema by taking the first argument that is not an option, ste
 any option consumes, and the list of options that consume one belongs to the commands, which have
 never heard of the C++ generator.
 
+An option the command does not read is refused by `SchemaCommandLine` before anything is loaded or
+written, rather than stepped over: stepped over, a misspelt `--generator` ran every generator. A
+host option therefore has to be taken out in every form the host accepts - `TryTake` takes
+`--cpp-options <file>` and `--cpp-options=<file>`, and refuses the option given twice - or it
+reaches the commands as an unknown option.
+
 One file per element, and **an enum goes to namespace scope in a header of its own** rather than
 nested in the class that names it. Holotype's target document nests it, which was right when an enum
 belonged to the component that declared it; here an enum is a top-level element any class may name,
@@ -517,6 +523,40 @@ reads them back, because none of it is expressible in a CLR type. The two sides 
 the generate-compile-reimport round-trip test fails if either changes alone. A default is emitted
 as the property initialiser as well, so a generated instance starts at it.
 
+### Migrating data between schema versions
+
+A data file is bound by name, so renaming a member or an enum value is a change to every data file
+behind it - and the one change two versions of a schema cannot reveal by comparison, because a rename
+and a remove-plus-add look the same from outside. So the schema keeps its own **rename history**
+(`Schema.Renames`, the root `renames`, format version 8): `TryRenameClass`, `TryRenameEnum`,
+`SchemaClass.TryRenameMember` and `SchemaEnum.TryRenameValue` append to it, and renaming a name
+straight back removes the entry it undoes. Only those four kinds are recorded, because only they reach
+a data file. It is omitted from the file when empty, so a schema that never renamed anything is written
+as it always was.
+
+`SchemaDiff.Compare` matches the two versions through the renames recorded after the history they
+share, and reports every change that affects bound data. A history that has diverged - the newer file
+is not a continuation of the older - is a warning and falls back to matching by name, rather than
+applying renames that belong to some other line of edits.
+
+`SchemaDataMigrator` rewrites the data over `JsonNode`, so properties the schema does not model
+survive. A value is kept when `SchemaDataValidator.ConformsTo` accepts it against the new type,
+converted only when the conversion loses nothing, and otherwise replaced by the default - and every
+value given up is a warning with its path. **Acceptance is the validator's, not the migrator's**: the
+migrator never decides what a type accepts, so migrated data that reports no error validates clean by
+construction, which `SchemaMigrationTests` checks against the validator itself.
+
+### Generated data editors
+
+A `SchemaCodeGenerator` may name a `DataSource`; the C# generator then emits `<Class>Record` and
+`<DataSource>Editor` beside the class. The generated code is thin on purpose: the editor derives
+from `SchemaDataEditor<TRecord>` and records from `SchemaDataRecord`, both in `Schema/Runtime/`,
+and every accessor goes through `SchemaDataValues`. Records are views over the file's own
+`JsonObject`, so members the schema does not model survive a save. Validation is
+`SchemaDataValidator` and nothing else, which is what `GeneratedDataEditorTests` pins: the editor's
+issues must equal the validator's for every payload, so a second, divergent notion of "valid"
+cannot grow in the runtime.
+
 ### Key Files
 
 - `Schema/Contracts/` - The `ISchema` abstraction seam implemented by the models
@@ -524,6 +564,8 @@ as the property initialiser as well, so a generated instance starts at it.
 - `Schema/Models/SchemaChildSet.cs` - Order-preserving, name-unique view owning the uniqueness rule
 - `Schema/Models/Types/BaseType.cs` - Abstract base with `[JsonDerivedType]` attributes for polymorphic serialization
 - `Schema/Models/SchemaClass.cs` - Class definitions containing `SchemaMember` collections
+- `Schema/Models/SchemaDiff.cs` - What changed between two versions of a schema, matched through the rename history
+- `Schema/Models/SchemaDataMigrator.cs` - Rewrites data bound to one version into data the next accepts
 - `Schema/Models/ClrTypeImporter.cs` - Reads a .NET type into a schema; the exact inverse of the C# generator
 - `Schema/Models/Metadata/QuantityRegistry.cs` - The 220 quantities a schema may name, read out of the assembly that declares them rather than listed here
 - `Schema/Runtime/SchemaMetadataAttributes.cs` - What generated code carries that its C# types cannot say

@@ -96,10 +96,13 @@ internal sealed class TreeEnum(SchemaEditor schemaEditor)
 				ImGuiProbes.MarkItem($"Delete{captured}");
 				if (delete)
 				{
+					// Restored where it was rather than appended: a value's position is its number in
+					// generated code, so appending it would renumber it and every value after it.
+					int index = schemaEnum.Values.ToList().IndexOf(captured);
 					schemaEditor.Execute(new DelegateCommand(
 						$"Delete Enum Value '{captured}'",
 						() => schemaEnum.TryRemoveValue(captured),
-						() => schemaEnum.TryAddValue(captured),
+						() => schemaEnum.TryInsertValue(index, captured),
 						ChangeType.Delete));
 				}
 			},

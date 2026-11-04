@@ -117,6 +117,34 @@ public sealed class SchemaFileTests
 	}
 
 	/// <summary>
+	/// A file the user may not write - read-only, or in a directory they do not own - is refused
+	/// with <see cref="UnauthorizedAccessException"/>, which is not an <see cref="IOException"/>.
+	/// It used to escape the save and close the editor with the work unsaved.
+	/// </summary>
+	[TestMethod]
+	public void AWriteTheUserMayNotMakeFailsAndSaysWhy()
+	{
+		AbsoluteFilePath path = ScratchFile("locked.schema.json");
+
+		bool saved = SchemaFile.TrySave(new Schema(), path, static (_, _) =>
+			throw new UnauthorizedAccessException("Access to the path is denied."), out string? failure);
+
+		Assert.IsFalse(saved);
+		Assert.AreEqual("Access to the path is denied.", failure);
+		Assert.HasCount(0, Directory.GetFiles(scratchDirectory));
+	}
+
+	/// <summary>
+	/// A save that succeeds reports no reason, so a caller can show one whenever there is one.
+	/// </summary>
+	[TestMethod]
+	public void ASuccessfulSaveReportsNoFailure()
+	{
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), ScratchFile("fine.schema.json"), out string? failure));
+		Assert.IsNull(failure);
+	}
+
+	/// <summary>
 	/// Saving over an existing file replaces its content and leaves only that file in the folder.
 	/// </summary>
 	[TestMethod]
@@ -136,6 +164,61 @@ public sealed class SchemaFileTests
 		Assert.IsNotNull(loaded.GetClass("Order".As<ClassName>()));
 		Assert.IsNull(loaded.GetClass("User".As<ClassName>()));
 		Assert.HasCount(1, Directory.GetFiles(scratchDirectory));
+	}
+
+	/// <summary>
+	/// Saving through a symbolic link writes the file the link names and leaves the link a link. The
+	/// atomic rename used to replace the link itself with a plain file, so a schema shared between
+	/// projects through a link silently stopped being shared.
+	/// </summary>
+	[TestMethod]
+	public void SavingThroughASymbolicLinkUpdatesTheFileItNames()
+	{
+		AbsoluteFilePath target = ScratchFile("shared.schema.json");
+		AbsoluteFilePath link = ScratchFile("link.schema.json");
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), target));
+
+		try
+		{
+			File.CreateSymbolicLink(link, target);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			Assert.Inconclusive($"Symbolic links cannot be made here: {exception.Message}");
+		}
+
+		Schema edited = new();
+		edited.AddClass("Order".As<ClassName>());
+		Assert.IsTrue(SchemaFile.TrySave(edited, link));
+
+		Assert.IsNotNull(new FileInfo(link).LinkTarget, "The link was replaced by a plain file.");
+		Assert.IsTrue(SchemaFile.TryLoad(target, out Schema? loaded));
+		Assert.IsNotNull(loaded);
+		Assert.IsNotNull(loaded.GetClass("Order".As<ClassName>()));
+		Assert.HasCount(2, Directory.GetFileSystemEntries(scratchDirectory));
+	}
+
+	/// <summary>
+	/// Saving over a file keeps its permission bits. The rename used to give the saved file the
+	/// process's default mode, so a group-writable schema became writable by its owner alone.
+	/// </summary>
+	[TestMethod]
+	public void SavingOverAFileKeepsItsPermissions()
+	{
+		if (OperatingSystem.IsWindows())
+		{
+			Assert.Inconclusive("Unix file modes do not apply on Windows.");
+			return;
+		}
+
+		AbsoluteFilePath path = ScratchFile("shared-mode.schema.json");
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), path));
+		const UnixFileMode Mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead;
+		File.SetUnixFileMode(path, Mode);
+
+		Assert.IsTrue(SchemaFile.TrySave(new Schema(), path));
+
+		Assert.AreEqual(Mode, File.GetUnixFileMode(path));
 	}
 
 	[TestMethod]

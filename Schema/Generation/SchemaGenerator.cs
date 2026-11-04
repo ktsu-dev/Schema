@@ -2,7 +2,9 @@
 
 namespace ktsu.Schema.Generation;
 
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 using ktsu.Schema.Models;
 using ktsu.Semantics.Paths;
@@ -18,7 +20,10 @@ using ktsu.Semantics.Paths;
 /// </remarks>
 public static class SchemaGenerator
 {
-	private static readonly Dictionary<string, ISchemaCodeGenerator> Generators =
+	// Concurrent because registration can overlap: a plain dictionary written from two threads at
+	// once can lose one of the writes, which is how a parallel test run once found a registered
+	// language missing.
+	private static readonly ConcurrentDictionary<string, ISchemaCodeGenerator> Generators =
 		new(StringComparer.OrdinalIgnoreCase)
 		{
 			[CSharpCodeGenerator.LanguageId] = new CSharpCodeGenerator(),
@@ -40,9 +45,9 @@ public static class SchemaGenerator
 	/// builds on ships no <c>net8.0</c> assembly. Registration is what lets one live in its own
 	/// project and still be found by language the way a schema names it.
 	/// <para>
-	/// Meant to be called once while a program starts, before anything generates. It is not
-	/// synchronised, and registering while another thread generates is a race the caller has to
-	/// avoid.
+	/// Meant to be called once while a program starts, before anything generates. It is safe to
+	/// call from several threads, and a generation running at the same time sees either the old
+	/// generator or the new one.
 	/// </para>
 	/// </remarks>
 	public static void Register(ISchemaCodeGenerator generator)
@@ -66,6 +71,34 @@ public static class SchemaGenerator
 		!string.IsNullOrEmpty(language) && Generators.ContainsKey(language);
 
 	/// <summary>
+	/// Finds the generator registered for a language.
+	/// </summary>
+	/// <param name="language">The language to look for, matched case-insensitively.</param>
+	/// <param name="generator">The generator, when one is registered.</param>
+	/// <returns>True when one is registered.</returns>
+	internal static bool TryGetGenerator(string language, [NotNullWhen(true)] out ISchemaCodeGenerator? generator)
+	{
+		generator = null;
+		return !string.IsNullOrEmpty(language) && Generators.TryGetValue(language, out generator);
+	}
+
+	/// <summary>
+	/// Reports whether an error stops the schema being generated from.
+	/// </summary>
+	/// <remarks>
+	/// Generation is refused so that nothing compiles into something the schema does not
+	/// describe. A data source describes where data lives, not a type, and no generator reads
+	/// one, so its errors cannot cause that. A data file that does not exist yet, and a data
+	/// source naming a class that does not, are both still errors to <c>kschema validate</c> and to
+	/// data validation, which is where they mean something. Holding generation hostage to them
+	/// made the same schema generate in memory and fail once saved, on a fresh clone, or wherever
+	/// the data is git-ignored or written by a later build step.
+	/// </remarks>
+	/// <param name="issue">The issue to classify.</param>
+	/// <returns>False for an issue about a data source; true otherwise.</returns>
+	internal static bool BlocksGeneration(SchemaValidationIssue issue) => issue.Element is not DataSource;
+
+	/// <summary>
 	/// Generates source for one of a schema's code generators.
 	/// </summary>
 	/// <param name="schema">The schema to generate from.</param>
@@ -77,7 +110,7 @@ public static class SchemaGenerator
 		Ensure.NotNull(configuration);
 
 		Collection<SchemaValidationIssue> issues = schema.Validate();
-		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error)];
+		Collection<SchemaValidationIssue> errors = [.. issues.Where(i => i.Severity == SchemaValidationSeverity.Error && BlocksGeneration(i))];
 
 		if (errors.Count > 0)
 		{
@@ -141,12 +174,26 @@ public static class SchemaGenerator
 	/// </summary>
 	/// <remarks>
 	/// The output directory is relative to the schema file, so the schema must know where it was
-	/// loaded from. Existing files are overwritten; nothing is deleted, so a file that a previous
-	/// run produced and this one did not is left alone rather than being silently removed.
+	/// loaded from. Existing files are overwritten.
+	/// <para>
+	/// A file an earlier run wrote and this one did not - the header of a class since renamed or
+	/// deleted - is removed, because left in place it goes on compiling a type the schema no longer
+	/// declares. Each run records what it wrote in a manifest in the output directory, named for the
+	/// generator, and only files that manifest lists are ever removed, so hand-written files beside
+	/// the generated ones, and another generator's files in the same directory, are never touched.
+	/// The first run after upgrading has no manifest and removes nothing. Stale files are removed
+	/// before the new ones are written, so a rename that changes only the case of a file name lands
+	/// on a case-insensitive file system rather than being deleted after it was written. A file that
+	/// cannot be removed is reported in the message and kept in the manifest, so the next run tries
+	/// again.
+	/// </para>
 	/// </remarks>
 	/// <param name="schema">The schema to generate from.</param>
 	/// <param name="configuration">The code generator element to generate under.</param>
-	/// <returns>The outcome. On success, the files it reports have been written.</returns>
+	/// <returns>
+	/// The outcome. On success, the files it reports have been written. A file that cannot be
+	/// written is reported as <see cref="SchemaGenerationStatus.WriteFailed"/> rather than thrown.
+	/// </returns>
 	public static SchemaGenerationResult GenerateToDisk(Models.Schema schema, SchemaCodeGenerator configuration)
 	{
 		Ensure.NotNull(schema);
@@ -169,23 +216,115 @@ public static class SchemaGenerator
 			};
 		}
 
+		// Every destination is checked before anything is written, so a generator naming one file
+		// outside the output directory leaves none of its others behind. A key is whatever the
+		// generator returned, which for a registered one is code this library did not write, and
+		// a name like "../x" or a rooted path would otherwise put a file anywhere the process can.
+		string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(outputDirectory)) + Path.DirectorySeparatorChar;
+		foreach (string key in result.Files.Keys)
+		{
+			string resolved = Path.GetFullPath(Path.Combine(outputDirectory, key));
+			if (!resolved.StartsWith(root, StringComparison.Ordinal))
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Code generator '{configuration.Name}' produced '{key}', which is outside its output directory '{outputDirectory}'. Nothing was written.",
+				};
+			}
+		}
+
+		string manifestPath = Path.Combine(outputDirectory, GeneratedFileManifest.FileNameFor(configuration.Name));
+		List<string> removed = [];
+		List<string> notRemoved = [];
+		foreach (string stale in GeneratedFileManifest.Read(manifestPath).Where(path => !result.Files.ContainsKey(path)))
+		{
+			if (!GeneratedFileManifest.TryResolve(outputDirectory, stale, out string stalePath) || !File.Exists(stalePath))
+			{
+				continue;
+			}
+
+			try
+			{
+				File.Delete(stalePath);
+				removed.Add(stale);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+				notRemoved.Add(stale);
+			}
+		}
+
+		try
+		{
+			Directory.CreateDirectory(outputDirectory);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Could not write '{outputDirectory}' for '{configuration.Name}': {exception.Message}",
+			};
+		}
 		foreach (KeyValuePair<string, string> file in result.Files)
 		{
 			string destination = Path.Combine(outputDirectory, file.Key);
-			string? directory = Path.GetDirectoryName(destination);
-			if (!string.IsNullOrEmpty(directory))
-			{
-				Directory.CreateDirectory(directory);
-			}
 
-			File.WriteAllText(destination, file.Value);
+			// A write that fails is an outcome, like a refusal: a read-only directory or a file
+			// standing where a directory is needed says nothing about the schema, and a caller
+			// running several generators should report it and carry on rather than unwind.
+			try
+			{
+				string? directory = Path.GetDirectoryName(destination);
+				if (!string.IsNullOrEmpty(directory))
+				{
+					Directory.CreateDirectory(directory);
+				}
+
+				File.WriteAllText(destination, file.Value);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+			{
+				return new()
+				{
+					Status = SchemaGenerationStatus.WriteFailed,
+					Message = $"Could not write '{destination}' for '{configuration.Name}': {exception.Message}",
+				};
+			}
+		}
+
+		try
+		{
+			GeneratedFileManifest.Write(manifestPath, [.. result.Files.Keys, .. notRemoved]);
+		}
+		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+		{
+			return new()
+			{
+				Status = SchemaGenerationStatus.WriteFailed,
+				Message = $"Wrote the files for '{configuration.Name}' but could not record them in '{manifestPath}': {exception.Message}",
+			};
+		}
+
+		string message = $"Wrote {result.Files.Count} file{(result.Files.Count == 1 ? string.Empty : "s")} to '{outputDirectory}'";
+		if (removed.Count > 0)
+		{
+			message += $" and removed {removed.Count} stale file{(removed.Count == 1 ? string.Empty : "s")}";
+		}
+
+		message += ".";
+		if (notRemoved.Count > 0)
+		{
+			message += $" Could not remove: {string.Join(", ", notRemoved)}.";
 		}
 
 		return new()
 		{
 			Status = SchemaGenerationStatus.Success,
 			Files = result.Files,
-			Message = $"Wrote {result.Files.Count} file{(result.Files.Count == 1 ? string.Empty : "s")} to '{outputDirectory}'.",
+			RemovedFiles = removed.AsReadOnly(),
+			Message = message,
 		};
 	}
 }

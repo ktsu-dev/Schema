@@ -41,6 +41,15 @@ public enum SchemaGenerationStatus
 	/// names both the element and what the target would have to supply.
 	/// </remarks>
 	TargetCannotExpress,
+
+	/// <summary>
+	/// Source was generated, but writing it to the output directory failed.
+	/// </summary>
+	/// <remarks>
+	/// The message names the path that could not be written and what the operating system said
+	/// about it. Files written before the failure are left in place.
+	/// </remarks>
+	WriteFailed,
 }
 
 /// <summary>
@@ -58,6 +67,13 @@ public class SchemaGenerationResult
 	/// unless <see cref="Status"/> is <see cref="SchemaGenerationStatus.Success"/>.
 	/// </summary>
 	public IReadOnlyDictionary<string, string> Files { get; init; } = new Dictionary<string, string>();
+
+	/// <summary>
+	/// Gets the files, relative to the output directory, that an earlier run wrote and this one
+	/// removed because it no longer produces them. Only <see cref="SchemaGenerator.GenerateToDisk"/>
+	/// removes anything.
+	/// </summary>
+	public IReadOnlyCollection<string> RemovedFiles { get; init; } = [];
 
 	/// <summary>
 	/// Gets the validation issues that caused generation to be refused, when it was refused for

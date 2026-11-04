@@ -174,6 +174,7 @@ public class SchemaClass : SchemaChild<ClassName>, ISchemaClass
 		MemberName oldName = member.Name;
 		member.Rename(newName);
 		ParentSchema?.RepointArrayKeys(Name, oldName, newName);
+		ParentSchema?.RecordRename(SchemaRenameKind.Member, Name, oldName, newName);
 		return true;
 	}
 
