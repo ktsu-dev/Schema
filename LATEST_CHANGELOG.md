@@ -2,6 +2,7 @@
 
 Changes since v1.38.0:
 
+- Hold data to member and semantic-type ranges (#359) (matt-edmondson)
 - Refuse Float and Double data values that overflow to infinity (#360) (matt-edmondson)
 - Add a SessionStart hook for Claude Code cloud sessions (#325) (matt-edmondson)
 - Refuse a second schema file and a value on --no-data (#358) (matt-edmondson)
