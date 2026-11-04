@@ -309,6 +309,57 @@ public class GeneratedDataEditorTests
 	}
 
 	[TestMethod]
+	public void TestANonFiniteValueIsRefusedAndTheEditorKeepsWorking()
+	{
+		Assembly assembly = CompileEditor();
+		object editor = CreateEditor(assembly);
+		Invoke(editor, "Parse", ConformingItems);
+		string[] issuesBefore = [.. Issues(editor).Select(i => i.ToString())];
+		object sword = Records(editor)[0];
+
+		// What a text box bound to a float member hands over once float.TryParse has accepted "NaN" or "Infinity".
+		foreach (float bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+		{
+			TargetInvocationException thrown = Assert.ThrowsExactly<TargetInvocationException>(() => Set(sword, "Weight", bad));
+			Assert.IsInstanceOfType<ArgumentOutOfRangeException>(thrown.InnerException);
+			StringAssert.Contains(thrown.InnerException!.Message, "'Weight'");
+		}
+
+		TargetInvocationException tint = Assert.ThrowsExactly<TargetInvocationException>(
+			() => Set(sword, "Tint", new ColorRgb(1, float.NaN, 0)));
+		Assert.IsInstanceOfType<ArgumentOutOfRangeException>(tint.InnerException);
+
+		// The refused assignments changed nothing, so everything that goes through ToJson still works.
+		Assert.AreEqual(1.5f, Get(sword, "Weight"));
+		Assert.AreEqual(new ColorRgb(1, 0.5f, 0), Get(sword, "Tint"));
+		CollectionAssert.AreEqual(issuesBefore, Issues(editor).Select(i => i.ToString()).ToArray());
+		Assert.IsTrue((bool)Get(editor, "IsValid")!);
+		Assert.AreEqual(ConformingItems, Invoke(editor, "ToJson"));
+		Invoke(editor, "Save", Path.Combine(workingDirectory, "items.json"));
+	}
+
+	[TestMethod]
+	public void TestNonFiniteNumbersAreRefusedBeforeTheRecordChanges()
+	{
+		JsonObject record = new() { ["Mass"] = 2.5, ["Position"] = new JsonArray(1, 2, 3) };
+
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => SchemaDataValues.SetDouble(record, "Mass", double.NaN));
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => SchemaDataValues.SetFloat(record, "Mass", float.NegativeInfinity));
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+			() => SchemaDataValues.SetVector3(record, "Position", new System.Numerics.Vector3(4, float.PositiveInfinity, 6)));
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+			() => SchemaDataValues.SetVector2(record, "Position", new System.Numerics.Vector2(float.NaN, 0)));
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+			() => SchemaDataValues.SetVector4(record, "Position", new System.Numerics.Vector4(0, 0, 0, float.NaN)));
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+			() => SchemaDataValues.SetColorRgba(record, "Position", new ColorRgba(0, 0, 0, float.PositiveInfinity)));
+
+		Assert.AreEqual(2.5, SchemaDataValues.GetDouble(record, "Mass"));
+		Assert.AreEqual(new System.Numerics.Vector3(1, 2, 3), SchemaDataValues.GetVector3(record, "Position"));
+		Assert.AreEqual("""{"Mass":2.5,"Position":[1,2,3]}""", record.ToJsonString());
+	}
+
+	[TestMethod]
 	public void TestVectorsAndColoursRoundTrip()
 	{
 		JsonObject record = [];

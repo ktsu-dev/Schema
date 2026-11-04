@@ -54,7 +54,7 @@ public partial class Schema
 	/// <summary>
 	/// Gets every element a generator names an output file after, with that name.
 	/// </summary>
-	private IEnumerable<(string Name, ISchemaElement Element)> GeneratedFileNames() =>
+	internal IEnumerable<(string Name, ISchemaElement Element)> GeneratedFileNames() =>
 		ClassesInternal.Select(c => (c.Name.ToString(), (ISchemaElement)c))
 			.Concat(EnumsInternal.Select(e => (e.Name.ToString(), (ISchemaElement)e)))
 			.Concat(InterfacesInternal.Select(i => (i.Name.ToString(), (ISchemaElement)i)))
@@ -1598,50 +1598,13 @@ public partial class Schema
 					Element = dataSource,
 				});
 			}
-			else
+			else if (CanResolvePaths)
 			{
-				ValidateDataSourceFileExists(issues, dataSource);
+				// Only possible once the schema knows its own location, since the path is relative to it.
+				// A schema built in memory has no anchor, and its data sources are left unchecked rather
+				// than resolved against whatever the working directory happens to be.
+				SchemaEnvironmentValidator.ReportMissingDataSourceFile(issues, dataSource);
 			}
-		}
-	}
-
-	/// <summary>
-	/// Reports a data source whose file is not there.
-	/// </summary>
-	/// <remarks>
-	/// Only possible once the schema knows its own location, since the path is relative to it.
-	/// A schema built in memory has no anchor, and its data sources are left unchecked rather
-	/// than resolved against whatever the working directory happens to be.
-	/// </remarks>
-	private void ValidateDataSourceFileExists(Collection<SchemaValidationIssue> issues, DataSource dataSource)
-	{
-		if (!CanResolvePaths || !dataSource.TryResolveFile(out Semantics.Paths.AbsoluteFilePath resolved))
-		{
-			return;
-		}
-
-		try
-		{
-			if (!File.Exists(resolved))
-			{
-				issues.Add(new()
-				{
-					Severity = SchemaValidationSeverity.Error,
-					Path = dataSource.Name,
-					Message = $"Data source file '{dataSource.File}' does not exist (resolved to '{resolved}').",
-					Element = dataSource,
-				});
-			}
-		}
-		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-		{
-			issues.Add(new()
-			{
-				Severity = SchemaValidationSeverity.Warning,
-				Path = dataSource.Name,
-				Message = $"Data source file '{dataSource.File}' could not be checked: {ex.Message}",
-				Element = dataSource,
-			});
 		}
 	}
 
@@ -1682,40 +1645,7 @@ public partial class Schema
 					Element = codeGenerator,
 				});
 			}
-			ReportReservedNames(issues, codeGenerator);
-		}
-	}
-
-	/// <summary>
-	/// Reports elements named after a file the configured generator writes for itself.
-	/// </summary>
-	/// <remarks>
-	/// The element's file and the generator's own would be the same entry in the output, so one
-	/// replaces the other on every file system. Matched case-insensitively for the reason
-	/// <see cref="ReportNamesDifferingOnlyInCase"/> gives.
-	/// </remarks>
-	private void ReportReservedNames(Collection<SchemaValidationIssue> issues, SchemaCodeGenerator codeGenerator)
-	{
-		if (!Generation.SchemaGenerator.TryGetGenerator(codeGenerator.Language, out Generation.ISchemaCodeGenerator? generator))
-		{
-			return;
-		}
-
-		HashSet<string> reserved = new(generator.ReservedNames(codeGenerator), StringComparer.OrdinalIgnoreCase);
-		if (reserved.Count == 0)
-		{
-			return;
-		}
-
-		foreach ((string name, ISchemaElement element) in GeneratedFileNames().Where(entry => reserved.Contains(entry.Name)))
-		{
-			issues.Add(new()
-			{
-				Severity = SchemaValidationSeverity.Error,
-				Path = name,
-				Message = $"'{name}' is the name of a file code generator '{codeGenerator.Name}' writes for itself, so the two would overwrite each other.",
-				Element = element,
-			});
+			SchemaEnvironmentValidator.ReportReservedNames(issues, codeGenerator, GeneratedFileNames());
 		}
 	}
 }
