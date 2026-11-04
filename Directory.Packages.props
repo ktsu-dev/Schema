@@ -29,8 +29,8 @@
     <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />
     <PackageVersion Include="ktsu.AppDataStorage" Version="1.18.2" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.402" />
-    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.402" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.403" />
+    <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.403" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
     <PackageVersion Include="System.Text.Json" Version="10.0.13" />
     <PackageVersion Include="TestableIO.System.IO.Abstractions.TestingHelpers" Version="22.3.0" />
