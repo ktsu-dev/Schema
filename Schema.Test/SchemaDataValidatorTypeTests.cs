@@ -136,4 +136,60 @@ public class SchemaDataValidatorTypeTests
 			Assert.AreEqual(SchemaValidationSeverity.Warning, issues[0].Severity, type.DisplayName);
 		}
 	}
+
+	// ---- floating-point overflow -----------------------------------------------
+
+	[TestMethod]
+	[DataRow("1e39")]
+	[DataRow("-1e39")]
+	public void AFloatPastFloatsRangeIsAnError(string value)
+	{
+		Collection<SchemaValidationIssue> issues = Validate(new Float(), value);
+
+		Assert.HasCount(1, issues, string.Join("; ", issues));
+		Assert.AreEqual(SchemaValidationSeverity.Error, issues[0].Severity);
+		Assert.Contains("range of Float", issues[0].Message);
+	}
+
+	[TestMethod]
+	[DataRow("3.4028234663852886E+38")]
+	[DataRow("1e38")]
+	[DataRow("0")]
+	public void AFloatAtOrInsideFloatsRangeIsAccepted(string value) =>
+		Assert.HasCount(0, Validate(new Float(), value));
+
+	[TestMethod]
+	public void ADoublePastDoublesRangeIsAnError()
+	{
+		Assert.HasCount(1, Validate(new Double(), "1e309"));
+		Assert.HasCount(0, Validate(new Double(), "1e39"));
+	}
+
+	[TestMethod]
+	public void AFloatVectorComponentPastFloatsRangeIsAnError()
+	{
+		Collection<SchemaValidationIssue> issues = Validate(new Vector3(), "[1, 1e39, 2]");
+
+		Assert.HasCount(1, issues, string.Join("; ", issues));
+		Assert.AreEqual("data.Value[1]", issues[0].Path);
+	}
+
+	[TestMethod]
+	public void AColourComponentAndAQuantityPastFloatsRangeAreErrors()
+	{
+		Assert.HasCount(1, Validate(new ColorRGB(), "[0, 1e39, 0]"));
+		Assert.HasCount(1, Validate(Quantity("Mass"), "1e39"));
+	}
+
+	[TestMethod]
+	public void ASemanticTypeOverAFloatIsHeldToFloatsRange()
+	{
+		SchemaClass schemaClass = ClassWith((schema, c) =>
+		{
+			schema.AddSemanticType("Speed".As<SemanticTypeName>())!.SetUnderlyingType(new Float());
+			c.AddMember("Value".As<MemberName>())!.SetType(new Semantic { SemanticTypeName = "Speed".As<SemanticTypeName>() });
+		});
+
+		Assert.HasCount(1, SchemaDataValidator.ValidateData(schemaClass, """{ "Value": 1e39 }""", "data"));
+	}
 }

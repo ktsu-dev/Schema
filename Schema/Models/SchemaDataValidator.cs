@@ -262,7 +262,7 @@ public static class SchemaDataValidator
 				break;
 
 			case Float or Double:
-				Expect(value, JsonValueKind.Number, path, type, issues);
+				ExpectNumber(value, type, path, type, issues);
 				break;
 
 			case Types.String:
@@ -399,7 +399,24 @@ public static class SchemaDataValidator
 			return;
 		}
 
-		Expect(value, JsonValueKind.Number, path, type, issues);
+		if (value.ValueKind != JsonValueKind.Number)
+		{
+			Expect(value, JsonValueKind.Number, path, type, issues);
+			return;
+		}
+
+		// A number past what the storage holds reads back as an infinity rather than failing, so
+		// "1e39" in a Float passes every reader and arrives as one. Refuse it here, as the
+		// integral types already are and as schema validation already refuses such a default.
+		bool finite = value.TryGetDouble(out double number) && double.IsFinite(number);
+		if (represented is Float && !(finite && Math.Abs(number) <= float.MaxValue))
+		{
+			issues.Add(Error(path, $"Expected a number within the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}) for type '{type.DisplayName}' but found {value.GetRawText()}."));
+		}
+		else if (represented is Double && !finite)
+		{
+			issues.Add(Error(path, $"Expected a number within the range of Double (±{double.MaxValue.ToString("R", CultureInfo.InvariantCulture)}) for type '{type.DisplayName}' but found {value.GetRawText()}."));
+		}
 	}
 
 	private static void ValidateEnumValue(Types.Enum enumType, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
