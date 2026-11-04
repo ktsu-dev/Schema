@@ -518,4 +518,62 @@ public class SchemaCommandLineTests
 
 		Assert.IsFalse(result.Error.Contains("Unknown option", StringComparison.Ordinal), result.Error);
 	}
+
+	/// <summary>
+	/// A second schema file is refused rather than dropped, so a broken file after a clean one fails.
+	/// </summary>
+	/// <remarks>
+	/// Only the first path used to be read, so <c>validate good bad</c> exited 0 and a CI step over
+	/// <c>schemas/*.schema.json</c> passed whatever the later files held.
+	/// </remarks>
+	[TestMethod]
+	[DataRow("validate")]
+	[DataRow("generate")]
+	public void TestASecondSchemaFileIsRefusedAndNothingIsWritten(string command)
+	{
+		string good = WriteSchema("good.schema.json", ValidSchema);
+		string bad = WriteSchema("bad.schema.json", BrokenSchema);
+
+		Result result = Run(command, good, bad);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Error.Contains($"Unexpected argument '{bad}'.", StringComparison.Ordinal), result.Error);
+		Assert.IsFalse(Directory.Exists(Path.Combine(workingDirectory, "out")), "Nothing should have been written.");
+	}
+
+	/// <summary>
+	/// The value an option takes still does not count as a second schema path.
+	/// </summary>
+	[TestMethod]
+	public void TestAGeneratorNameIsNotMistakenForASecondSchemaFile()
+	{
+		string path = WriteSchema("named.schema.json", ValidSchema);
+
+		Result result = Run("generate", "--generator", "CSharp", path);
+
+		Assert.AreEqual(SchemaCommandLine.Success, result.ExitCode, result.Error);
+		Assert.IsFalse(result.Error.Contains("Unexpected argument", StringComparison.Ordinal), result.Error);
+	}
+
+	/// <summary>
+	/// A flag given a value is refused, since the command would otherwise ignore the value.
+	/// </summary>
+	/// <remarks>
+	/// <c>--no-data=true</c> used to pass the option check and then validate the data anyway.
+	/// </remarks>
+	[TestMethod]
+	[DataRow("--no-data=true", "--no-data")]
+	[DataRow("--no-data=false", "--no-data")]
+	[DataRow("--NO-DATA=", "--NO-DATA")]
+	public void TestAFlagGivenAValueIsRefused(string flag, string name)
+	{
+		string path = WriteSchema("bound.schema.json", BoundSchema);
+		File.WriteAllText(Path.Combine(workingDirectory, "items.json"), """[ { "Count": "three" } ]""");
+
+		Result result = Run("validate", flag, path);
+
+		Assert.AreEqual(SchemaCommandLine.Failure, result.ExitCode, result.Output);
+		Assert.IsTrue(result.Error.Contains($"'{name}' takes no value.", StringComparison.Ordinal), result.Error);
+		Assert.IsFalse(result.Output.Contains("Items[0]", StringComparison.Ordinal), result.Output);
+	}
 }
