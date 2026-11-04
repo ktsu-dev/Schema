@@ -218,6 +218,31 @@ public class SchemaMigrationTests
 		Assert.AreSequenceEqual(expected, paths, string.Join("; ", result.Issues));
 	}
 
+	/// <summary>
+	/// A value the current member's range refuses is not carried across: it is reported and takes
+	/// the default, as a value of the wrong type does, so migrated data still validates clean.
+	/// </summary>
+	[TestMethod]
+	public void AValueOutsideTheCurrentRangeIsReportedAndTakesTheDefault()
+	{
+		Schema previous = CreatePrevious();
+		Schema current = CreateCurrent(previous);
+		SchemaMember health = current.GetClass("Hero".As<ClassName>())!.Members.First(m => m.Name == "Health");
+		health.Range = new MemberRange { Minimum = 0, Maximum = 8 };
+		health.DefaultValue = new NumberDefault { Value = 5 };
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, current), previous.GetClass("Player".As<ClassName>())!, PlayerData, "players");
+		JsonArray players = JsonNode.Parse(result.Json)!.AsArray();
+
+		Assert.AreEqual(5, players[0]!["Health"]!.GetValue<int>(), "Ada's 10 is above the new maximum.");
+		Assert.AreEqual(7, players[1]!["Health"]!.GetValue<int>(), "Bo's 7 is inside it and is kept.");
+		SchemaValidationIssue reported = result.Issues.Single(issue => issue.Path == "players[0].Hp");
+		Assert.Contains("outside the range", reported.Message);
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(current.GetClass("Hero".As<ClassName>())!, result.Json, "players");
+		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
+	}
+
 	[TestMethod]
 	public void DataBoundToARemovedClassIsRefused()
 	{

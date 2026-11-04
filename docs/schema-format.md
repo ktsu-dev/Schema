@@ -169,6 +169,11 @@ un-normalised rather than wrong, and clamping it to the maximum would be the one
 that is certainly incorrect. A validator should reduce a wrapping value into range and reject a
 non-wrapping one — and for the same reason, a default outside a wrapping range is accepted.
 
+`kschema validate`, the generated data editors and data migration all hold data to these bounds. A
+vector is bounded component by component. A member's own range and the range of a semantic type it
+holds (and of every semantic type that one refines) all apply, so neither takes precedence: a value
+has to sit inside each of them, and each one it misses is reported against its owner.
+
 ### Default
 
 Polymorphic, discriminated by `DefaultKind`, matching the `TypeName` discriminator on types:

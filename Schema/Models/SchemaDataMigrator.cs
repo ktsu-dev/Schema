@@ -273,17 +273,21 @@ public static class SchemaDataMigrator
 		/// </summary>
 		private JsonNode? Settle(BaseType type, SchemaMember? member, JsonNode? value, string path)
 		{
-			if (Conforms(type, value))
+			if (Conforms(type, member, value))
 			{
 				return value;
 			}
 
-			if (Convert(type, value) is JsonNode converted && Conforms(type, converted))
+			if (Convert(type, value) is JsonNode converted && Conforms(type, member, converted))
 			{
 				return converted;
 			}
 
-			issues.Add(Warning(path, $"Value {value?.ToJsonString() ?? "null"} is not a '{type.DisplayName}'; replaced with the default."));
+			// A value of the right type that the member's range refuses is said to be out of range,
+			// not of the wrong type, since that is the change it would take to keep it.
+			issues.Add(Warning(path, member?.Range is MemberRange range && Conforms(type, null, value)
+				? $"Value {value?.ToJsonString() ?? "null"} is outside the range {range} of member '{member.Name}'; replaced with the default."
+				: $"Value {value?.ToJsonString() ?? "null"} is not a '{type.DisplayName}'; replaced with the default."));
 			return DefaultFor(type, member, []);
 		}
 
@@ -323,10 +327,10 @@ public static class SchemaDataMigrator
 			_ => false,
 		};
 
-		private static bool Conforms(BaseType type, JsonNode? value)
+		private static bool Conforms(BaseType type, SchemaMember? member, JsonNode? value)
 		{
 			using JsonDocument document = JsonDocument.Parse(value?.ToJsonString() ?? "null");
-			return SchemaDataValidator.ConformsTo(type, document.RootElement);
+			return SchemaDataValidator.ConformsTo(type, document.RootElement, member?.Range);
 		}
 
 		/// <summary>
@@ -335,7 +339,7 @@ public static class SchemaDataMigrator
 		/// </summary>
 		private static JsonNode? DefaultFor(BaseType type, SchemaMember? member, HashSet<string> building)
 		{
-			if (member?.DefaultValue is MemberDefault declared && Declared(type, declared) is JsonNode node && Conforms(type, node))
+			if (member?.DefaultValue is MemberDefault declared && Declared(type, declared) is JsonNode node && Conforms(type, member, node))
 			{
 				return node;
 			}
