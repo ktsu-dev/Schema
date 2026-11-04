@@ -123,9 +123,13 @@ public static class SchemaCommandLine
 	/// <param name="output">Where the usage text goes.</param>
 	/// <param name="error">Where the refusal goes.</param>
 	/// <param name="host">The host, for the usage text.</param>
-	/// <returns><see cref="Failure"/> for an unknown option, or <see langword="null"/> to go on.</returns>
+	/// <returns>
+	/// <see cref="Failure"/> for an unknown option, a value given to a flag, or a second schema
+	/// path; or <see langword="null"/> to go on.
+	/// </returns>
 	private static int? RejectUnknownOptions(string[] args, string[] known, TextWriter output, TextWriter error, SchemaCommandLineHost host)
 	{
+		bool sawSchemaPath = false;
 		int index = 0;
 		while (index < args.Length)
 		{
@@ -133,6 +137,16 @@ public static class SchemaCommandLine
 
 			if (!argument.StartsWith('-'))
 			{
+				// Each command reads one schema. A second one used to be dropped without a word, so
+				// "validate schemas/*.schema.json" passed whatever every file after the first held.
+				if (sawSchemaPath)
+				{
+					error.WriteLine($"Unexpected argument '{argument}'.");
+					WriteUsage(output, host);
+					return Failure;
+				}
+
+				sawSchemaPath = true;
 				index++;
 				continue;
 			}
@@ -142,6 +156,15 @@ public static class SchemaCommandLine
 			if (!known.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase)))
 			{
 				error.WriteLine($"Unknown option '{name}'.");
+				WriteUsage(output, host);
+				return Failure;
+			}
+
+			// A flag is read by an exact match, so "--no-data=true" would pass here and then be
+			// ignored by the command, and "--no-data=false" would mean nothing at all.
+			if (name.Length != argument.Length && !TakesAValue(name))
+			{
+				error.WriteLine($"'{name}' takes no value.");
 				WriteUsage(output, host);
 				return Failure;
 			}
