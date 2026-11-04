@@ -2,6 +2,7 @@
 
 Changes since v1.38.0:
 
+- Refuse Float and Double data values that overflow to infinity (#360) (matt-edmondson)
 - Add a SessionStart hook for Claude Code cloud sessions (#325) (matt-edmondson)
 - Refuse a second schema file and a value on --no-data (#358) (matt-edmondson)
 - Move the file-system and generator-registry checks out of Schema to fix CA1506 [patch] (#353) (matt-edmondson)
