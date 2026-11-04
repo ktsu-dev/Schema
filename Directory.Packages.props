@@ -32,7 +32,7 @@
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.402" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.402" />
     <PackageVersion Include="Polyfill" Version="11.4.5" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.13" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.14" />
     <PackageVersion Include="TestableIO.System.IO.Abstractions.TestingHelpers" Version="22.3.0" />
   </ItemGroup>
 </Project>
