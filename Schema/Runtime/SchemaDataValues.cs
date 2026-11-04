@@ -121,7 +121,9 @@ public static class SchemaDataValues
 	/// <param name="record">The record.</param>
 	/// <param name="name">The member's declared name.</param>
 	/// <param name="value">The value.</param>
-	public static void SetFloat(JsonObject record, string name, float value) => Set(record, name, JsonValue.Create(value));
+	/// <exception cref="ArgumentOutOfRangeException">The value is NaN or an infinity, which JSON cannot hold.</exception>
+	public static void SetFloat(JsonObject record, string name, float value) =>
+		Set(record, name, JsonValue.Create(RequireFinite(name, value)));
 
 	/// <summary>Reads a <c>Double</c> member.</summary>
 	/// <param name="record">The record.</param>
@@ -134,7 +136,9 @@ public static class SchemaDataValues
 	/// <param name="record">The record.</param>
 	/// <param name="name">The member's declared name.</param>
 	/// <param name="value">The value.</param>
-	public static void SetDouble(JsonObject record, string name, double value) => Set(record, name, JsonValue.Create(value));
+	/// <exception cref="ArgumentOutOfRangeException">The value is NaN or an infinity, which JSON cannot hold.</exception>
+	public static void SetDouble(JsonObject record, string name, double value) =>
+		Set(record, name, JsonValue.Create(RequireFinite(name, value)));
 
 	/// <summary>Reads a <c>String</c> member.</summary>
 	/// <param name="record">The record.</param>
@@ -354,6 +358,12 @@ public static class SchemaDataValues
 
 	private static void SetComponents(JsonObject record, string name, params float[] components)
 	{
+		// Every component is checked before anything is written, so a refused value leaves the record as it was.
+		foreach (float component in components)
+		{
+			_ = RequireFinite(name, component);
+		}
+
 		JsonArray array = [];
 		foreach (float component in components)
 		{
@@ -362,6 +372,25 @@ public static class SchemaDataValues
 
 		Set(record, name, array);
 	}
+
+	/// <summary>
+	/// Refuses a value JSON has no number for.
+	/// </summary>
+	/// <remarks>
+	/// Storing one would not fail here but on the next <c>ToJsonString</c>, which is where the editor's
+	/// issues, validity check and save all go - so the editor would stop being able to say what is wrong
+	/// with its data, or to save it, until the value was overwritten.
+	/// </remarks>
+	private static double RequireFinite(string name, double value) =>
+		double.IsFinite(value)
+			? value
+			: throw new ArgumentOutOfRangeException(
+				nameof(value),
+				value,
+				$"The member '{name}' can't hold {value.ToString(CultureInfo.InvariantCulture)}: JSON has no number for NaN or an infinity.");
+
+	private static float RequireFinite(string name, float value) =>
+		float.IsFinite(value) ? value : (float)RequireFinite(name, (double)value);
 
 	private static InvalidOperationException Malformed(string name, string reason) =>
 		new($"The record's member '{name}' does not hold the form its type is stored in: {reason}.");
