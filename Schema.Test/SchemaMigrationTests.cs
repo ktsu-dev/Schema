@@ -243,6 +243,36 @@ public class SchemaMigrationTests
 		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
 	}
 
+	/// <summary>
+	/// A string that parses only to a non-finite double cannot be written as JSON, so retyping it
+	/// to a number gives it up with a warning instead of aborting the migration.
+	/// </summary>
+	[TestMethod]
+	[DataRow("NaN", "Double")]
+	[DataRow("Infinity", "Double")]
+	[DataRow("-Infinity", "Double")]
+	[DataRow("1e400", "Double")]
+	[DataRow("NaN", "Int")]
+	[DataRow("Infinity", "Int")]
+	[DataRow("1e400", "Int")]
+	public void AStringThatIsNotAFiniteNumberIsReportedAndTakesTheDefault(string text, string target)
+	{
+		Schema previous = new();
+		SchemaClass reading = previous.AddClass("Reading".As<ClassName>())!;
+		reading.AddMember("Value".As<MemberName>())!.SetType(new SchemaTypes.String());
+
+		Schema current = Copy(previous);
+		current.GetClass("Reading".As<ClassName>())!.Members[0].SetType(target == "Int" ? new SchemaTypes.Int() : new SchemaTypes.Double());
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, current), reading, $$"""{ "Value": "{{text}}" }""", "r");
+
+		Assert.AreEqual(0, JsonNode.Parse(result.Json)!["Value"]!.GetValue<double>(), result.Json);
+		SchemaValidationIssue reported = result.Issues.Single(issue => issue.Path == "r.Value");
+		Assert.Contains($"is not a '{target}'", reported.Message);
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(current.GetClass("Reading".As<ClassName>())!, result.Json, "r");
+		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
+	}
+
 	[TestMethod]
 	public void DataBoundToARemovedClassIsRefused()
 	{
