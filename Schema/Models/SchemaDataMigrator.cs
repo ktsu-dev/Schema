@@ -203,8 +203,10 @@ public static class SchemaDataMigrator
 				case (Types.Array p, Types.Array c):
 					return MigrateArray(p, c, value, path);
 
+				// The declared type rather than its representation, so a semantic type's range, and the
+				// ranges of everything it refines, bound the value as the validator will bound it.
 				default:
-					return Settle(current, currentMember, value, path);
+					return Settle(currentType, currentMember, value, path);
 			}
 		}
 
@@ -278,17 +280,49 @@ public static class SchemaDataMigrator
 				return value;
 			}
 
-			if (Convert(type, value) is JsonNode converted && Conforms(type, member, converted))
+			if (Convert(SchemaDiff.Represented(type), value) is JsonNode converted && Conforms(type, member, converted))
 			{
 				return converted;
 			}
 
-			// A value of the right type that the member's range refuses is said to be out of range,
-			// not of the wrong type, since that is the change it would take to keep it.
-			issues.Add(Warning(path, member?.Range is MemberRange range && Conforms(type, null, value)
-				? $"Value {value?.ToJsonString() ?? "null"} is outside the range {range} of member '{member.Name}'; replaced with the default."
+			// A value of the right type that a range refuses is said to be out of range, not of the
+			// wrong type, since that is the change it would take to keep it.
+			issues.Add(Warning(path, RangeRefusing(type, member, value) is string range
+				? $"Value {value?.ToJsonString() ?? "null"} is outside {range}; replaced with the default."
 				: $"Value {value?.ToJsonString() ?? "null"} is not a '{type.DisplayName}'; replaced with the default."));
 			return DefaultFor(type, member, []);
+		}
+
+		/// <summary>
+		/// The range that refuses a value of the right type, named as the validator names it: the
+		/// member's own, or one on the semantic type's refinement chain. Null when the value is of
+		/// the wrong type, or no range refuses it.
+		/// </summary>
+		private static string? RangeRefusing(BaseType type, SchemaMember? member, JsonNode? value)
+		{
+			BaseType represented = SchemaDiff.Represented(type);
+			if (!Conforms(represented, (MemberRange?)null, value))
+			{
+				return null;
+			}
+
+			if (member?.Range is MemberRange range && !Conforms(represented, range, value))
+			{
+				return $"the range {range} of member '{member.Name}'";
+			}
+
+			if (type is Semantic { Declaration: SchemaSemanticType declaration })
+			{
+				foreach (SchemaSemanticType link in (IEnumerable<SchemaSemanticType>)[declaration, .. declaration.Refines()])
+				{
+					if (link.Range is MemberRange linkRange && !Conforms(represented, linkRange, value))
+					{
+						return $"the range {linkRange} of semantic type '{link.Name}'";
+					}
+				}
+			}
+
+			return null;
 		}
 
 		private static JsonValue? Convert(BaseType type, JsonNode? value)
@@ -327,10 +361,13 @@ public static class SchemaDataMigrator
 			_ => false,
 		};
 
-		private static bool Conforms(BaseType type, SchemaMember? member, JsonNode? value)
+		private static bool Conforms(BaseType type, SchemaMember? member, JsonNode? value) =>
+			Conforms(type, member?.Range, value);
+
+		private static bool Conforms(BaseType type, MemberRange? range, JsonNode? value)
 		{
 			using JsonDocument document = JsonDocument.Parse(value?.ToJsonString() ?? "null");
-			return SchemaDataValidator.ConformsTo(type, document.RootElement, member?.Range);
+			return SchemaDataValidator.ConformsTo(type, document.RootElement, range);
 		}
 
 		/// <summary>
