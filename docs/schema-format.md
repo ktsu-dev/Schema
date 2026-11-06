@@ -656,8 +656,8 @@ understands two:
 
 | Container | Meaning | Typical mapping |
 | --- | --- | --- |
-| `vector` | An ordered sequence. | `List<T>` |
-| `map` | A lookup keyed by `key`. | `Dictionary<TKey, T>` |
+| `vector` | An ordered sequence. | `List<T>` in C#, `std::vector<T>` in C++ |
+| `map` | A lookup keyed by `key`. | `Dictionary<TKey, T>` in C#, `std::map<TKey, T>` in C++ |
 
 A `map` says what it is keyed by in one of two ways, and exactly one:
 
@@ -679,6 +679,11 @@ A `map` says what it is keyed by in one of two ways, and exactly one:
 A map with neither, or with both, is reported as an error. Importing a .NET type reads a
 `Dictionary<TKey, TValue>` as a map with `keyType` set from `TKey`, unless the member carries the
 `SchemaKey` attribute generated code writes for a member-keyed map.
+
+Both forms are keyed by a type in every generator, never by a member: C# writes
+`Dictionary<TKey, T>` and C++ writes `std::map<TKey, T>`, `TKey` being `keyType` or the `key`
+member's type. C++ uses `std::map` rather than `std::unordered_map` because an enum key has no
+`std::hash` of its own.
 
 ## Path resolution
 
