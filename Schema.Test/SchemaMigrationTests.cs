@@ -243,6 +243,46 @@ public class SchemaMigrationTests
 		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
 	}
 
+	[TestMethod]
+	public void DataBoundToARemovedClassIsRefused()
+	{
+		Schema previous = CreatePrevious();
+		Schema current = Copy(previous);
+		Assert.IsTrue(current.GetClass("Place".As<ClassName>())!.TryRemove());
+		SchemaDiff diff = SchemaDiff.Compare(previous, current);
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(diff, previous.GetClass("Place".As<ClassName>())!, """{ "X": 1 }""", "place");
+
+		Assert.IsFalse(result.Succeeded);
+		Assert.AreEqual("""{ "X": 1 }""", result.Json);
+	}
+
+	[TestMethod]
+	public void AKeyedMapIsRekeyedByTheMigratedKey()
+	{
+		Schema previous = new();
+		SchemaClass item = previous.AddClass("Item".As<ClassName>())!;
+		item.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.String());
+		SchemaClass bag = previous.AddClass("Bag".As<ClassName>())!;
+		bag.AddMember("Items".As<MemberName>())!.SetType(new SchemaTypes.Array
+		{
+			ElementType = new SchemaTypes.Object { ClassName = "Item".As<ClassName>() },
+			Container = SchemaTypes.Array.MapContainer.As<ContainerName>(),
+			Key = "Id".As<MemberName>(),
+		});
+
+		Schema current = Copy(previous);
+		SchemaClass currentItem = current.GetClass("Item".As<ClassName>())!;
+		Assert.IsTrue(currentItem.TryRenameMember(currentItem.Members[0], "Key".As<MemberName>()));
+		SchemaDiff diff = SchemaDiff.Compare(previous, current);
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(diff, bag, """{ "Items": { "a": { "Id": "a" } } }""", "bag");
+
+		Assert.AreEqual("a", JsonNode.Parse(result.Json)!["Items"]!["a"]!["Key"]!.GetValue<string>(), result.Json);
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(current.GetClass("Bag".As<ClassName>())!, result.Json, "bag");
+		Assert.HasCount(0, issues, string.Join("; ", issues));
+	}
+
 	/// <summary>
 	/// A member retyped to a ranged semantic type is bounded by that type's range, and by the range
 	/// of everything it refines, as the validator bounds it, so migrated data still validates clean.
@@ -284,45 +324,5 @@ public class SchemaMigrationTests
 		Assert.Contains($"outside the range [0, 100] of semantic type '{bounding}'", reported.Message);
 		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(currentPlayer, result.Json, "p");
 		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
-	}
-
-	[TestMethod]
-	public void DataBoundToARemovedClassIsRefused()
-	{
-		Schema previous = CreatePrevious();
-		Schema current = Copy(previous);
-		Assert.IsTrue(current.GetClass("Place".As<ClassName>())!.TryRemove());
-		SchemaDiff diff = SchemaDiff.Compare(previous, current);
-
-		SchemaMigrationResult result = SchemaDataMigrator.Migrate(diff, previous.GetClass("Place".As<ClassName>())!, """{ "X": 1 }""", "place");
-
-		Assert.IsFalse(result.Succeeded);
-		Assert.AreEqual("""{ "X": 1 }""", result.Json);
-	}
-
-	[TestMethod]
-	public void AKeyedMapIsRekeyedByTheMigratedKey()
-	{
-		Schema previous = new();
-		SchemaClass item = previous.AddClass("Item".As<ClassName>())!;
-		item.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.String());
-		SchemaClass bag = previous.AddClass("Bag".As<ClassName>())!;
-		bag.AddMember("Items".As<MemberName>())!.SetType(new SchemaTypes.Array
-		{
-			ElementType = new SchemaTypes.Object { ClassName = "Item".As<ClassName>() },
-			Container = SchemaTypes.Array.MapContainer.As<ContainerName>(),
-			Key = "Id".As<MemberName>(),
-		});
-
-		Schema current = Copy(previous);
-		SchemaClass currentItem = current.GetClass("Item".As<ClassName>())!;
-		Assert.IsTrue(currentItem.TryRenameMember(currentItem.Members[0], "Key".As<MemberName>()));
-		SchemaDiff diff = SchemaDiff.Compare(previous, current);
-
-		SchemaMigrationResult result = SchemaDataMigrator.Migrate(diff, bag, """{ "Items": { "a": { "Id": "a" } } }""", "bag");
-
-		Assert.AreEqual("a", JsonNode.Parse(result.Json)!["Items"]!["a"]!["Key"]!.GetValue<string>(), result.Json);
-		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(current.GetClass("Bag".As<ClassName>())!, result.Json, "bag");
-		Assert.HasCount(0, issues, string.Join("; ", issues));
 	}
 }

@@ -293,38 +293,6 @@ public static class SchemaDataMigrator
 			return DefaultFor(type, member, []);
 		}
 
-		/// <summary>
-		/// The range that refuses a value of the right type, named as the validator names it: the
-		/// member's own, or one on the semantic type's refinement chain. Null when the value is of
-		/// the wrong type, or no range refuses it.
-		/// </summary>
-		private static string? RangeRefusing(BaseType type, SchemaMember? member, JsonNode? value)
-		{
-			BaseType represented = SchemaDiff.Represented(type);
-			if (!Conforms(represented, (MemberRange?)null, value))
-			{
-				return null;
-			}
-
-			if (member?.Range is MemberRange range && !Conforms(represented, range, value))
-			{
-				return $"the range {range} of member '{member.Name}'";
-			}
-
-			if (type is Semantic { Declaration: SchemaSemanticType declaration })
-			{
-				foreach (SchemaSemanticType link in (IEnumerable<SchemaSemanticType>)[declaration, .. declaration.Refines()])
-				{
-					if (link.Range is MemberRange linkRange && !Conforms(represented, linkRange, value))
-					{
-						return $"the range {linkRange} of semantic type '{link.Name}'";
-					}
-				}
-			}
-
-			return null;
-		}
-
 		private static JsonValue? Convert(BaseType type, JsonNode? value)
 		{
 			if (value is not JsonValue scalar)
@@ -368,6 +336,38 @@ public static class SchemaDataMigrator
 		{
 			using JsonDocument document = JsonDocument.Parse(value?.ToJsonString() ?? "null");
 			return SchemaDataValidator.ConformsTo(type, document.RootElement, range);
+		}
+
+		/// <summary>
+		/// The range that refuses a value of the right type, named as the validator names it: the
+		/// member's own, or one on the semantic type's refinement chain. Null when the value is of
+		/// the wrong type, or no range refuses it.
+		/// </summary>
+		private static string? RangeRefusing(BaseType type, SchemaMember? member, JsonNode? value)
+		{
+			BaseType represented = SchemaDiff.Represented(type);
+			if (!Conforms(represented, (MemberRange?)null, value))
+			{
+				return null;
+			}
+
+			if (member?.Range is MemberRange range && !Conforms(represented, range, value))
+			{
+				return $"the range {range} of member '{member.Name}'";
+			}
+
+			if (type is Semantic { Declaration: SchemaSemanticType declaration })
+			{
+				foreach (SchemaSemanticType link in (IEnumerable<SchemaSemanticType>)[declaration, .. declaration.Refines()])
+				{
+					if (link.Range is MemberRange linkRange && !Conforms(represented, linkRange, value))
+					{
+						return $"the range {linkRange} of semantic type '{link.Name}'";
+					}
+				}
+			}
+
+			return null;
 		}
 
 		/// <summary>
