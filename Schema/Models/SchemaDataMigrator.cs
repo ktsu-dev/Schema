@@ -291,6 +291,8 @@ public static class SchemaDataMigrator
 			return DefaultFor(type, member, []);
 		}
 
+		// A double parse accepts "NaN" and "Infinity" and overflows "1e400" to infinity, none of which
+		// JSON can hold, so a non-finite result is no conversion at all and the value is given up.
 		private static JsonValue? Convert(BaseType type, JsonNode? value)
 		{
 			if (value is not JsonValue scalar)
@@ -305,8 +307,8 @@ public static class SchemaDataMigrator
 				(Types.String, JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False) => JsonValue.Create(element.GetRawText()),
 				(Bool, JsonValueKind.String) when bool.TryParse(element.GetString(), out bool flag) => JsonValue.Create(flag),
 				(Int or Long, JsonValueKind.String) when long.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long whole) => JsonValue.Create(whole),
-				(Int or Long or Float or Double or Quantity, JsonValueKind.String) when double.TryParse(element.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double number) => Number(type, number),
-				(Int or Long or Quantity, JsonValueKind.Number) when element.TryGetDouble(out double number) => Number(type, number),
+				(Int or Long or Float or Double or Quantity, JsonValueKind.String) when double.TryParse(element.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double number) && double.IsFinite(number) => Number(type, number),
+				(Int or Long or Quantity, JsonValueKind.Number) when element.TryGetDouble(out double number) && double.IsFinite(number) => Number(type, number),
 				_ => null,
 			};
 		}
