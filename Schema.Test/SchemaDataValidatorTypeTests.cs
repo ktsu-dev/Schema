@@ -224,6 +224,75 @@ public class SchemaDataValidatorTypeTests
 		Assert.IsTrue(issues.All(i => i.Message.Contains("semantic type 'Health'", StringComparison.Ordinal)), string.Join("; ", issues));
 	}
 
+	private static readonly string[] OutOfRangeSemanticComponentPaths = ["data.Mix[0]", "data.Mix[1]", "data.One"];
+
+	private static Semantic SemanticNamed(string name) => new() { SemanticTypeName = name.As<SemanticTypeName>() };
+
+	/// <summary>
+	/// A semantic type's range applies wherever a value of it appears, a vector's components included.
+	/// </summary>
+	[TestMethod]
+	public void ASemanticTypesRangeBoundsEachVectorComponentOfIt()
+	{
+		SchemaClass schemaClass = ClassWith((schema, c) =>
+		{
+			SchemaSemanticType percent = schema.AddSemanticType("Percent".As<SemanticTypeName>())!;
+			percent.SetUnderlyingType(new Float());
+			percent.Range = Percent;
+			c.AddMember("Mix".As<MemberName>())!.SetType(new Vector3 { ElementType = SemanticNamed("Percent") });
+			c.AddMember("One".As<MemberName>())!.SetType(SemanticNamed("Percent"));
+		});
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(schemaClass, """{ "Mix": [500, -7, 50], "One": 500 }""", "data");
+
+		string[] paths = [.. issues.Select(i => i.Path).Order(StringComparer.Ordinal)];
+		Assert.AreSequenceEqual(OutOfRangeSemanticComponentPaths, paths, string.Join("; ", issues));
+		Assert.IsTrue(issues.All(i => i.Message.Contains("semantic type 'Percent'", StringComparison.Ordinal)), string.Join("; ", issues));
+		Assert.HasCount(0, SchemaDataValidator.ValidateData(schemaClass, """{ "Mix": [0, 100, 50], "One": 50 }""", "data"));
+	}
+
+	[TestMethod]
+	public void ARangeInheritedThroughRefinesBoundsVectorComponents()
+	{
+		SchemaClass schemaClass = ClassWith((schema, c) =>
+		{
+			SchemaSemanticType ratio = schema.AddSemanticType("Ratio".As<SemanticTypeName>())!;
+			ratio.SetUnderlyingType(new Float());
+			ratio.Range = Percent;
+			SchemaSemanticType wide = schema.AddSemanticType("Wide".As<SemanticTypeName>())!;
+			wide.SetUnderlyingType(SemanticNamed("Ratio"));
+			wide.Range = new MemberRange { Minimum = 0, Maximum = 1000 };
+			c.AddMember("Mix".As<MemberName>())!.SetType(new Vector2 { ElementType = SemanticNamed("Wide") });
+		});
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(schemaClass, """{ "Mix": [150, 50] }""", "data");
+
+		Assert.HasCount(1, issues, string.Join("; ", issues));
+		Assert.AreEqual("data.Mix[0]", issues[0].Path);
+		Assert.Contains("semantic type 'Ratio'", issues[0].Message);
+	}
+
+	[TestMethod]
+	public void ASemanticTypeOverAVectorOfARangedSemanticTypeBoundsItsComponents()
+	{
+		SchemaClass schemaClass = ClassWith((schema, c) =>
+		{
+			SchemaSemanticType unit = schema.AddSemanticType("UnitComponent".As<SemanticTypeName>())!;
+			unit.SetUnderlyingType(new Float());
+			unit.Range = new MemberRange { Minimum = -1, Maximum = 1 };
+			SchemaSemanticType direction = schema.AddSemanticType("Direction".As<SemanticTypeName>())!;
+			direction.SetUnderlyingType(new Vector3 { ElementType = SemanticNamed("UnitComponent") });
+			c.AddMember("Facing".As<MemberName>())!.SetType(SemanticNamed("Direction"));
+		});
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(schemaClass, """{ "Facing": [0, 2, 0] }""", "data");
+
+		Assert.HasCount(1, issues, string.Join("; ", issues));
+		Assert.AreEqual("data.Facing[1]", issues[0].Path);
+		Assert.Contains("semantic type 'UnitComponent'", issues[0].Message);
+		Assert.HasCount(0, SchemaDataValidator.ValidateData(schemaClass, """{ "Facing": [0, -1, 1] }""", "data"));
+	}
+
 	[TestMethod]
 	public void AMembersRangeAndItsSemanticTypesRangeBothApply()
 	{
