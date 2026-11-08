@@ -761,7 +761,11 @@ public partial class Schema
 
 	private static bool IsVector(BaseType type) => type is Vector2 or Vector3 or Vector4;
 
-	private static bool FitsSingle(double value) => !double.IsFinite(value) || Math.Abs(value) <= float.MaxValue;
+	/// <summary>
+	/// Decided by narrowing, as a compiler and the data reader both do: the literal 3.4028235e38,
+	/// float.MaxValue's own spelling, is past (double)float.MaxValue but still names float.MaxValue.
+	/// </summary>
+	private static bool FitsSingle(double value) => !double.IsFinite(value) || float.IsFinite((float)value);
 
 	private static bool FitsInt32(double value) => value is >= int.MinValue and <= int.MaxValue;
 
