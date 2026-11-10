@@ -282,4 +282,47 @@ public class SchemaMigrationTests
 		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(current.GetClass("Bag".As<ClassName>())!, result.Json, "bag");
 		Assert.HasCount(0, issues, string.Join("; ", issues));
 	}
+
+	/// <summary>
+	/// A member retyped to a ranged semantic type is bounded by that type's range, and by the range
+	/// of everything it refines, as the validator bounds it, so migrated data still validates clean.
+	/// </summary>
+	[TestMethod]
+	[DataRow(false, "Percent")]
+	[DataRow(true, "Ratio")]
+	public void AValueOutsideTheRangeOfTheCurrentSemanticTypeIsReportedAndTakesTheDefault(bool refines, string bounding)
+	{
+		Schema previous = new();
+		SchemaClass player = previous.AddClass("Player".As<ClassName>())!;
+		player.AddMember("Score".As<MemberName>())!.SetType(new SchemaTypes.Int());
+
+		Schema current = Copy(previous);
+		SchemaSemanticType percent = current.AddSemanticType("Percent".As<SemanticTypeName>())!;
+		if (refines)
+		{
+			SchemaSemanticType ratio = current.AddSemanticType("Ratio".As<SemanticTypeName>())!;
+			ratio.SetUnderlyingType(new SchemaTypes.Int());
+			ratio.Range = new MemberRange { Minimum = 0, Maximum = 100 };
+			percent.SetUnderlyingType(new SchemaTypes.Semantic { SemanticTypeName = "Ratio".As<SemanticTypeName>() });
+			percent.Range = new MemberRange { Minimum = 0, Maximum = 1000 };
+		}
+		else
+		{
+			percent.SetUnderlyingType(new SchemaTypes.Int());
+			percent.Range = new MemberRange { Minimum = 0, Maximum = 100 };
+		}
+
+		SchemaClass currentPlayer = current.GetClass("Player".As<ClassName>())!;
+		currentPlayer.Members[0].SetType(new SchemaTypes.Semantic { SemanticTypeName = "Percent".As<SemanticTypeName>() });
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, current), player, """[{ "Score": 150 }, { "Score": 40 }]""", "p");
+		JsonArray players = JsonNode.Parse(result.Json)!.AsArray();
+
+		Assert.AreEqual(0, players[0]!["Score"]!.GetValue<int>(), result.Json);
+		Assert.AreEqual(40, players[1]!["Score"]!.GetValue<int>(), "A value inside every range is kept.");
+		SchemaValidationIssue reported = result.Issues.Single(issue => issue.Path == "p[0].Score");
+		Assert.Contains($"outside the range [0, 100] of semantic type '{bounding}'", reported.Message);
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(currentPlayer, result.Json, "p");
+		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
+	}
 }
