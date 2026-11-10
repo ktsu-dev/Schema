@@ -507,8 +507,11 @@ public static class SchemaDataValidator
 		// A number past what the storage holds reads back as an infinity rather than failing, so
 		// "1e39" in a Float passes every reader and arrives as one. Refuse it here, as the
 		// integral types already are and as schema validation already refuses such a default.
+		// Whether it fits is decided by narrowing, as the reader does: float.MaxValue's own
+		// shortest spelling, 3.4028235E+38, is a little past (double)float.MaxValue, yet it reads
+		// back as exactly float.MaxValue.
 		bool finite = value.TryGetDouble(out double number) && double.IsFinite(number);
-		if (represented is Float && !(finite && Math.Abs(number) <= float.MaxValue))
+		if (represented is Float && !(finite && float.IsFinite((float)number)))
 		{
 			issues.Add(Error(path, $"Expected a number within the range of Float (±{float.MaxValue.ToString("R", CultureInfo.InvariantCulture)}) for type '{type.DisplayName}' but found {value.GetRawText()}."));
 		}

@@ -3,10 +3,12 @@
 namespace ktsu.Schema.Tests;
 
 using System.Collections.ObjectModel;
+using System.Text.Json.Nodes;
 using ktsu.Schema.Models;
 using ktsu.Schema.Models.Metadata;
 using ktsu.Schema.Models.Names;
 using ktsu.Schema.Models.Types;
+using ktsu.Schema.Runtime;
 using ktsu.Semantics.Strings;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -317,6 +319,7 @@ public class SchemaDataValidatorTypeTests
 	[TestMethod]
 	[DataRow("1e39")]
 	[DataRow("-1e39")]
+	[DataRow("3.4028236E+38")]
 	public void AFloatPastFloatsRangeIsAnError(string value)
 	{
 		Collection<SchemaValidationIssue> issues = Validate(new Float(), value);
@@ -328,10 +331,30 @@ public class SchemaDataValidatorTypeTests
 
 	[TestMethod]
 	[DataRow("3.4028234663852886E+38")]
+	[DataRow("3.4028235E+38")]
+	[DataRow("-3.4028235E+38")]
 	[DataRow("1e38")]
 	[DataRow("0")]
 	public void AFloatAtOrInsideFloatsRangeIsAccepted(string value) =>
 		Assert.HasCount(0, Validate(new Float(), value));
+
+	/// <summary>
+	/// SetFloat writes float.MaxValue as its shortest round-trip form, 3.4028235E+38, which parsed
+	/// as a double is a little past (double)float.MaxValue. The validator has to accept what the
+	/// library's own writer produces.
+	/// </summary>
+	[TestMethod]
+	[DataRow(float.MaxValue)]
+	[DataRow(float.MinValue)]
+	public void AFloatWrittenBySetFloatAtFloatsLimitIsAccepted(float limit)
+	{
+		JsonObject record = [];
+		SchemaDataValues.SetFloat(record, "Value", limit);
+
+		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(Member(new Float()), record.ToJsonString(), "data");
+
+		Assert.HasCount(0, issues, $"{record.ToJsonString()}: {string.Join("; ", issues)}");
+	}
 
 	[TestMethod]
 	public void ADoublePastDoublesRangeIsAnError()

@@ -294,6 +294,21 @@ public class MemberMetadataTests
 		AssertMentions(Errors(schema), "outside the range of Float");
 	}
 
+	/// <summary>
+	/// 3.4028235e38 is how float.MaxValue is spelled, and it compiles to float.MaxValue in both
+	/// languages, though as a double it is a little past (double)float.MaxValue.
+	/// </summary>
+	[TestMethod]
+	[DataRow(3.4028235e38)]
+	[DataRow(-3.4028235e38)]
+	public void ADefaultAtFloatsLimitIsAccepted(double value)
+	{
+		SchemaMember member = MemberWith(new SchemaTypes.Float(), out Schema schema);
+		member.DefaultValue = new NumberDefault { Value = value };
+
+		Assert.AreEqual(0, Errors(schema).Count, string.Join("; ", Errors(schema)));
+	}
+
 	[TestMethod]
 	public void ADefaultOutsideFloatRangeOnAFloatVectorIsAnError()
 	{
