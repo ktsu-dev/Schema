@@ -360,13 +360,22 @@ public static class SchemaDataValidator
 		if (semantic.Declaration?.Representation() is BaseType representation and not Semantic)
 		{
 			ValidateValue(representation, value, path, issues);
+			ValidateSemanticRanges(semantic.Declaration, representation, value, path, issues);
+		}
+	}
 
-			// Every type on the chain bounds the value: a refinement narrows what it refines, so a
-			// value has to sit inside the range of each one, not only the nearest.
-			foreach (SchemaSemanticType declaration in (IEnumerable<SchemaSemanticType>)[semantic.Declaration, .. semantic.Declaration.Refines()])
-			{
-				ValidateRange(declaration.Range, $"semantic type '{declaration.Name}'", representation, value, path, issues);
-			}
+	/// <summary>
+	/// Refuses a value outside the range of a semantic type or of any type it refines.
+	/// </summary>
+	/// <remarks>
+	/// Every type on the chain bounds the value: a refinement narrows what it refines, so a value
+	/// has to sit inside the range of each one, not only the nearest.
+	/// </remarks>
+	private static void ValidateSemanticRanges(SchemaSemanticType semantic, BaseType representation, JsonElement value, string path, Collection<SchemaValidationIssue> issues)
+	{
+		foreach (SchemaSemanticType declaration in (IEnumerable<SchemaSemanticType>)[semantic, .. semantic.Refines()])
+		{
+			ValidateRange(declaration.Range, $"semantic type '{declaration.Name}'", representation, value, path, issues);
 		}
 	}
 
@@ -466,8 +475,19 @@ public static class SchemaDataValidator
 	/// <summary>
 	/// Expects one number, held to whole numbers when the type it is stored in is integral.
 	/// </summary>
+	/// <remarks>
+	/// A number stored as a semantic type is also held to that type's ranges, so a vector component
+	/// or a quantity's storage is bounded exactly as a lone value of the semantic type is.
+	/// </remarks>
 	private static void ExpectNumber(JsonElement value, BaseType storage, string path, BaseType type, Collection<SchemaValidationIssue> issues)
 	{
+		if (storage is Semantic { Declaration: SchemaSemanticType semantic } && semantic.Representation() is BaseType resolved and not Semantic)
+		{
+			ExpectNumber(value, resolved, path, type, issues);
+			ValidateSemanticRanges(semantic, resolved, value, path, issues);
+			return;
+		}
+
 		BaseType represented = storage is Semantic { Declaration: SchemaSemanticType declaration }
 			? declaration.Representation()
 			: storage;
