@@ -64,6 +64,99 @@ public sealed class CppTypeMappingTests
 	}
 
 	/// <summary>
+	/// A map keeps its keys, as the C# generator's <c>Dictionary</c> does: a stated key type is
+	/// the map's key, and a map keyed by a member of its elements is keyed by that member's type.
+	/// </summary>
+	[TestMethod]
+	public void AMapIsWrittenAsAStdMapKeyedLikeTheCSharpDictionary()
+	{
+		string stated = Generate(new Models.Types.Array
+		{
+			ElementType = new Float(),
+			Container = ContainerName.Map,
+			KeyType = new Models.Types.String(),
+		});
+
+		Assert.Contains("std::map<std::string, float> value{};", stated, StringComparison.Ordinal);
+		Assert.Contains("#include <map>", stated, StringComparison.Ordinal);
+		Assert.DoesNotContain("std::vector", stated, StringComparison.Ordinal);
+
+		Models.Schema schema = new();
+		SchemaClass item = schema.AddClass("Item".As<ClassName>())!;
+		item.AddMember("Id".As<MemberName>())!.SetType(new Long());
+		string keyed = Generate(schema, new Models.Types.Array
+		{
+			ElementType = new Models.Types.Object { ClassName = "Item".As<ClassName>() },
+			Container = ContainerName.Map,
+			Key = "Id".As<MemberName>(),
+		});
+
+		Assert.Contains("std::map<std::int64_t, Item> value{};", keyed, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// The header a map is written in compiles, so both type arguments are ones C++ can key and
+	/// hold, and every header they need is included.
+	/// </summary>
+	[TestMethod]
+	public void AGeneratedMapCompiles()
+	{
+		string? compiler = Find("g++") ?? Find("clang++");
+		if (compiler is null)
+		{
+			Assert.Inconclusive("no C++ compiler on PATH, so the generated header was not compiled.");
+		}
+
+		string header = Generate(new Models.Types.Array
+		{
+			ElementType = new Float(),
+			Container = ContainerName.Map,
+			KeyType = new Models.Types.String(),
+		});
+
+		string directory = Path.Join(Path.GetTempPath(), $"schema-cpp-map-{Guid.NewGuid():N}");
+		Directory.CreateDirectory(directory);
+		try
+		{
+			File.WriteAllText(Path.Join(directory, "Holder.gen.hpp"), header);
+			File.WriteAllText(Path.Join(directory, "use.cpp"), """
+				#include "Holder.gen.hpp"
+				int main()
+				{
+					generated::Holder holder{};
+					holder.value["a"] = 1.0f;
+					return holder.value.at("a") == 1.0f ? 0 : 1;
+				}
+				""");
+
+			using System.Diagnostics.Process process = new()
+			{
+				StartInfo = new System.Diagnostics.ProcessStartInfo(compiler!)
+				{
+					WorkingDirectory = directory,
+					RedirectStandardError = true,
+					RedirectStandardOutput = true,
+				},
+			};
+
+			foreach (string argument in (string[])["-std=c++20", "-Wall", "-Wextra", "-fsyntax-only", "use.cpp"])
+			{
+				process.StartInfo.ArgumentList.Add(argument);
+			}
+
+			process.Start();
+			string output = process.StandardError.ReadToEnd() + process.StandardOutput.ReadToEnd();
+			process.WaitForExit();
+
+			Assert.AreEqual(0, process.ExitCode, header + output);
+		}
+		finally
+		{
+			Directory.Delete(directory, recursive: true);
+		}
+	}
+
+	/// <summary>
 	/// A type the target supplies is spelled the way the target says, and brings the target's own
 	/// header.
 	/// </summary>
@@ -193,9 +286,17 @@ public sealed class CppTypeMappingTests
 	public void SnakeCaseFindsWordBoundariesRatherThanCapitals(string written, string spelled) =>
 		Assert.AreEqual(spelled, CppNaming.SnakeCase(written));
 
-	private static string Generate(BaseType type, CppGeneratorOptions? options = null, string member = "Value")
+	private static string? Find(string executable) =>
+		(Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+			.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+			.Select(directory => Path.Join(directory, executable))
+			.FirstOrDefault(File.Exists);
+
+	private static string Generate(BaseType type, CppGeneratorOptions? options = null, string member = "Value") =>
+		Generate(new Models.Schema(), type, options, member);
+
+	private static string Generate(Models.Schema schema, BaseType type, CppGeneratorOptions? options = null, string member = "Value")
 	{
-		Models.Schema schema = new();
 		SchemaCodeGenerator configuration = schema.AddCodeGenerator("Cpp".As<CodeGeneratorName>())!;
 		configuration.Language = CppCodeGenerator.LanguageId.As<LanguageName>();
 		configuration.Namespace = "generated".As<CodeNamespace>();

@@ -60,7 +60,7 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 		Semantic semantic => MapSemantic(semantic),
 		SchemaTypes.Quantity quantity => MapQuantity(quantity),
 
-		SchemaTypes.Array arrayType => Generic(Fixed("std::vector", "vector"), arrayType.ElementType),
+		SchemaTypes.Array arrayType => MapArray(arrayType),
 		Span span => Generic(Fixed("std::span", "span"), span.ElementType),
 		Optional optional => Generic(Fixed("std::optional", "optional"), optional.ElementType),
 		SchemaTypes.Handle handle => Parameterised(options.Handle, "Handle", nameof(CppGeneratorOptions.Handle), handle.ElementType),
@@ -229,6 +229,34 @@ internal sealed class CppTypeMapper(Models.Schema schema, CppGeneratorOptions op
 	{
 		Require($"<{header}>");
 		return new TypeReference(name);
+	}
+
+	/// <summary>
+	/// A map keeps its keys, keyed as the C# generator keys its <c>Dictionary</c>: by the key type
+	/// the map states, or by the type of the member of its elements it keys on. Any other
+	/// container is a sequence.
+	/// </summary>
+	/// <remarks>
+	/// <c>std::map</c> rather than <c>std::unordered_map</c>, because an enum key or a generated
+	/// class key has no <c>std::hash</c> specialisation, while ordering is something the generated
+	/// types already have.
+	/// </remarks>
+	private TypeReference MapArray(SchemaTypes.Array arrayType)
+	{
+		if (!string.Equals(arrayType.Container, SchemaTypes.Array.MapContainer, StringComparison.Ordinal))
+		{
+			return Generic(Fixed("std::vector", "vector"), arrayType.ElementType);
+		}
+
+		BaseType key = arrayType.KeyType
+			?? (arrayType.TryGetKeyMember(out SchemaMember? keyMember) && keyMember is not null
+				? keyMember.Type
+				: throw new CppGenerationException(
+					"A map needs a key: state its key type, or name the member of its elements it is keyed by."));
+
+		TypeReference map = Fixed("std::map", "map");
+		map.TypeArguments.Add(Map(key));
+		return Generic(map, arrayType.ElementType);
 	}
 
 	private TypeReference Generic(TypeReference outer, BaseType element)
