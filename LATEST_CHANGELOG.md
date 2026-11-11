@@ -2,6 +2,11 @@
 
 Changes since v1.38.0:
 
+- Give up a string that parses to a non-finite number when migrating it to a number [patch] (#367) (matt-edmondson)
+- Bound a value migrated into a semantic type by that type's ranges [patch] (#368) (matt-edmondson)
+- Write a map as std::map in C++, keyed as the C# Dictionary is (#369) (matt-edmondson)
+- Accept float.MaxValue as SetFloat writes it, 3.4028235E+38 [patch] (#372) (matt-edmondson)
+- Bound a vector component of a semantic type by that type's ranges [patch] (#373) (matt-edmondson)
 - Hold data to member and semantic-type ranges (#359) (matt-edmondson)
 - Refuse Float and Double data values that overflow to infinity (#360) (matt-edmondson)
 - Add a SessionStart hook for Claude Code cloud sessions (#325) (matt-edmondson)
