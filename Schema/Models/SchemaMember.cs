@@ -13,8 +13,10 @@ using ktsu.Semantics.Strings;
 /// <summary>
 /// Represents a member of a schema class.
 /// </summary>
-public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember, ISchemaMetadataCarrier
+public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember, ISchemaMetadataCarrier, IJsonOnDeserialized
 {
+	private string? legacyMemberDescription;
+
 	/// <summary>
 	/// Gets the type of the schema member.
 	/// </summary>
@@ -42,20 +44,40 @@ public class SchemaMember : SchemaClassChild<MemberName>, ISchemaMember, ISchema
 	/// property exists only so an older file's value is migrated onto that field instead of being
 	/// dropped: the getter returns null, and the serializer ignores nulls when writing, so the
 	/// legacy property is read but never written again.
+	/// <para>
+	/// The setter only holds the value; <see cref="OnDeserialized"/> moves it across once every
+	/// property has been read. Applying it here made the result depend on property order, and the
+	/// old writer put <c>memberDescription</c> before the empty <c>"description": ""</c> it always
+	/// wrote, which then overwrote the migrated text.
+	/// </para>
 	/// </remarks>
 	[JsonInclude]
 	[JsonPropertyName("memberDescription")]
 	internal string? LegacyMemberDescription
 	{
 		get => null;
-		set
-		{
-			if (!string.IsNullOrEmpty(value) && string.IsNullOrEmpty(Description))
-			{
-				Description = value.As<SchemaChildDescription>();
-			}
-		}
+		set => legacyMemberDescription = value;
 	}
+
+	/// <summary>
+	/// Moves a legacy "memberDescription" onto <see cref="SchemaChild{TName}.Description"/> when
+	/// the file gave the member no description of its own.
+	/// </summary>
+	/// <remarks>
+	/// Called by the serializer once every property of the member has been read, through
+	/// <see cref="IJsonOnDeserialized"/>.
+	/// </remarks>
+	protected void OnDeserialized()
+	{
+		if (!string.IsNullOrEmpty(legacyMemberDescription) && string.IsNullOrEmpty(Description))
+		{
+			Description = legacyMemberDescription.As<SchemaChildDescription>();
+		}
+
+		legacyMemberDescription = null;
+	}
+
+	void IJsonOnDeserialized.OnDeserialized() => OnDeserialized();
 
 	/// <summary>
 	/// Sets the type of the schema member and associates it with this member.

@@ -220,6 +220,42 @@ public class SchemaSerializerTests
 		Assert.AreEqual("Their display name", member.Description.ToString());
 	}
 
+	/// <summary>
+	/// The pre-versioning writer emitted a member's own properties before the inherited ones, so a
+	/// real format-0 file has "memberDescription" ahead of the empty "description" it always wrote.
+	/// The migrated text must survive that order, and a save after it.
+	/// </summary>
+	[TestMethod]
+	public void TestLegacyMemberDescriptionSurvivesTheOldWritersPropertyOrder()
+	{
+		const string json = """
+		{ "classes": [ { "members": [ { "type": { "TypeName": "String" }, "memberDescription": "Their display name", "name": "Name", "description": "" } ], "name": "User", "description": "" } ] }
+		""";
+
+		SchemaLoadResult loaded = SchemaSerializer.Load(json);
+		Assert.IsTrue(loaded.IsSuccess, loaded.ToString());
+
+		SchemaMember member = loaded.Schema!.GetClass("User".As<ClassName>())!.GetMember("Name".As<MemberName>())!;
+		Assert.AreEqual("Their display name", member.Description.ToString());
+
+		Schema reloaded = SchemaSerializer.Load(SchemaSerializer.Serialize(loaded.Schema)).Schema!;
+		Assert.AreEqual("Their display name", reloaded.GetClass("User".As<ClassName>())!.GetMember("Name".As<MemberName>())!.Description.ToString());
+	}
+
+	/// <summary>
+	/// A member that has a description of its own keeps it over a legacy one, in either order.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""{ "name": "Name", "description": "Current", "memberDescription": "Legacy", "type": { "TypeName": "String" } }""")]
+	[DataRow("""{ "memberDescription": "Legacy", "type": { "TypeName": "String" }, "name": "Name", "description": "Current" }""")]
+	public void TestAMembersOwnDescriptionWinsOverALegacyOne(string memberJson)
+	{
+		string json = $$"""{ "classes": [ { "name": "User", "members": [ {{memberJson}} ] } ] }""";
+
+		Assert.IsTrue(SchemaSerializer.TryDeserialize(json, out Schema? schema));
+		Assert.AreEqual("Current", schema!.GetClass("User".As<ClassName>())!.GetMember("Name".As<MemberName>())!.Description.ToString());
+	}
+
 	[TestMethod]
 	public void TestMemberDescriptionIsNoLongerWritten()
 	{
