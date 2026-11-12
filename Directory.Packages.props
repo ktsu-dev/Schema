@@ -6,17 +6,17 @@
   <ItemGroup>
     <PackageVersion Include="Hexa.NET.ImGui" Version="2.2.9" />
     <PackageVersion Include="ktsu.Coder" Version="3.19.2" />
-    <PackageVersion Include="ktsu.CodeBlocker" Version="2.4.0" />
-    <PackageVersion Include="ktsu.DeepClone" Version="2.5.0" />
+    <PackageVersion Include="ktsu.CodeBlocker" Version="2.4.2" />
+    <PackageVersion Include="ktsu.DeepClone" Version="2.7.0" />
     <PackageVersion Include="ktsu.Extensions" Version="1.9.3" />
     <PackageVersion Include="ktsu.ForceDirectedLayout" Version="3.80.0" />
-    <PackageVersion Include="ktsu.FuzzySearch" Version="1.4.2" />
+    <PackageVersion Include="ktsu.FuzzySearch" Version="1.4.3" />
     <PackageVersion Include="ktsu.ImGui.Styler" Version="3.80.0" />
     <PackageVersion Include="ktsu.ThemeProvider" Version="3.2.1" />
     <PackageVersion Include="ktsu.IntervalAction" Version="1.7.0" />
     <PackageVersion Include="ktsu.Keybinding" Version="2.1.7" />
     <PackageVersion Include="ktsu.UndoRedo" Version="3.4.0" />
-    <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.77" />
+    <PackageVersion Include="ktsu.RoundTripStringJsonConverter" Version="1.0.78" />
     <PackageVersion Include="ktsu.Semantics.Quantities" Version="6.0.0" />
     <PackageVersion Include="ktsu.Semantics.Strings" Version="6.0.0" />
     <PackageVersion Include="ktsu.Semantics.Paths" Version="6.0.0" />
@@ -27,7 +27,7 @@
     <PackageVersion Include="ktsu.ImGui.Widgets" Version="3.80.0" />
     <PackageVersion Include="ktsu.ImGui.NodeEditor" Version="3.80.0" />
     <PackageVersion Include="ktsu.NodeGraph" Version="1.0.0" />
-    <PackageVersion Include="ktsu.AppDataStorage" Version="1.19.0" />
+    <PackageVersion Include="ktsu.AppDataStorage" Version="1.19.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="11.0.100" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="11.0.100" />
