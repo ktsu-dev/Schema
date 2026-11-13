@@ -110,6 +110,43 @@ public sealed class CppCodeGenerator(CppGeneratorOptions options) : ISchemaCodeG
 	public IReadOnlyCollection<string> ReservedNames(SchemaCodeGenerator configuration) =>
 		Options.Reflection ? [CppReflection.Header, CppReflection.TablesHeader] : [];
 
+	/// <inheritdoc />
+	/// <remarks>
+	/// C++ writes a namespace as identifiers separated by <c>::</c>, and has no way to escape a
+	/// keyword, so none of them may be one.
+	/// </remarks>
+	public string? NamespaceProblem(string codeNamespace)
+	{
+		Ensure.NotNull(codeNamespace);
+
+		foreach (string segment in codeNamespace.Split("::"))
+		{
+			if (!IsIdentifier(segment))
+			{
+				string separator = segment.Contains('.', StringComparison.Ordinal)
+					? " '.' is C#'s separator; C++ uses '::'."
+					: string.Empty;
+				return $"'{segment}' is not an identifier. A C++ namespace is identifiers separated by '::', each of letters, digits and underscores starting with a letter or an underscore.{separator}";
+			}
+
+			if (CppKeywords.Contains(segment))
+			{
+				return $"'{segment}' is a C++ keyword, and C++ has no way to escape one. Choose another name.";
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>
+	/// Whether a namespace segment is an ASCII identifier, the same rule validation holds every
+	/// schema name to.
+	/// </summary>
+	private static bool IsIdentifier(string segment) =>
+		segment.Length > 0
+		&& (char.IsAsciiLetter(segment[0]) || segment[0] == '_')
+		&& segment.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
+
 	private void Emit(Dictionary<string, string> files, SourceFile file) =>
 		files[$"{file.Name}{Options.HeaderExtension}"] = new CppGenerator().Generate(file);
 }

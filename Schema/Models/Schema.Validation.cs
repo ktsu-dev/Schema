@@ -1650,6 +1650,7 @@ public partial class Schema
 				});
 			}
 			SchemaEnvironmentValidator.ReportReservedNames(issues, codeGenerator, GeneratedFileNames());
+			SchemaEnvironmentValidator.ReportUnwritableNamespace(issues, codeGenerator);
 		}
 	}
 }

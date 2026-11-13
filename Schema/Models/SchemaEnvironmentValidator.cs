@@ -79,4 +79,37 @@ internal static class SchemaEnvironmentValidator
 			});
 		}
 	}
+
+	/// <summary>
+	/// Reports a configured namespace the generator's language cannot write.
+	/// </summary>
+	/// <remarks>
+	/// The namespace goes into every generated file as it is, so one in the other language's
+	/// spelling - <c>holo::components</c> for C#, <c>Game.Core</c> for C++ - would otherwise pass
+	/// validation and generation and only fail when the output is built. Only a registered
+	/// generator knows its language's rules, so a language with none registered is not checked
+	/// here.
+	/// </remarks>
+	/// <param name="issues">Where to add the issues.</param>
+	/// <param name="codeGenerator">The configured generator.</param>
+	internal static void ReportUnwritableNamespace(Collection<SchemaValidationIssue> issues, SchemaCodeGenerator codeGenerator)
+	{
+		if (string.IsNullOrEmpty(codeGenerator.Namespace)
+			|| !SchemaGenerator.TryGetGenerator(codeGenerator.Language, out ISchemaCodeGenerator? generator))
+		{
+			return;
+		}
+
+		string? problem = generator.NamespaceProblem(codeGenerator.Namespace);
+		if (problem is not null)
+		{
+			issues.Add(new()
+			{
+				Severity = SchemaValidationSeverity.Error,
+				Path = codeGenerator.Name,
+				Message = $"Code generator namespace '{codeGenerator.Namespace}' cannot be written in {codeGenerator.Language}: {problem}",
+				Element = codeGenerator,
+			});
+		}
+	}
 }

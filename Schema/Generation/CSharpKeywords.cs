@@ -50,4 +50,11 @@ internal static class CSharpKeywords
 	/// is the same outcome as not escaping at all with more steps.
 	/// </remarks>
 	public static string Identifier(string name) => Reserved.Contains(name) ? $"@{name}" : name;
+
+	/// <summary>
+	/// Reports whether a name is a reserved C# keyword, so it has to be written with <c>@</c>.
+	/// </summary>
+	/// <param name="name">The name as it would be written.</param>
+	/// <returns><see langword="true"/> when C# has taken the name.</returns>
+	public static bool Contains(string name) => Reserved.Contains(name);
 }

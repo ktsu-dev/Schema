@@ -50,6 +50,36 @@ public sealed class CSharpCodeGenerator : ISchemaCodeGenerator
 	public string Language => LanguageId;
 
 	/// <inheritdoc />
+	/// <remarks>
+	/// C# writes a namespace as identifiers separated by <c>.</c>. A keyword can be one of them
+	/// only escaped, as <c>@class</c>, because the namespace is written exactly as configured.
+	/// </remarks>
+	public string? NamespaceProblem(string codeNamespace)
+	{
+		Ensure.NotNull(codeNamespace);
+
+		foreach (string segment in codeNamespace.Split('.'))
+		{
+			string bare = segment.StartsWith('@') ? segment[1..] : segment;
+
+			if (!Models.Schema.IsIdentifier(bare))
+			{
+				string separator = codeNamespace.Contains("::", StringComparison.Ordinal)
+					? " '::' is C++'s separator; C# uses '.'."
+					: string.Empty;
+				return $"'{segment}' is not an identifier. A C# namespace is identifiers separated by '.', each of letters, digits and underscores starting with a letter or an underscore.{separator}";
+			}
+
+			if (bare.Length == segment.Length && CSharpKeywords.Contains(bare))
+			{
+				return $"'{segment}' is a C# keyword. Write it as '@{segment}' or choose another name.";
+			}
+		}
+
+		return null;
+	}
+
+	/// <inheritdoc />
 	public IReadOnlyDictionary<string, string> Generate(Models.Schema schema, SchemaCodeGenerator configuration)
 	{
 		Ensure.NotNull(schema);
