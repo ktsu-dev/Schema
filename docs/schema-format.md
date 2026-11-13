@@ -455,7 +455,7 @@ not be empty. The enum's own name is unique among classes, enums, interfaces and
 | --- | --- | --- |
 | `outputPath` | string | A relative directory to write generated files into. See [Path resolution](#path-resolution). |
 | `language` | string | Which generator handles this configuration. Matched case-insensitively; `csharp` is the only one built in. |
-| `namespace` | string | The namespace generated code is emitted into. Optional; omitting it emits into the global namespace. |
+| `namespace` | string | The namespace generated code is emitted into, spelled the way the generator's language spells one: `Game.Core` for `csharp`, `game::core` for `cpp`. Validation reports one the language cannot write. Optional; omitting it emits into the global namespace. |
 | `dataSource` | string | A [data source](#data-source) to generate an editor for. Optional, and omitted from the file when unset. Naming a data source the schema does not declare is a validation error. |
 
 See [Code generation](#code-generation) for what a generator does with these.

@@ -682,8 +682,8 @@ internal sealed class CppFileBuilder(Models.Schema schema, SchemaCodeGenerator c
 		}
 
 		// A generator with no namespace configured emits into the global one, which is legal and
-		// rarely wanted - Schema.Validate reports it as a warning rather than refusing it, so the
-		// declarations go straight into the file.
+		// rarely wanted, but not wrong enough for validation to refuse, so the declarations go
+		// straight into the file.
 		if (string.IsNullOrEmpty(configuration.Namespace))
 		{
 			foreach (AstNode member in members)

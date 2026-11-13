@@ -250,7 +250,9 @@ public sealed class CodeGeneratorPanelTests
 	public void GeneratingWritesTheOutputAndSaysSo()
 	{
 		schema.AddClass("User".As<ClassName>())!.AddMember("Id".As<MemberName>())!.SetType(new SchemaTypes.Int());
-		generator.Language = SchemaGenerator.SupportedLanguages.First().As<LanguageName>();
+		// C# by name, not the first registered language: the namespace is spelled the C# way, and
+		// once the editor has registered C++ the registry's order can put cpp first.
+		generator.Language = CSharpCodeGenerator.LanguageId.As<LanguageName>();
 		generator.Namespace = "Contoso.Model".As<CodeNamespace>();
 		generator.OutputPath = "generated".As<RelativeDirectoryPath>();
 		SaveSchemaTo("generating.schema.json");

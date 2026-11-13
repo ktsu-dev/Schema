@@ -44,4 +44,17 @@ public interface ISchemaCodeGenerator
 	/// <param name="configuration">The code generator element holding the settings to generate under.</param>
 	/// <returns>The reserved names, without any extension; empty when the generator writes nothing of its own.</returns>
 	public IReadOnlyCollection<string> ReservedNames(SchemaCodeGenerator configuration) => [];
+
+	/// <summary>
+	/// Gets what stops a namespace being written in this generator's language, if anything.
+	/// </summary>
+	/// <remarks>
+	/// The configured namespace is written into every generated file as it is, and each language
+	/// spells one differently: <c>Game.Core</c> in C#, <c>game::core</c> in C++. Validation reports
+	/// the answer as an error, so a namespace the output could not compile with is caught before
+	/// generation rather than when the generated code is built.
+	/// </remarks>
+	/// <param name="codeNamespace">The configured namespace, which is not empty.</param>
+	/// <returns>Why the namespace cannot be written, or <see langword="null"/> when it can.</returns>
+	public string? NamespaceProblem(string codeNamespace) => null;
 }
