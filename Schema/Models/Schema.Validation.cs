@@ -825,10 +825,27 @@ public partial class Schema
 
 			foreach (Names.EnumValueName value in schemaEnum.Values)
 			{
-				ValidateNameNotEmpty(issues, value, "Enum value", $"{enumPath}.{PathSegment(value)}", schemaEnum);
+				string valuePath = $"{enumPath}.{PathSegment(value)}";
+				ValidateNameNotEmpty(issues, value, "Enum value", valuePath, schemaEnum);
+
+				if (string.Equals(value, ReservedEnumValueName, StringComparison.Ordinal))
+				{
+					Report(issues, valuePath, schemaEnum,
+						$"Enum value name '{value}' is reserved in C#, which names the field holding an enum's underlying value '{ReservedEnumValueName}', and escaping it as '@{ReservedEnumValueName}' does not help (CS0076). Choose another name.");
+				}
 			}
 		}
 	}
+
+	/// <summary>
+	/// The one name C# refuses for an enumerator whatever it is written as.
+	/// </summary>
+	/// <remarks>
+	/// The CLR stores an enum's value in an instance field called <c>value__</c>, so C# reserves the
+	/// name for enumerators and an <c>@</c> escape does not make it available. It is matched exactly:
+	/// C# identifiers are case-sensitive, so <c>Value__</c> is an ordinary name.
+	/// </remarks>
+	private const string ReservedEnumValueName = "value__";
 
 	/// <summary>
 	/// Checks the semantic types: what they shim, that the chain of refinement terminates, and
