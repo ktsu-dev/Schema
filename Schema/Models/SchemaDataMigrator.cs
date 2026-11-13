@@ -126,13 +126,11 @@ public static class SchemaDataMigrator
 			JsonObject target = [];
 			List<KeyValuePair<string, JsonNode?>> unmodelled = [];
 			HashSet<string> filled = new(StringComparer.Ordinal);
+			Dictionary<string, SchemaMember> matches = MatchMembers(previousClass, source);
 
 			foreach (KeyValuePair<string, JsonNode?> property in source.ToList())
 			{
-				SchemaMember? previousMember = previousClass.Members.FirstOrDefault(member =>
-					string.Equals(member.Name, property.Key, StringComparison.OrdinalIgnoreCase));
-
-				if (previousMember is null)
+				if (!matches.TryGetValue(property.Key, out SchemaMember? previousMember))
 				{
 					unmodelled.Add(property);
 					continue;
@@ -171,6 +169,43 @@ public static class SchemaDataMigrator
 			}
 
 			return target;
+		}
+
+		/// <summary>
+		/// Pairs each property of a record with the member of <paramref name="previousClass"/> it holds.
+		/// </summary>
+		/// <remarks>
+		/// An exact name wins before a case-insensitive one, as <c>SchemaDataValidator</c> reads
+		/// it, so members whose names differ only in case each keep their own value. Each member is
+		/// claimed by one property at most: a second property that matches only by case is left
+		/// unmodelled rather than overwriting the first.
+		/// </remarks>
+		private static Dictionary<string, SchemaMember> MatchMembers(SchemaClass previousClass, JsonObject source)
+		{
+			Dictionary<string, SchemaMember> matches = new(StringComparer.Ordinal);
+			HashSet<SchemaMember> claimed = [];
+
+			foreach (string key in source.Select(property => property.Key))
+			{
+				SchemaMember? exact = previousClass.Members.FirstOrDefault(member =>
+					string.Equals(member.Name, key, StringComparison.Ordinal));
+				if (exact is not null && claimed.Add(exact))
+				{
+					matches[key] = exact;
+				}
+			}
+
+			foreach (string key in source.Select(property => property.Key).Where(key => !matches.ContainsKey(key)))
+			{
+				SchemaMember? loose = previousClass.Members.FirstOrDefault(member =>
+					!claimed.Contains(member) && string.Equals(member.Name, key, StringComparison.OrdinalIgnoreCase));
+				if (loose is not null && claimed.Add(loose))
+				{
+					matches[key] = loose;
+				}
+			}
+
+			return matches;
 		}
 
 		private JsonNode? MigrateValue(BaseType previousType, BaseType currentType, SchemaMember? currentMember, JsonNode? value, string path)

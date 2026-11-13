@@ -355,4 +355,68 @@ public class SchemaMigrationTests
 		Collection<SchemaValidationIssue> issues = SchemaDataValidator.ValidateData(currentPlayer, result.Json, "p");
 		Assert.IsFalse(issues.Any(issue => issue.Severity == SchemaValidationSeverity.Error), string.Join("; ", issues));
 	}
+	private static Schema CreatePoint()
+	{
+		Schema schema = new();
+		SchemaClass point = schema.AddClass("Point".As<ClassName>())!;
+		point.AddMember("x".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		point.AddMember("X".As<MemberName>())!.SetType(new SchemaTypes.Int());
+		return schema;
+	}
+
+	/// <summary>
+	/// Members whose names differ only in case each keep their own value: an exact name is matched
+	/// before a case-insensitive one, whichever order the properties are written in.
+	/// </summary>
+	[TestMethod]
+	[DataRow("""[{ "x": 1, "X": 2 }]""")]
+	[DataRow("""[{ "X": 2, "x": 1 }]""")]
+	public void MembersDifferingOnlyInCaseKeepTheirOwnValues(string data)
+	{
+		Schema previous = CreatePoint();
+		Schema current = Copy(previous);
+		SchemaClass point = previous.GetClass("Point".As<ClassName>())!;
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, current), point, data, "p");
+		JsonObject migrated = JsonNode.Parse(result.Json)!.AsArray()[0]!.AsObject();
+
+		Assert.AreEqual(1, migrated["x"]!.GetValue<int>(), result.Json);
+		Assert.AreEqual(2, migrated["X"]!.GetValue<int>(), result.Json);
+		Assert.AreEqual(2, migrated.Count, result.Json);
+		Assert.IsEmpty(result.Issues, string.Join("; ", result.Issues));
+	}
+
+	/// <summary>
+	/// Data written in a different case from its one member still migrates onto it.
+	/// </summary>
+	[TestMethod]
+	public void APropertyInADifferentCaseFromItsMemberStillMigrates()
+	{
+		Schema previous = CreatePrevious();
+		SchemaClass player = previous.GetClass("Player".As<ClassName>())!;
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, Copy(previous)), player, """[{ "name": "Ada", "Hp": 10, "Class": "Wizard", "Level": "3", "Home": { "X": 1 } }]""", "p");
+		JsonObject migrated = JsonNode.Parse(result.Json)!.AsArray()[0]!.AsObject();
+
+		Assert.AreEqual("Ada", migrated["name"]!.GetValue<string>(), result.Json);
+		Assert.IsFalse(migrated.ContainsKey("Name"), result.Json);
+		Assert.IsEmpty(result.Issues, string.Join("; ", result.Issues));
+	}
+
+	/// <summary>
+	/// Two properties that both match one member never both land on it: the exact spelling keeps
+	/// its value and the other is reported rather than overwriting it.
+	/// </summary>
+	[TestMethod]
+	public void ASecondPropertyMatchingAClaimedMemberOnlyByCaseIsReported()
+	{
+		Schema previous = CreatePrevious();
+		SchemaClass player = previous.GetClass("Player".As<ClassName>())!;
+
+		SchemaMigrationResult result = SchemaDataMigrator.Migrate(SchemaDiff.Compare(previous, Copy(previous)), player, """[{ "name": "Bo", "Name": "Ada", "Hp": 10, "Class": "Wizard", "Level": "3", "Home": { "X": 1 } }]""", "p");
+		JsonObject migrated = JsonNode.Parse(result.Json)!.AsArray()[0]!.AsObject();
+
+		Assert.AreEqual("Ada", migrated["Name"]!.GetValue<string>(), result.Json);
+		Assert.AreEqual("p[0].name", result.Issues.Single().Path, string.Join("; ", result.Issues));
+	}
 }
