@@ -80,7 +80,56 @@ public class DocCommentLineTests
 		}
 	}
 
-	private static IReadOnlyDictionary<string, string> Generate()
+	/// <summary>
+	/// A description whose line ends in a backslash leaves the declaration after it in place.
+	/// </summary>
+	/// <remarks>
+	/// A backslash at the end of a line splices the next line onto it before comments are
+	/// removed, so a <c>//</c> comment ending in one swallows the declaration it documents. On a
+	/// member the header still compiles, with only a <c>-Wcomment</c> warning and the member gone,
+	/// so the check is that the struct still has it. On the struct the swallowed line is
+	/// <c>struct Body</c>, and the header failing to compile is what gives it away. Trailing spaces
+	/// after the backslash are covered too: GCC and Clang splice across them.
+	/// </remarks>
+	[TestMethod]
+	[DataRow("Install dir, e.g. C:\\Games\\")]
+	[DataRow("Install dir, e.g. C:\\Games\\   ")]
+	[DataRow("first line ends here\\\nsecond line too\\")]
+	public void ADescriptionEndingInABackslashKeepsTheDeclarationAfterIt(string description)
+	{
+		foreach (string? classDescription in (string?[])["A body.", null])
+		{
+			IReadOnlyDictionary<string, string> files = Generate(description, classDescription);
+			string directory = Path.Join(Path.GetTempPath(), $"schema-doc-{Guid.NewGuid():N}");
+
+			Directory.CreateDirectory(directory);
+
+			try
+			{
+				foreach ((string name, string text) in files)
+				{
+					File.WriteAllText(Path.Join(directory, name), text);
+				}
+
+				string includes = string.Concat(files.Keys.Order(StringComparer.Ordinal).Select(name => $"#include \"{name}\"\n"));
+				File.WriteAllText(
+					Path.Join(directory, "all.cpp"),
+					$"{includes}\nstatic_assert(requires(sample::Body body) {{ body.speed; }}, \"Body lost its speed member\");\nint main() {{ return 0; }}\n");
+
+				(int exitCode, string output) = Compile(directory, "all.cpp");
+
+				string where = classDescription is null ? "on the struct and its member" : "on the member";
+				Assert.AreEqual(0, exitCode, $"with the description {where}, the header should compile and keep Body::speed:\n{output}");
+				Assert.DoesNotContain("-Wcomment", output, $"with the description {where}, no comment line should end in a backslash:\n{output}");
+			}
+			finally
+			{
+				Directory.Delete(directory, recursive: true);
+			}
+		}
+	}
+
+	private static IReadOnlyDictionary<string, string> Generate(string description = Description, string? classDescription = null)
 	{
 		Schema schema = new();
 
@@ -89,11 +138,11 @@ public class DocCommentLineTests
 		configuration.Namespace = "sample".As<CodeNamespace>();
 
 		SchemaClass body = schema.AddClass("Body".As<ClassName>())!;
-		body.Description = Description.As<SchemaChildDescription>();
+		body.Description = (classDescription ?? description).As<SchemaChildDescription>();
 
 		SchemaMember speed = body.AddMember("Speed".As<MemberName>())!;
 		speed.SetType(new Float());
-		speed.Description = Description.As<SchemaChildDescription>();
+		speed.Description = description.As<SchemaChildDescription>();
 
 		return new CppCodeGenerator().Generate(schema, configuration);
 	}
