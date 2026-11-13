@@ -421,7 +421,9 @@ Some things are refused in a signature, and the refusals are what keep the conve
 ```
 
 `values` is an array of strings, in declaration order. Values are unique within the enum and may
-not be empty. The enum's own name is unique among classes, enums, interfaces and semantic types.
+not be empty, and none may be `value__`, which C# reserves for an enum's underlying value and will
+not accept even escaped. The enum's own name is unique among classes, enums, interfaces and
+semantic types.
 
 ## Data source
 
