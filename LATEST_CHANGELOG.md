@@ -1,7 +1,6 @@
-## v1.40.1-pre.1 (prerelease)
+## v1.40.1-pre.2 (prerelease)
 
-Changes since v1.40.0:
+Changes since v1.40.1-pre.1:
 
-- Bump Microsoft.CodeAnalysis.CSharp from 5.9.0 to 5.12.0 (dependabot[bot])
-- Bump the ktsu group with 20 updates (dependabot[bot])
+- Bump TestableIO.System.IO.Abstractions.TestingHelpers from 23.0.0 to 23.0.1 (dependabot[bot])
 
